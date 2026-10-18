@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // newTestEndpoint 启动只认 Token "good"（只读）的 MCP 端点，管理接口只提供卡密列表。
@@ -87,8 +88,15 @@ func TestServeStdioForwardsLines(t *testing.T) {
 	if err := client.ServeStdio(context.Background(), strings.NewReader(input), &out); err != nil {
 		t.Fatal(err)
 	}
-	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(lines) != 2 || !strings.Contains(lines[0], `"protocolVersion":"2025-03-26"`) || !strings.Contains(lines[1], `"id":"b"`) {
+	replies := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		var response rpcResponse
+		if err := json.Unmarshal([]byte(line), &response); err != nil {
+			t.Fatalf("每行应是一条完整响应: %q", line)
+		}
+		replies[string(response.ID)] = line
+	}
+	if len(replies) != 2 || !strings.Contains(replies["1"], `"protocolVersion":"2025-03-26"`) || replies[`"b"`] == "" {
 		t.Fatalf("stdio 输出=%q", out.String())
 	}
 
@@ -101,5 +109,45 @@ func TestServeStdioForwardsLines(t *testing.T) {
 	var response rpcResponse
 	if err := json.Unmarshal(out.Bytes(), &response); err != nil || string(response.ID) != "9" || response.Error == nil || response.Error.Code != codeUpstream {
 		t.Fatalf("转发失败应按请求 ID 回写错误且通知不回写: %q err=%v", out.String(), err)
+	}
+}
+
+// pingWatcher 在写出 ID 为 2 的响应时关闭 seen，用来确认慢请求未完成前后续请求已得到响应。
+type pingWatcher struct {
+	bytes.Buffer
+	seen chan struct{}
+}
+
+// Write 记录输出并检测 ping 响应。
+func (w *pingWatcher) Write(data []byte) (int, error) {
+	if bytes.Contains(data, []byte(`"id":2`)) {
+		close(w.seen)
+	}
+	return w.Buffer.Write(data)
+}
+
+// TestServeStdioDoesNotBlockOnSlowTool 验证慢工具调用期间，后续请求仍能先得到响应。
+func TestServeStdioDoesNotBlockOnSlowTool(t *testing.T) {
+	out := &pingWatcher{seen: make(chan struct{})}
+	server := httptest.NewServer(&Handler{
+		Authenticate: func(ctx context.Context, _ string) (context.Context, Principal, error) { return ctx, Principal{}, nil },
+		API: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			select {
+			case <-out.seen:
+				writeJSON(w, http.StatusOK, []cardRow{})
+			case <-time.After(5 * time.Second):
+				http.Error(w, "ping 被慢请求阻塞", http.StatusGatewayTimeout)
+			}
+		}),
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	defer server.Close()
+	input := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_cards"}}` + "\n" + `{"jsonrpc":"2.0","id":2,"method":"ping"}` + "\n"
+	client := &Client{URL: server.URL, Token: "any", HTTP: server.Client()}
+	if err := client.ServeStdio(context.Background(), strings.NewReader(input), out); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "阻塞") || strings.Count(out.String(), "\n") != 2 {
+		t.Fatalf("输出=%q", out.String())
 	}
 }

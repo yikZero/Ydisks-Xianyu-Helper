@@ -97,6 +97,15 @@ func (c *Client) call(ctx context.Context, method string, params, out any) error
 	return nil
 }
 
+// Instructions 返回服务端 initialize 时给出的使用说明（约定、本地图片目录等）。
+func (c *Client) Instructions(ctx context.Context) (string, error) {
+	var result struct {
+		Instructions string `json:"instructions"`
+	}
+	err := c.call(ctx, "initialize", map[string]any{"protocolVersion": latestProtocolVersion}, &result)
+	return result.Instructions, err
+}
+
 // ListTools 返回当前 Token 可用的工具。
 func (c *Client) ListTools(ctx context.Context) ([]ToolInfo, error) {
 	var result struct {

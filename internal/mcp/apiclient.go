@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 
@@ -19,6 +22,16 @@ type apiClient struct {
 	handler http.Handler
 	// ctx 携带可信会话，并沿用 MCP 请求的取消信号。
 	ctx context.Context
+	// imageDir 是 publish_item 可读取本地图片的绝对目录；为空表示只接受图片 URL。
+	imageDir string
+}
+
+// formFile 是 multipart 请求中的一个文件字段。
+type formFile struct {
+	field       string
+	filename    string
+	contentType string
+	data        []byte
 }
 
 // responseRecorder 是收集内部调用响应的最小 http.ResponseWriter。
@@ -53,27 +66,59 @@ func (c apiClient) do(method, path string, query url.Values, body, out any) erro
 	if len(query) > 0 {
 		target += "?" + query.Encode()
 	}
-	var reader io.Reader = http.NoBody
-	if body != nil {
-		encoded, err := json.Marshal(body)
+	if body == nil {
+		return c.send(method, target, "", http.NoBody, out)
+	}
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	return c.send(method, target, "application/json", bytes.NewReader(encoded), out)
+}
+
+// postForm 以 multipart/form-data 调用 POST path，用于需要上传图片的接口。
+func (c apiClient) postForm(path string, fields map[string]string, files []formFile, out any) error {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for name, value := range fields {
+		if err := writer.WriteField(name, value); err != nil {
+			return err
+		}
+	}
+	for _, file := range files {
+		header := textproto.MIMEHeader{}
+		header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": file.field, "filename": file.filename}))
+		header.Set("Content-Type", file.contentType)
+		part, err := writer.CreatePart(header)
 		if err != nil {
 			return err
 		}
-		reader = bytes.NewReader(encoded)
+		if _, err := part.Write(file.data); err != nil {
+			return err
+		}
 	}
-	request, err := http.NewRequestWithContext(c.ctx, method, "http://mcp.internal"+target, reader)
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	return c.send(http.MethodPost, path, writer.FormDataContentType(), &body, out)
+}
+
+// send 在进程内执行请求并处理响应状态与解码。
+func (c apiClient) send(method, target, contentType string, body io.Reader, out any) error {
+	request, err := http.NewRequestWithContext(c.ctx, method, "http://mcp.internal"+target, body)
 	if err != nil {
 		return err
 	}
 	request.Header.Set("Accept", "application/json")
-	if body != nil {
-		request.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		request.Header.Set("Content-Type", contentType)
 	}
 	recorder := &responseRecorder{header: http.Header{}}
 	c.handler.ServeHTTP(recorder, request)
 	if recorder.status == 0 {
 		recorder.status = http.StatusOK
 	}
+	path, _, _ := strings.Cut(target, "?")
 	if recorder.status < 200 || recorder.status >= 300 {
 		return fmt.Errorf("%s %s 失败（HTTP %d）：%s", method, path, recorder.status, apiErrorMessage(recorder.body.Bytes()))
 	}
@@ -90,7 +135,12 @@ func (c apiClient) do(method, path string, query url.Values, body, out any) erro
 func apiErrorMessage(body []byte) string {
 	var envelope httpapi.ErrorResponse
 	if json.Unmarshal(body, &envelope) == nil && strings.TrimSpace(envelope.Message) != "" {
-		return envelope.Message
+		if len(envelope.Details) == 0 {
+			return envelope.Message
+		}
+		// Details 携带恢复所需的事实（例如已发布商品的 ID），一并展示，避免模型重复操作。
+		details, _ := json.Marshal(envelope.Details)
+		return envelope.Message + " " + string(details)
 	}
 	return preview(string(body), 200)
 }

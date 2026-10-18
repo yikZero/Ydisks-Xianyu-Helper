@@ -84,6 +84,7 @@ MCP 请求由 **MCP 客户端所在的机器** 发出，客户端不在局域网
 | `list_accounts` | 只读 | 账号列表及自动发货、自动确认发货、自动免拼开关 |
 | `list_items` | 只读 | 本地商品列表，可按账号、标题关键词过滤 |
 | `sync_items` | 写 | 从闲鱼重新同步某账号的在售商品 |
+| `publish_item` | 写 | 发布新商品（标题、描述、价格、1~9 张图片），先预览、确认后发布，可同时绑定卡密组 |
 | `list_cards` | 只读 | 卡密组列表，data 类型显示剩余库存条数 |
 | `get_card` | 只读 | 卡密组完整内容（库存最多返回 200 条） |
 | `create_card` | 写 | 新建卡密组：text 固定文本 / data 逐条库存 / image 图片 |
@@ -95,6 +96,33 @@ MCP 请求由 **MCP 客户端所在的机器** 发出，客户端不在局域网
 | `list_orders` | 只读 | 订单查询，不返回收货人姓名、电话和地址 |
 
 工具没有删除能力，删除卡密组或规则请在管理后台操作。只读 Token 在 `tools/list` 中看不到写工具。
+目前不支持修改已上架商品的标题、描述或价格（程序没有对接平台的编辑接口），需要在闲鱼 App 中修改。
+
+### 发布商品
+
+`publish_item` 发布单规格、包邮商品，类目按标题自动识别：
+
+1. 不带 `confirm` 调用，返回预览（账号、标题、描述、价格、每张图片的类型和大小、要绑定的卡密组），**不会发布**；
+2. 用户确认后，用完全相同的参数加 `"confirm": true` 再调用一次才发布；带 `card_id` 时发布成功后自动绑定付款发货；
+3. 该账号本地已有同标题商品时拒绝发布，防止重复上架；确实要发同名商品需加 `"allow_duplicate_title": true`。
+
+图片（第一张为主图）每项可以是：
+
+- 公网图片 URL，服务端按网络策略下载（单张不超过 10 MiB）；
+- 服务器图片目录内的文件：`<上传目录>/mcp`，默认是服务工作目录下的 `data/uploads/mcp`（设置了 `XIANYU_UPLOAD_DIR` 时为其下的 `mcp`）。
+  可以写文件名或该目录内的完整路径，目录外的文件会被拒绝。准确的绝对路径会出现在 `xianyu-server mcp tools` 输出开头的说明里。
+
+经 SSH 发布的示例：
+
+```bash
+ssh frybox 'mkdir -p ~/code/Ydisks-Xianyu-Helper/data/uploads/mcp'
+scp cover.jpg detail.jpg frybox:~/code/Ydisks-Xianyu-Helper/data/uploads/mcp/
+echo '{"account_id":"123","title":"考研资料合集","description":"网盘链接，付款后自动发送","price":9.9,
+       "images":["cover.jpg","detail.jpg"],"card_id":5}' | ssh frybox xianyu-server mcp call publish_item -
+# 把预览给用户确认后，加 "confirm":true 再执行一次
+```
+
+发布会真实上架商品。建议每次只发一个、间隔几分钟，降低平台风控风险。
 
 ## 4. 实现说明
 

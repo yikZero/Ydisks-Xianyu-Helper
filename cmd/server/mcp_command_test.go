@@ -55,7 +55,7 @@ func TestRunMCPCommand(t *testing.T) {
 
 	code, out, _ := invoke("", "tools")
 	required, optional := strings.Index(out, "account_id (string, 必填)"), strings.Index(out, "quantity (integer, 可选)")
-	if code != 0 || !strings.Contains(out, "list_items [只读]") || strings.Contains(out, "[写]") || required < 0 || optional < required {
+	if code != 0 || !strings.HasPrefix(out, "Ydisks 闲鱼助手管理工具") || !strings.Contains(out, "list_items [只读]") || strings.Contains(out, "[写]") || required < 0 || optional < required {
 		t.Fatalf("tools code=%d out=%q", code, out)
 	}
 	if code, out, _ = invoke(`{"keyword":"夸克"}`, "call", "list_items", "-"); code != 0 || !strings.Contains(out, "夸克网盘合集") || strings.Contains(out, "其他") {

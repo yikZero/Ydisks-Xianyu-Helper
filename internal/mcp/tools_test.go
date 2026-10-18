@@ -51,6 +51,9 @@ func TestHelpersFormatAPIErrorsAndPreview(t *testing.T) {
 	if got := apiErrorMessage([]byte(`{"success":false,"message":"商品不属于当前用户"}`)); got != "商品不属于当前用户" {
 		t.Fatalf("message=%q", got)
 	}
+	if got := apiErrorMessage([]byte(`{"code":"x","message":"已发布但本地保存失败","details":{"item_id":"p1"}}`)); got != `已发布但本地保存失败 {"item_id":"p1"}` {
+		t.Fatalf("应附带恢复所需的 details: %q", got)
+	}
 	if got := apiErrorMessage([]byte(`{"detail":"非统一信封"}`)); got != `{"detail":"非统一信封"}` {
 		t.Fatalf("非统一信封应原样返回，got %q", got)
 	}

@@ -56,6 +56,8 @@ type Handler struct {
 	Logger *slog.Logger
 	// Version 是服务端版本，出现在 initialize 结果中。
 	Version string
+	// ImageDir 是 publish_item 可读取本地图片的绝对目录，可选；为空时发布只接受图片 URL。
+	ImageDir string
 }
 
 // rpcMessage 是单条 JSON-RPC 消息；ID 缺失表示通知，不需要响应。
@@ -175,8 +177,16 @@ func (h *Handler) initializeResult(params json.RawMessage) map[string]any {
 		"protocolVersion": version,
 		"capabilities":    map[string]any{"tools": map[string]any{"listChanged": false}},
 		"serverInfo":      map[string]any{"name": "ydisks-xianyu-helper", "version": h.Version},
-		"instructions":    serverInstructions,
+		"instructions":    h.instructions(),
 	}
+}
+
+// instructions 返回 initialize 说明；配置了图片目录时告诉模型本地图片放在哪里。
+func (h *Handler) instructions() string {
+	if h.ImageDir == "" {
+		return serverInstructions
+	}
+	return serverInstructions + "\n发布商品的本地图片请先放到服务器目录 " + h.ImageDir + "（可用 scp），images 中写文件名或该目录内的完整路径。"
 }
 
 // callTool 执行 tools/call；ctx 携带 Authenticate 返回的可信身份。参数或工具名错误返回协议错误；业务失败以 isError 结果返回给模型。
@@ -202,7 +212,7 @@ func (h *Handler) callTool(ctx context.Context, principal Principal, params json
 		if len(arguments) == 0 || string(arguments) == "null" {
 			arguments = json.RawMessage("{}")
 		}
-		result, err = definition.run(apiClient{handler: h.API, ctx: ctx}, arguments)
+		result, err = definition.run(apiClient{handler: h.API, ctx: ctx, imageDir: h.ImageDir}, arguments)
 	}
 	h.Logger.Info("MCP 工具调用", "tool", request.Name, "mcp_client_id", principal.TokenID, "user_id", principal.UserID,
 		"ok", err == nil, "duration", time.Since(started).Round(time.Millisecond))

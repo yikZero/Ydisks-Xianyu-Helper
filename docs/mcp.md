@@ -26,22 +26,22 @@
 
 ### 方式一：AI 能 SSH 到服务所在机器（推荐，服务不用对外暴露）
 
-在服务所在机器上编译命令行工具，并把 Token 存进只有自己可读的文件：
+`xianyu-server` 自带 `mcp` 子命令，在服务所在机器上调用本机 `/mcp`。先用 SSH 登录的那个用户创建 Token 并保存：
 
 ```bash
-go build -o ~/.local/bin/xianyu-mcp ./cmd/xianyu-mcp
-mkdir -p ~/.config/ydisks-xianyu-helper
-./xianyu-server -db data/xianyu_data.db -api-token-create grok -api-token-scope write | tail -1 \
-  > ~/.config/ydisks-xianyu-helper/api-token
-chmod 600 ~/.config/ydisks-xianyu-helper/api-token
+./xianyu-server -db data/xianyu_data.db -api-token-create grok -api-token-scope write -api-token-save
 ```
 
-之后 AI 通过 SSH 执行命令即可（默认连 `http://127.0.0.1:59188/mcp`，可用 `-url` 或 `XIANYU_MCP_URL` 修改）：
+`-api-token-save` 把明文写入 `~/.config/ydisks-xianyu-helper/api-token`（权限 0600，不打印到终端），`mcp` 子命令默认读取这里；
+也可以用 `XIANYU_API_TOKEN` 环境变量或 `-token-file` 指定。服务地址默认 `http://127.0.0.1:59188`，可用 `-url` 或 `XIANYU_SERVICE_URL` 修改。
+
+之后 AI 通过 SSH 执行命令即可（`xianyu-server` 写成实际路径，Linux 安装包为 `/opt/ydisks-xianyu-helper/xianyu-server`；
+非交互 SSH 不一定加载用户的 PATH，所以建议写完整路径）：
 
 ```bash
-ssh frybox ~/.local/bin/xianyu-mcp tools                                   # 工具、权限和参数说明
-ssh frybox ~/.local/bin/xianyu-mcp call list_cards                          # 无参数调用
-echo '{"keyword":"夸克"}' | ssh frybox ~/.local/bin/xianyu-mcp call list_items -   # 参数从标准输入传，避免 SSH 引号转义
+ssh frybox xianyu-server mcp tools                                  # 工具、权限和参数说明
+ssh frybox xianyu-server mcp call list_cards                         # 无参数调用
+echo '{"keyword":"夸克"}' | ssh frybox xianyu-server mcp call list_items -   # 参数从标准输入传，避免 SSH 引号转义
 ```
 
 `call` 输出工具的 JSON 结果；工具返回业务错误（参数不对、规则冲突等）时退出码为 1，错误信息同样输出在标准输出。
@@ -51,12 +51,10 @@ echo '{"keyword":"夸克"}' | ssh frybox ~/.local/bin/xianyu-mcp call list_items
 ```json
 {
   "mcpServers": {
-    "xianyu": { "command": "ssh", "args": ["frybox", "/home/yikzero/.local/bin/xianyu-mcp", "stdio"] }
+    "xianyu": { "command": "ssh", "args": ["frybox", "/path/to/xianyu-server", "mcp", "stdio"] }
   }
 }
 ```
-
-非交互 SSH 不一定加载 `~/.local/bin` 到 PATH，所以上面都写完整路径。
 
 ### 方式二：AI 客户端与服务在同一局域网，直接走 HTTP
 

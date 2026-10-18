@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,7 +26,15 @@ func runAPITokenCommand(ctx context.Context, store *db.Store, opts serverOptions
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(&report, "已创建 API Token（ID %d，名称 %s，权限 %s）。明文只显示这一次，请立即保存：\n%s\n", token.ID, token.Name, token.Scope, plain)
+		if !opts.apiTokenSave {
+			fmt.Fprintf(&report, "已创建 API Token（ID %d，名称 %s，权限 %s）。明文只显示这一次，请立即保存：\n%s\n", token.ID, token.Name, token.Scope, plain)
+			break
+		}
+		path, err := saveAPIToken(plain)
+		if err != nil {
+			return fmt.Errorf("已创建 API Token %d，但写入文件失败（可用 -api-token-revoke 吊销后重建）: %w", token.ID, err)
+		}
+		fmt.Fprintf(&report, "已创建 API Token（ID %d，名称 %s，权限 %s），明文已写入 %s\n", token.ID, token.Name, token.Scope, path)
 	case opts.apiTokenRevoke > 0:
 		if err := store.APITokens.Revoke(ctx, user.ID, opts.apiTokenRevoke); err != nil {
 			return fmt.Errorf("吊销 API Token %d: %w", opts.apiTokenRevoke, err)
@@ -52,4 +62,29 @@ func runAPITokenCommand(ctx context.Context, store *db.Store, opts serverOptions
 	}
 	_, err = io.WriteString(out, report.String())
 	return err
+}
+
+// saveAPIToken 把明文 Token 写入 defaultAPITokenFile：目录 0700、文件 0600，已有文件会被覆盖。
+func saveAPIToken(plain string) (string, error) {
+	path, err := defaultAPITokenFile()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return "", err
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return "", err
+	}
+	// 覆盖已有文件时 OpenFile 不会收紧原权限，这里显式改回 0600。
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if _, err := io.WriteString(file, plain+"\n"); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	return path, file.Close()
 }

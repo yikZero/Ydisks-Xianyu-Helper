@@ -9,10 +9,14 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // maxResponseBytes 限制客户端读取的单个响应大小。
 const maxResponseBytes = 16 << 20
+
+// codeUpstream 是 stdio 桥接无法把请求转发到 HTTP 端点时回写的 JSON-RPC 错误码。
+const codeUpstream = -32000
 
 // Client 通过 HTTP 调用本服务的 /mcp 端点，供 SSH 登录本机后的命令行和 stdio 桥接使用。
 type Client struct {
@@ -20,7 +24,7 @@ type Client struct {
 	URL string
 	// Token 是 Bearer API Token。
 	Token string
-	// HTTP 发送请求；需要设置足够长的超时，sync_items 可能持续数十秒。
+	// HTTP 发送请求；超时应略长于服务端 2 分钟的写超时，sync_items 可能持续数十秒。
 	HTTP *http.Client
 }
 
@@ -40,9 +44,9 @@ type ToolInfo struct {
 	} `json:"annotations"`
 }
 
-// Post 把一条或一批 JSON-RPC 消息原样发到端点，返回响应正文；全部是通知时返回 nil。
+// post 把一条或一批 JSON-RPC 消息原样发到端点，返回响应正文；全部是通知时返回 nil。
 // 非 200/202 状态返回包含服务端错误信息的 error。
-func (c *Client) Post(ctx context.Context, message []byte) ([]byte, error) {
+func (c *Client) post(ctx context.Context, message []byte) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL, bytes.NewReader(message))
 	if err != nil {
 		return nil, err
@@ -78,21 +82,19 @@ func (c *Client) call(ctx context.Context, method string, params, out any) error
 	if err != nil {
 		return err
 	}
-	body, err := c.Post(ctx, message)
+	body, err := c.post(ctx, message)
 	if err != nil {
 		return err
 	}
-	var response struct {
-		Result json.RawMessage `json:"result"`
-		Error  *rpcError       `json:"error"`
-	}
+	// Result 预置为 out，解码时直接写入调用方的结构，不再二次解析。
+	response := rpcResponse{Result: out}
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("解析 %s 响应失败: %w", method, err)
 	}
 	if response.Error != nil {
 		return fmt.Errorf("%s 失败：%s", method, response.Error.Message)
 	}
-	return json.Unmarshal(response.Result, out)
+	return nil
 }
 
 // ListTools 返回当前 Token 可用的工具。
@@ -103,7 +105,7 @@ func (c *Client) ListTools(ctx context.Context) ([]ToolInfo, error) {
 	return result.Tools, c.call(ctx, "tools/list", map[string]any{}, &result)
 }
 
-// CallTool 调用工具并返回文本结果；isError 表示业务失败（例如参数不合法、库存不足）。
+// CallTool 调用工具并返回文本结果；arguments 为空时按无参数调用。isError 表示业务失败（例如参数不合法、库存不足）。
 func (c *Client) CallTool(ctx context.Context, name string, arguments json.RawMessage) (text string, isError bool, err error) {
 	var result struct {
 		Content []struct {
@@ -122,34 +124,52 @@ func (c *Client) CallTool(ctx context.Context, name string, arguments json.RawMe
 }
 
 // ServeStdio 实现 MCP stdio 传输：从 in 逐行读取 JSON-RPC 消息转发到端点，把响应逐行写到 out。
-// 转发失败时对带 ID 的请求回写 JSON-RPC 错误，通知则丢弃；in 结束时返回 nil。
+// 每条消息独立转发，慢工具（如 sync_items）不会阻塞后续请求；端点无会话状态，响应顺序不影响客户端按 ID 匹配。
+// 转发失败时对带 ID 的请求回写 JSON-RPC 错误，通知则丢弃。in 结束后等待在途请求完成再返回。
 func (c *Client) ServeStdio(ctx context.Context, in io.Reader, out io.Writer) error {
+	// mu 保护对 out 的写入与 writeErr，保证每条响应整行输出。
+	var mu sync.Mutex
+	var writeErr error
+	var pending sync.WaitGroup
 	scanner := bufio.NewScanner(in)
 	scanner.Buffer(make([]byte, 64<<10), maxRequestBytes+1)
 	for scanner.Scan() {
-		line := bytes.TrimSpace(scanner.Bytes())
+		line := bytes.Clone(bytes.TrimSpace(scanner.Bytes()))
 		if len(line) == 0 {
 			continue
 		}
-		reply, err := c.Post(ctx, line)
-		if err != nil {
-			var message struct {
-				ID json.RawMessage `json:"id"`
+		pending.Go(func() {
+			reply := c.forward(ctx, line)
+			if len(reply) == 0 {
+				return
 			}
-			if json.Unmarshal(line, &message) != nil || len(message.ID) == 0 || string(message.ID) == "null" {
-				continue
+			mu.Lock()
+			defer mu.Unlock()
+			if writeErr == nil {
+				_, writeErr = out.Write(append(reply, '\n'))
 			}
-			reply, err = json.Marshal(rpcResponse{JSONRPC: "2.0", ID: message.ID, Error: &rpcError{Code: codeUpstream, Message: err.Error()}})
-			if err != nil {
-				return err
-			}
-		}
-		if len(reply) == 0 {
-			continue
-		}
-		if _, err := out.Write(append(reply, '\n')); err != nil {
-			return err
-		}
+		})
+	}
+	pending.Wait()
+	if writeErr != nil {
+		return writeErr
 	}
 	return scanner.Err()
+}
+
+// forward 转发一行消息并返回要回写的响应；通知或转发失败的通知返回 nil。
+func (c *Client) forward(ctx context.Context, line []byte) []byte {
+	reply, err := c.post(ctx, line)
+	if err == nil {
+		return reply
+	}
+	var message struct {
+		ID json.RawMessage `json:"id"`
+	}
+	if json.Unmarshal(line, &message) != nil || len(message.ID) == 0 || string(message.ID) == "null" {
+		return nil
+	}
+	// ID 来自合法 JSON，其余字段是固定类型，编码不会失败。
+	reply, _ = json.Marshal(rpcResponse{JSONRPC: "2.0", ID: message.ID, Error: &rpcError{Code: codeUpstream, Message: err.Error()}})
+	return reply
 }

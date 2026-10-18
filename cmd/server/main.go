@@ -59,6 +59,8 @@ type serverOptions struct {
 	apiTokenList bool
 	// apiTokenRevoke 大于 0 时吊销该 ID 的 API Token 后退出。
 	apiTokenRevoke int64
+	// apiTokenSave 为 true 时创建的明文写入 mcp 子命令默认读取的 Token 文件，不打印到终端。
+	apiTokenSave bool
 	// apiTokenUser 是 Token 命令操作的用户名，默认 admin。
 	apiTokenUser string
 }
@@ -157,6 +159,12 @@ type applicationRuntimeCoordinator interface {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "mcp" {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		code := runMCPCommand(ctx, os.Args[2:], os.Stdin, os.Stdout, os.Stderr)
+		stop()
+		os.Exit(code)
+	}
 	// opts 是命令行解析出的服务启动选项。
 	opts := parseOptions()
 	if opts.showVersion {
@@ -219,6 +227,7 @@ func parseOptions() serverOptions {
 	flag.StringVar(&opts.apiTokenScope, "api-token-scope", db.APITokenScopeRead, "新建 API Token 的权限：read（只读）或 write（可修改）")
 	flag.BoolVar(&opts.apiTokenList, "api-token-list", false, "列出 API Token 后退出")
 	flag.Int64Var(&opts.apiTokenRevoke, "api-token-revoke", 0, "吊销指定 ID 的 API Token 后退出")
+	flag.BoolVar(&opts.apiTokenSave, "api-token-save", false, "与 -api-token-create 一起使用：把明文写入 mcp 子命令默认读取的 Token 文件（权限 0600），不打印")
 	flag.StringVar(&opts.apiTokenUser, "api-token-user", "admin", "API Token 命令操作的用户名")
 	flag.Parse()
 	return opts

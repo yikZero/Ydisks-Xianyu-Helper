@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 
@@ -23,8 +24,18 @@ func (s *Server) mountMCP(r chi.Router) {
 			return auth.WithTrustedPrincipal(ctx, principal),
 				mcp.Principal{TokenID: principal.TokenID, UserID: principal.UserID, Write: principal.Write}, nil
 		},
-		API:     r,
-		Logger:  s.Logger,
-		Version: version.Version,
+		API:      r,
+		Logger:   s.Logger,
+		Version:  version.Version,
+		ImageDir: mcpImageDir(s.publishUploadRoot()),
 	})
+}
+
+// mcpImageDir 返回 MCP 发布商品可读取的本地图片目录（上传根目录下的 mcp 子目录）的绝对路径；无法解析时返回空串，只允许图片 URL。
+func mcpImageDir(uploadRoot string) string {
+	dir, err := filepath.Abs(filepath.Join(uploadRoot, "mcp"))
+	if err != nil {
+		return ""
+	}
+	return dir
 }

@@ -16,6 +16,7 @@ import (
 	orderapp "xianyu-go/internal/application/orders"
 	"xianyu-go/internal/db"
 	"xianyu-go/internal/netguard"
+	"xianyu-go/internal/publishimage"
 )
 
 // builtServices 保存一次完整组合装配得到的服务集合及其测试需要继续使用的底层资源。
@@ -236,26 +237,26 @@ func TestDownloadImageURLWithLocalServer(t *testing.T) {
 	t.Cleanup(server.Close)
 	ctx := context.Background()
 	// contentType、data、err 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
-	if data, contentType, err := downloadImageURL(ctx, server.URL+"/ok"); err != nil || contentType != "image/png" || len(data) != len(pngHeader) {
+	if data, contentType, err := publishimage.Download(ctx, server.URL+"/ok"); err != nil || contentType != "image/png" || len(data) != len(pngHeader) {
 		t.Fatalf("ok: %v %q %d", err, contentType, len(data))
 	}
 	// contentType、err 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
-	if _, contentType, err := downloadImageURL(ctx, server.URL+"/sniff"); err != nil || contentType != "image/png" {
+	if _, contentType, err := publishimage.Download(ctx, server.URL+"/sniff"); err != nil || contentType != "image/png" {
 		t.Fatalf("sniff: %v %q", err, contentType)
 	}
-	if _, _, err := downloadImageURL(ctx, server.URL+"/text"); err == nil {
+	if _, _, err := publishimage.Download(ctx, server.URL+"/text"); err == nil {
 		t.Fatal("非图片应被拒绝")
 	}
-	if _, _, err := downloadImageURL(ctx, server.URL+"/big"); err == nil {
+	if _, _, err := publishimage.Download(ctx, server.URL+"/big"); err == nil {
 		t.Fatal("超限图片应被拒绝")
 	}
-	if _, _, err := downloadImageURL(ctx, server.URL+"/missing"); err == nil {
+	if _, _, err := publishimage.Download(ctx, server.URL+"/missing"); err == nil {
 		t.Fatal("404 应被拒绝")
 	}
 	// 启用公网限制后，本机地址必须被出站策略拒绝。
 	netguard.SetDefaultPublicOnly(true)
 	t.Cleanup(func() { netguard.SetDefaultPublicOnly(false) })
-	if _, _, err := downloadImageURL(ctx, server.URL+"/ok"); err == nil {
+	if _, _, err := publishimage.Download(ctx, server.URL+"/ok"); err == nil {
 		t.Fatal("公网限制下应拒绝本机地址")
 	}
 }

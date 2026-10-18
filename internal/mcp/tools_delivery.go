@@ -263,18 +263,26 @@ func requestFromRule(rule ruleRow) ruleRequest {
 	return request
 }
 
+// bindArguments 是 bind_item_delivery 的参数；publish_item 发布后绑定也复用它。
+type bindArguments struct {
+	AccountID     string `json:"account_id"`
+	ItemID        string `json:"item_id"`
+	CardID        int64  `json:"card_id"`
+	SpecName      string `json:"spec_name"`
+	SpecValue     string `json:"spec_value"`
+	DeliveryCount int    `json:"delivery_count"`
+}
+
 func runBindItemDelivery(client apiClient, arguments json.RawMessage) (any, error) {
-	var args struct {
-		AccountID     string `json:"account_id"`
-		ItemID        string `json:"item_id"`
-		CardID        int64  `json:"card_id"`
-		SpecName      string `json:"spec_name"`
-		SpecValue     string `json:"spec_value"`
-		DeliveryCount int    `json:"delivery_count"`
-	}
+	var args bindArguments
 	if err := decodeArguments(arguments, &args); err != nil {
 		return nil, err
 	}
+	return bindItemDelivery(client, args)
+}
+
+// bindItemDelivery 把商品（可指定规格）绑定到卡密组：没有付款发货规则时新建，已有时替换同规格动作或追加，返回绑定后的预演。
+func bindItemDelivery(client apiClient, args bindArguments) (map[string]any, error) {
 	accountID, err := requireText(args.AccountID, "account_id")
 	if err != nil {
 		return nil, err

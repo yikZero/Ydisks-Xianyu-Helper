@@ -6,6 +6,7 @@ import (
 
 	"xianyu-go/internal/adapter"
 	itemapp "xianyu-go/internal/application/items"
+	"xianyu-go/internal/publishimage"
 )
 
 // itemBatchServices 是批量发布运行时、预检和本地收口服务的完整不可变组合结果。
@@ -27,7 +28,7 @@ func buildItemBatchServices(dependencies Dependencies, sessionRecovery adapter.S
 		if sessionRecovery != nil {
 			sessionRecovery(ctx, cookieID, err)
 		}
-	}, readBatchImageFile, downloadImageURL)
+	}, publishimage.ReadFile, publishimage.Download)
 	// itemBatchLocalPublish 将远端发布成功后的本地商品、规则和检查点一次性装配。
 	itemBatchLocalPublish, itemBatchLocalPublishErr := itemapp.NewBatchLocalPublishService(
 		dependencies.ItemDependencies.NewItemBatchRepository(),

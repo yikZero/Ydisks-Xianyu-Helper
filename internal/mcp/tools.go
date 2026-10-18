@@ -13,7 +13,8 @@ const serverInstructions = `Ydisks 闲鱼助手管理工具。可以查看闲鱼
 1. 修改发货规则前先用 preview_delivery 预演；绑定后再预演一次，把结果告诉用户确认。
 2. 商品必须先存在于本地商品列表；新上架的商品先调用 sync_items 同步。
 3. 多规格商品要按规格分别绑定（spec_name/spec_value 与订单规格完全一致，多个维度用中文分号；分隔）。
-4. 本工具集不提供删除操作；需要删除时请让用户在管理后台操作。`
+4. 本工具集不提供删除操作；需要删除时请让用户在管理后台操作。
+5. 发布商品先不带 confirm 调用 publish_item 拿到预览，给用户确认后再加 confirm=true 发布；不要连续快速发布多个商品，避免平台风控。`
 
 // toolDefinition 描述一个 MCP 工具：write 为 true 的工具需要可写 Token。
 type toolDefinition struct {
@@ -48,6 +49,27 @@ var tools = []toolDefinition{
 		schema:      objectSchema(map[string]any{"account_id": stringProp("闲鱼账号 ID")}, "account_id"),
 		write:       true,
 		run:         runSyncItems,
+	},
+	{
+		name: "publish_item",
+		description: "在闲鱼发布一个新商品（单规格、包邮、类目按标题自动识别）。不带 confirm 时只返回预览不发布；" +
+			"用户确认后用相同参数加 confirm=true 才会发布。给出 card_id 时发布成功后自动绑定付款发货。",
+		schema: objectSchema(map[string]any{
+			"account_id":     stringProp("发布到哪个闲鱼账号"),
+			"title":          stringProp("商品标题"),
+			"description":    stringProp("商品描述（详情文案）"),
+			"price":          map[string]any{"type": "number", "description": "售价（元），例如 9.9"},
+			"original_price": map[string]any{"type": "number", "description": "原价（元），可选"},
+			"quantity":       intProp("库存数量，默认 1；大于 1 需要账号有库存发布权限"),
+			"images": map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 1, "maxItems": maxPublishImages,
+				"description": "商品图片，1 到 9 张，第一张为主图。每项是公网图片 URL，或服务器图片目录内的文件路径（目录见服务端使用说明）"},
+			"card_id":               intProp("发布后绑定的卡密组 ID，可选"),
+			"delivery_count":        intProp("绑定时每件发送几份，默认 1"),
+			"allow_duplicate_title": map[string]any{"type": "boolean", "description": "账号已有同标题商品时仍然发布，默认 false"},
+			"confirm":               map[string]any{"type": "boolean", "description": "true 才真正发布；默认 false 只预览"},
+		}, "account_id", "title", "description", "price", "images"),
+		write: true,
+		run:   runPublishItem,
 	},
 	{
 		name:        "list_cards",

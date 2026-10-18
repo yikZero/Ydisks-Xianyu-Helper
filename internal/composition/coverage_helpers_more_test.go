@@ -14,6 +14,7 @@ import (
 	"time"
 
 	itemapp "xianyu-go/internal/application/items"
+	"xianyu-go/internal/publishimage"
 )
 
 // TestReadBatchImageFileCoversPathAndContentGuards 覆盖批量图片读取的路径、文件大小和媒体类型边界。
@@ -42,7 +43,7 @@ func TestReadBatchImageFileCoversPathAndContentGuards(t *testing.T) {
 		t.Fatal(writeErr)
 	}
 	// data、contentType、name、readErr 保存合法图片读取结果。
-	data, contentType, name, readErr := readBatchImageFile(uploadDir, "nested/photo.png")
+	data, contentType, name, readErr := publishimage.ReadFile(uploadDir, "nested/photo.png")
 	if readErr != nil || len(data) == 0 || !strings.HasPrefix(contentType, "image/") || name != "photo.png" {
 		t.Fatalf("valid image data=%d type=%q name=%q err=%v", len(data), contentType, name, readErr)
 	}
@@ -51,12 +52,12 @@ func TestReadBatchImageFileCoversPathAndContentGuards(t *testing.T) {
 	// reference 表示当前待验证的批次图片引用。
 	for _, reference := range invalidReferences {
 		// invalidErr 保存当前越界或空路径的拒绝结果。
-		if _, _, _, invalidErr := readBatchImageFile(uploadDir, reference); invalidErr == nil {
+		if _, _, _, invalidErr := publishimage.ReadFile(uploadDir, reference); invalidErr == nil {
 			t.Fatalf("invalid reference %q should fail", reference)
 		}
 	}
 	// missingErr 验证不存在文件的错误映射。
-	if _, _, _, missingErr := readBatchImageFile(uploadDir, "missing.png"); missingErr == nil {
+	if _, _, _, missingErr := publishimage.ReadFile(uploadDir, "missing.png"); missingErr == nil {
 		t.Fatal("missing image should fail")
 	}
 	// emptyPath 是空文件路径，用于覆盖读取空内容分支。
@@ -66,7 +67,7 @@ func TestReadBatchImageFileCoversPathAndContentGuards(t *testing.T) {
 		t.Fatal(emptyErr)
 	}
 	// emptyReadErr 保存读取空文件的业务错误。
-	if _, _, _, emptyReadErr := readBatchImageFile(uploadDir, "empty.png"); emptyReadErr == nil {
+	if _, _, _, emptyReadErr := publishimage.ReadFile(uploadDir, "empty.png"); emptyReadErr == nil {
 		t.Fatal("empty image should fail")
 	}
 	// textPath 是内容不是图片的文件路径。
@@ -76,11 +77,11 @@ func TestReadBatchImageFileCoversPathAndContentGuards(t *testing.T) {
 		t.Fatal(textErr)
 	}
 	// textReadErr 保存读取非图片内容的业务错误。
-	if _, _, _, textReadErr := readBatchImageFile(uploadDir, "text.png"); textReadErr == nil {
+	if _, _, _, textReadErr := publishimage.ReadFile(uploadDir, "text.png"); textReadErr == nil {
 		t.Fatal("non-image content should fail")
 	}
 	// missingRootErr 验证上传根目录无法打开时的错误映射。
-	if _, _, _, missingRootErr := readBatchImageFile(filepath.Join(uploadDir, "not-found"), "photo.png"); missingRootErr == nil {
+	if _, _, _, missingRootErr := publishimage.ReadFile(filepath.Join(uploadDir, "not-found"), "photo.png"); missingRootErr == nil {
 		t.Fatal("missing upload root should fail")
 	}
 }
@@ -121,7 +122,7 @@ func TestDownloadImageURLRejectsNonHTTPInputs(t *testing.T) {
 	// rawURL 表示当前待校验的图片地址。
 	for _, rawURL := range invalidURLs {
 		// downloadErr 保存当前非法地址的下载错误。
-		if _, _, downloadErr := downloadImageURL(context.Background(), rawURL); downloadErr == nil {
+		if _, _, downloadErr := publishimage.Download(context.Background(), rawURL); downloadErr == nil {
 			t.Fatalf("invalid image URL %q should fail", rawURL)
 		}
 	}

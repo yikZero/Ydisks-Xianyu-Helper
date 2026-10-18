@@ -105,13 +105,18 @@ func newMCPClient(serviceURL, tokenFile string) (*mcp.Client, error) {
 	return &mcp.Client{URL: strings.TrimRight(serviceURL, "/") + "/mcp", Token: token, HTTP: &http.Client{Timeout: 2*time.Minute + 15*time.Second}}, nil
 }
 
-// printMCPTools 以便于阅读的文本列出工具、权限和参数；必填参数在前。
+// printMCPTools 先输出服务端使用说明，再以便于阅读的文本列出工具、权限和参数；必填参数在前。
 func printMCPTools(ctx context.Context, client *mcp.Client, out io.Writer) error {
+	instructions, err := client.Instructions(ctx)
+	if err != nil {
+		return err
+	}
 	tools, err := client.ListTools(ctx)
 	if err != nil {
 		return err
 	}
 	var text strings.Builder
+	text.WriteString(instructions + "\n\n")
 	for _, tool := range tools {
 		access := "写"
 		if tool.Annotations.ReadOnlyHint {

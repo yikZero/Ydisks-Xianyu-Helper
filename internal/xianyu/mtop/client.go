@@ -243,6 +243,9 @@ const (
 	MTopErrorSystem MTopErrorKind = "system"
 	// MTopErrorBusiness 表示平台返回了具体的普通业务错误。
 	MTopErrorBusiness MTopErrorKind = "business"
+	// MTopErrorPermission 表示平台以 PERMISSION_EXCEPTION 拒绝该账号调用接口，通常是账号未开通对应能力
+	// （例如卖家工作台）。请求未被执行，重试也不会成功。
+	MTopErrorPermission MTopErrorKind = "permission"
 )
 
 // MTopResponseError 保存 MTOP 失败响应的接口、分类、HTTP 状态和安全 ret 诊断。
@@ -297,13 +300,21 @@ func (e *MTopResponseError) Error() string {
 		message = fmt.Sprintf("%s 触发闲鱼安全验证，请完成验证后重试", api)
 	case MTopErrorSystem:
 		message = mtopFailureLabel(api) + "（平台系统错误）"
+	case MTopErrorPermission:
+		if api == "订单列表接口" {
+			// 订单列表来自卖家工作台（seller.goofish.com），个人卖家未开通时平台固定返回无权限。
+			message = "该账号未开通闲鱼卖家工作台，无法同步订单列表"
+		} else {
+			message = fmt.Sprintf("平台拒绝该账号调用%s（无权限），请确认账号已开通对应功能", api)
+		}
 	default:
 		message = mtopFailureLabel(api) + "（业务错误）"
 	}
 	if ret != "" {
 		message += "；平台原因：" + ret
 	}
-	if e.Detail != "" {
+	// 无权限时平台原因已足够说明问题，不再附加“ret 未包含 SUCCESS”之类的通用诊断。
+	if e.Detail != "" && e.Kind != MTopErrorPermission {
 		message += "；诊断：" + sanitizeMTopText(e.Detail)
 	}
 	return message
@@ -394,6 +405,8 @@ func (c *ClientImpl) mtopResponseFailureWithCause(api string, status int, ret []
 		kind = MTopErrorHTTP
 	case detail != "" && len(ret) == 0:
 		kind = MTopErrorDecode
+	case isPermissionRet(ret):
+		kind = MTopErrorPermission
 	case isMTopBusinessRet(ret):
 		kind = MTopErrorBusiness
 	}
@@ -406,6 +419,16 @@ func (c *ClientImpl) mtopResponseFailureWithCause(api string, status int, ret []
 	}
 	logger.Error("MTOP 响应失败", "api", api, "category", string(kind), "http_status", status, "ret", formatMTopRet(ret), "detail", sanitizeMTopText(detail))
 	return failure
+}
+
+// isPermissionRet 判断 ret 是否为平台网关的无权限拒绝（PERMISSION_EXCEPTION::无权限访问）。
+func isPermissionRet(ret []string) bool {
+	for _, value := range ret {
+		if strings.Contains(strings.ToUpper(value), "PERMISSION_EXCEPTION") {
+			return true
+		}
+	}
+	return false
 }
 
 // isMTopBusinessRet 判断 ret 是否用 FAIL_BIZ 前缀明确声明平台普通业务结果。

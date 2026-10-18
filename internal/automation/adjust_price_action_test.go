@@ -476,3 +476,20 @@ func TestParseYuanToCents(t *testing.T) {
 		}
 	}
 }
+
+// TestAdjustOrderPricePermissionFailureIsTerminal 验证平台无权限拒绝改价时直接终止，不进入运行级重试或人工核对。
+func TestAdjustOrderPricePermissionFailureIsTerminal(t *testing.T) {
+	store, cleanup := newAutomationTestStore(t)
+	defer cleanup()
+	permissionFailure := &mtop.MTopResponseError{API: "订单改价接口", Kind: mtop.MTopErrorPermission, Ret: []string{"PERMISSION_EXCEPTION::无权限访问"}}
+	center := NewWithDependencies(store, nil, nil, CenterDependencies{MTop: &fakeMTop{adjustErr: permissionFailure}})
+	sent, runErr := center.executeAction(context.Background(), Task{AccountID: "cid", OrderID: "permission-denied"},
+		db.AutomationAction{ActionType: ActionAdjustPrice, ConfigJSON: `{"target_price":"9.9"}`})
+	if sent != 0 || !errors.Is(runErr, permissionFailure) || !strings.HasPrefix(runErr.Error(), db.NoRetryErrorPrefix) {
+		t.Fatalf("无权限应终止且禁止重试: sent=%d err=%v", sent, runErr)
+	}
+	var uncertain *uncertainActionError
+	if errors.As(runErr, &uncertain) {
+		t.Fatalf("无权限拒绝不应标记为结果未知: %v", runErr)
+	}
+}

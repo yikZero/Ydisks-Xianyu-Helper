@@ -37,6 +37,7 @@ func TestMTopResponseFailureClassifiesAndRedacts(t *testing.T) {
 		{name: "http", kind: MTopErrorHTTP, code: "FAIL_SYS_GATEWAY::网关错误", status: http.StatusBadGateway},
 		{name: "decode", kind: MTopErrorDecode, status: http.StatusOK, detail: "JSON 解析失败"},
 		{name: "business", kind: MTopErrorBusiness, code: "FAIL_BIZ_ORDER::订单错误", status: http.StatusOK},
+		{name: "permission", kind: MTopErrorPermission, code: "PERMISSION_EXCEPTION::无权限访问", status: http.StatusOK},
 	}
 	// testCase 验证当前失败类型的错误链、诊断内容和日志字段。
 	for _, testCase := range cases {
@@ -483,4 +484,28 @@ func TestNewClient(t *testing.T) {
 	}
 	// 零值 ClientImpl 应实现 Client 接口
 	var _ Client = c
+}
+
+// TestPermissionExceptionMessageExplainsSellerWorkbench 验证订单列表无权限时提示未开通卖家工作台，
+// 其他接口给出通用无权限说明，且都不再显示成“平台系统错误”。
+func TestPermissionExceptionMessageExplainsSellerWorkbench(t *testing.T) {
+	client := &ClientImpl{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	ret := []string{"PERMISSION_EXCEPTION::无权限访问"}
+	orderErr := client.mtopResponseFailure("订单列表接口", http.StatusOK, ret, "平台 ret 未包含 SUCCESS")
+	want := "该账号未开通闲鱼卖家工作台，无法同步订单列表；平台原因：PERMISSION_EXCEPTION::无权限访问"
+	if orderErr.Error() != want {
+		t.Fatalf("订单列表无权限提示=%q want %q", orderErr.Error(), want)
+	}
+	otherErr := client.mtopResponseFailure("订单改价接口", http.StatusOK, ret, "平台 ret 未包含 SUCCESS")
+	if msg := otherErr.Error(); !strings.Contains(msg, "平台拒绝该账号调用订单改价接口（无权限）") || strings.Contains(msg, "平台系统错误") || strings.Contains(msg, "诊断") {
+		t.Fatalf("通用无权限提示=%q", msg)
+	}
+	if kind, ok := MTopErrorKindOf(otherErr); !ok || kind != MTopErrorPermission {
+		t.Fatalf("kind=%q ok=%v", kind, ok)
+	}
+	// 风控、会话和 Token 判定优先于无权限，避免把需要重新登录的情况误报成未开通工作台。
+	mixed := client.mtopResponseFailure("订单列表接口", http.StatusOK, []string{"PERMISSION_EXCEPTION::无权限访问", "FAIL_SYS_SESSION_EXPIRED::会话过期"}, "")
+	if kind, _ := MTopErrorKindOf(mixed); kind != MTopErrorSessionExpired {
+		t.Fatalf("会话失效应优先，got %q", kind)
+	}
 }

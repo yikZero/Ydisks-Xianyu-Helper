@@ -358,9 +358,9 @@ func (e *automationActionExecutor) adjustOrderPriceAttempt(ctx context.Context, 
 		return fmt.Errorf("%w: 订单改价 %s 已失效且凭证恢复失败: %v", errActionNotPerformed, credentialLabel, sessionErr)
 	}
 	if result.callErr != nil {
-		// errorKind、hasErrorKind 保存 MTOP 错误分类；明确业务拒绝终止重试，平台系统错误保留为可恢复失败。
+		// errorKind、hasErrorKind 保存 MTOP 错误分类；明确业务拒绝或无权限终止重试，平台系统错误保留为可恢复失败。
 		errorKind, hasErrorKind := mtop.MTopErrorKindOf(result.callErr)
-		if hasErrorKind && errorKind == mtop.MTopErrorBusiness {
+		if hasErrorKind && (errorKind == mtop.MTopErrorBusiness || errorKind == mtop.MTopErrorPermission) {
 			// failure 标记平台已经明确拒绝的改价，防止零成功动作被通用恢复队列再次提交。
 			failure := noRetryAction(result.callErr)
 			if len(persistenceErrs) > 0 {

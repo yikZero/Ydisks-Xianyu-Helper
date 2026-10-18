@@ -90,18 +90,6 @@ func (s *Server) writeLongLoginError(w http.ResponseWriter, err error) {
 	writeErr(w, http.StatusInternalServerError, "保存续期 Cookie 失败")
 }
 
-func (s *Server) updateRunningCookie(ctx context.Context, cookieID, value string) {
-	// runtimeService 负责唤醒凭证阻塞任务并将 Cookie 同步到账号运行实例。
-	runtimeService := s.accountRuntimeApplication()
-	if runtimeService == nil {
-		return
-	}
-	// runtimeErr 保存账号运行时同步或自动化唤醒错误。
-	if runtimeErr := runtimeService.UpdateCookie(ctx, cookieID, value); runtimeErr != nil && s.Logger != nil {
-		s.Logger.Warn("Cookie 更新后同步账号运行时失败", "cookie_id", cookieID, "err", runtimeErr)
-	}
-}
-
 type updateCookieSettingsRequest struct {
 	Cookie        *string  `json:"cookie"`
 	Remark        *string  `json:"remark"`
@@ -697,20 +685,6 @@ func cachedAccountSummaryNickname(summary accountapp.AccountSummary) string {
 		return strings.TrimSpace(summary.Nickname)
 	}
 	return "账号 " + truncate(summary.ID, 6)
-}
-
-func normalizeProfileAvatarURL(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return ""
-	}
-	if strings.HasPrefix(raw, "//") {
-		return "https:" + raw
-	}
-	if strings.HasPrefix(raw, "http://") {
-		return "https://" + strings.TrimPrefix(raw, "http://")
-	}
-	return raw
 }
 
 func truncate(s string, n int) string {

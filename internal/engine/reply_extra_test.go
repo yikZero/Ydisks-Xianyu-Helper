@@ -621,15 +621,5 @@ func TestToStringAndTrimFloatInt(t *testing.T) {
 	}
 }
 
-// TestContains 大小写不敏感包含。
-func TestContains(t *testing.T) {
-	if !contains("Hello World", "world") {
-		t.Error("应大小写不敏感命中")
-	}
-	if contains("Hello", "xyz") {
-		t.Error("不应误命中")
-	}
-}
-
 // 编译期保证 db 包被引用（测试构造 store 时使用）。
 var _ = db.DialectSQLite

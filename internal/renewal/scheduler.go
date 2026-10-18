@@ -16,7 +16,10 @@ import (
 )
 
 const (
-	loginRenewInterval     = 600 * time.Second
+	loginRenewInterval = 600 * time.Second
+	// minRenewalInterval 是续期设置允许的最短间隔。每轮续期会为全部账号调用平台接口，
+	// 误配成毫秒级会形成请求风暴并触发风控，所以低于该值的配置按该值执行。
+	minRenewalInterval     = time.Minute
 	cookiesRefreshInterval = 600 * time.Second
 	apiCookieRenewInterval = 4 * time.Hour
 	accountRequestInterval = time.Minute
@@ -71,6 +74,8 @@ type Scheduler struct {
 	runStarted bool
 	// stopRequested 标识尚未启动时是否已经收到停止请求，防止停止与启动并发时重新逃逸。
 	stopRequested bool
+	// minInterval 是续期任务的最短执行间隔，构造后只读；测试可在 Run 之前调小。
+	minInterval time.Duration
 }
 
 // RenewalNotifier 发送账号续期相关告警。
@@ -88,15 +93,16 @@ func NewScheduler(store *db.Store, starter AccountStarter, refresher PasswordRef
 		notifier = notifiers[0]
 	}
 	return &Scheduler{
-		store:     store,
-		starter:   starter,
-		refresher: refresher,
-		logger:    logger,
-		mtop:      mtop.NewClient(),
-		api:       apirenew.Service{},
-		cooldown:  GlobalCooldown,
-		notifier:  notifier,
-		done:      make(chan struct{}),
+		store:       store,
+		starter:     starter,
+		refresher:   refresher,
+		logger:      logger,
+		mtop:        mtop.NewClient(),
+		api:         apirenew.Service{},
+		cooldown:    GlobalCooldown,
+		notifier:    notifier,
+		done:        make(chan struct{}),
+		minInterval: minRenewalInterval,
 	}
 }
 

@@ -7,9 +7,6 @@ import (
 	"unicode/utf8"
 )
 
-// quickReplyLimit 限制单个账号可保存的人工快捷回复数量，防止聊天侧栏无限增长。
-const quickReplyLimit = 50
-
 // chatMetadataMaxCharacters 限制快捷回复和买家备注的 Unicode 字符数量，与聊天输入上限保持一致。
 const chatMetadataMaxCharacters = 2000
 

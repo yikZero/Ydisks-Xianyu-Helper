@@ -204,11 +204,6 @@ func (n *Notifier) sendTelegram(cfg map[string]any, message string) error {
 	})
 }
 
-// ---- 邮件 ----
-func (n *Notifier) sendEmail(cfg map[string]any, message string) error {
-	return n.sendEmailWithUser(cfg, message, 0)
-}
-
 // sendEmailWithUser 使用邮件渠道配置发送测试或业务通知，并按渠道所有者读取系统 SMTP 秘密。
 func (n *Notifier) sendEmailWithUser(cfg map[string]any, message string, channelUserID int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)

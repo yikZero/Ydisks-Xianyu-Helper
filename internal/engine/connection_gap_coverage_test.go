@@ -332,3 +332,51 @@ func TestRunConnectionSessionRotatesWhenRefreshAtIsZero(t *testing.T) {
 		t.Fatal("零值轮换时间应立即主动轮换")
 	}
 }
+
+// TestPauseBeforeReconnectBacksOffRapidDisconnects 验证“连上即断”时第一次立即重连、连续第二次起退避，
+// 持续时间超过阈值的会话会清零计数，且取消的 Context 会中断等待。
+func TestPauseBeforeReconnectBacksOffRapidDisconnects(t *testing.T) {
+	account, _, _, cleanup := newAccountForTest(t)
+	defer cleanup()
+	var delays []int
+	account.dialRetryDelayFn = func(n int) time.Duration {
+		delays = append(delays, n)
+		return 0
+	}
+	coordinator := &connectionCoordinator{account: account}
+	ctx := context.Background()
+	for i := 0; i < 3; i++ {
+		if err := coordinator.pauseBeforeReconnect(ctx, time.Second); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(delays) != 2 || delays[0] != 1 || delays[1] != 2 {
+		t.Fatalf("第一次短连接应立即重连，之后按次数退避，got %v", delays)
+	}
+	if err := coordinator.pauseBeforeReconnect(ctx, ShortConnectionThreshold); err != nil {
+		t.Fatal(err)
+	}
+	if account.rapidReconnects != 0 {
+		t.Fatalf("长连接后计数应清零，got %d", account.rapidReconnects)
+	}
+	if err := coordinator.pauseBeforeReconnect(ctx, 0); err != nil || len(delays) != 2 {
+		t.Fatalf("清零后的第一次短连接不应等待: err=%v delays=%v", err, delays)
+	}
+	account.dialRetryDelayFn = func(int) time.Duration { return time.Hour }
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := coordinator.pauseBeforeReconnect(canceled, 0); !errors.Is(err, context.Canceled) {
+		t.Fatalf("取消的 Context 应中断退避，got %v", err)
+	}
+}
+
+// TestRapidReconnectDefaultBackoffIsBounded 验证未注入覆盖时退避使用拨号退避序列并带有限抖动。
+func TestRapidReconnectDefaultBackoffIsBounded(t *testing.T) {
+	for n := 1; n <= 8; n++ {
+		base := dialBackoff(n)
+		got := withRetryJitter(base)
+		if got < base || got > base+base*3/10 {
+			t.Fatalf("n=%d 抖动后的退避 %s 超出 [%s, %s]", n, got, base, base+base*3/10)
+		}
+	}
+}

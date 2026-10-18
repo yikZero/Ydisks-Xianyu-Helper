@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -465,13 +466,41 @@ func bargainManualInterventionKey(task Task) string {
 	return fmt.Sprintf("manual-intervention:bargain-free-shipping:%s:%s", task.AccountID, task.OrderID)
 }
 
+// taskAutomationRunID 返回任务关联的持久化运行 ID；没有关联运行时返回 0。
 func taskAutomationRunID(task Task) int64 {
-	if task.Raw == nil {
+	id, ok := rawInt64(task.Raw, "automation_run_id")
+	if !ok || id < 0 {
 		return 0
 	}
-	value := fmt.Sprint(task.Raw["automation_run_id"])
-	id, _ := strconv.ParseInt(value, 10, 64)
 	return id
+}
+
+// rawInt64 从 Task.Raw 读取整数字段。延期任务经 JSON 往返后数字会变成 float64，
+// 不能用 fmt.Sprint 再解析：1000000 会被格式化为 "1e+06" 而解析失败。
+func rawInt64(raw map[string]any, key string) (int64, bool) {
+	if raw == nil {
+		return 0, false
+	}
+	switch value := raw[key].(type) {
+	case int:
+		return int64(value), true
+	case int64:
+		return value, true
+	case int32:
+		return int64(value), true
+	case float64:
+		if value != math.Trunc(value) || math.Abs(value) > 1<<53 {
+			return 0, false
+		}
+		return int64(value), true
+	case json.Number:
+		id, err := value.Int64()
+		return id, err == nil
+	case string:
+		id, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+		return id, err == nil
+	}
+	return 0, false
 }
 
 // autoDeliveryEnabled 返回账号是否开启自动发货总开关（库字段 auto_confirm，付款后自动发卡密或发货模板）。
@@ -488,16 +517,13 @@ func (c *Center) autoDeliveryEnabled(ctx context.Context, accountID string) (boo
 	return enabled, nil
 }
 
+// taskDelayCursor 返回已为其安排过延时的动作下标；没有记录时返回 -1。
 func taskDelayCursor(task Task) int {
-	if task.Raw == nil {
+	cursor, ok := rawInt64(task.Raw, "automation_delay_cursor")
+	if !ok || cursor < 0 || cursor > math.MaxInt32 {
 		return -1
 	}
-	value := fmt.Sprint(task.Raw["automation_delay_cursor"])
-	cursor, err := strconv.Atoi(value)
-	if err != nil {
-		return -1
-	}
-	return cursor
+	return int(cursor)
 }
 
 func isDeferredReplay(task Task) bool {
@@ -655,19 +681,9 @@ func (c *Center) prepareTask(ctx context.Context, task Task) (Task, error) {
 	return task, nil
 }
 
-// executeAction 将具体动作委托给发货动作执行器。
-func (c *Center) executeAction(ctx context.Context, task Task, action db.AutomationAction) (int, error) {
-	return c.actions.executeAction(ctx, task, action)
-}
-
 // executeActionWithProof 执行动作并把当前运行内已成功投递的凭证传给确认发货动作。
 func (c *Center) executeActionWithProof(ctx context.Context, task Task, action db.AutomationAction, proof shipmentDeliveryProof) (actionExecutionResult, error) {
 	return c.actions.executeActionWithProof(ctx, task, action, proof)
-}
-
-// confirmShipment 将确认发货委托给发货动作执行器。
-func (c *Center) confirmShipment(ctx context.Context, task Task) error {
-	return c.actions.confirmShipment(ctx, task)
 }
 
 // wakeCredentialBlockedAutomation 在 Cookie 更新后唤醒凭证阻塞的自动化任务。
@@ -678,11 +694,6 @@ func (c *Center) wakeCredentialBlockedAutomation(ctx context.Context, accountID 
 	if err := c.store.Automation.WakeCredentialBlocked(ctx, accountID); err != nil {
 		c.logger.Warn("Cookie 更新后唤醒自动化任务失败", "account", accountID, "err", err)
 	}
-}
-
-// sendCard 将卡密发送委托给发货动作执行器。
-func (c *Center) sendCard(ctx context.Context, task Task, action db.AutomationAction) (int, error) {
-	return c.actions.sendCard(ctx, task, action)
 }
 
 // accountAutomationAllowed 判断账号是否仍允许执行自动化动作。
@@ -703,16 +714,6 @@ func (c *Center) accountSenderReady(accountID string) bool {
 		return ready.AutomationReady()
 	}
 	return true
-}
-
-// cardContent 获取卡密组内容的兼容入口。
-func (c *Center) cardContent(ctx context.Context, card *db.CardFull) (text, imageURL string, err error) {
-	return c.actions.cardContent(ctx, card)
-}
-
-// sendImage 将图片消息发送委托给发货动作执行器。
-func (c *Center) sendImage(ctx context.Context, task Task, imageURL string, cardID int64) error {
-	return c.actions.sendImage(ctx, task, imageURL, cardID)
 }
 
 // cookieValue 读取账号 Cookie 的兼容入口。

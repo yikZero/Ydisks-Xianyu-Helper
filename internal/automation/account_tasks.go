@@ -616,24 +616,6 @@ func (c *accountTaskCoordinator) persistTaskCredentialLocked(ctx context.Context
 	return value, nil
 }
 
-// persistTaskCookies 保存历史扁平 Cookie；仅在账号没有完整快照或测试替身不支持快照写回时使用。
-func (c *accountTaskCoordinator) persistTaskCookies(ctx context.Context, accountID, oldValue, newValue string) (string, error) {
-	newValue = strings.TrimSpace(newValue)
-	if newValue == "" || newValue == oldValue {
-		return oldValue, nil
-	}
-	if err := c.repository.UpdateValueExisting(ctx, accountID, newValue); err != nil {
-		c.logger.Warn("保存账号任务响应 Cookie 失败", "account", accountID, "err", err)
-		return oldValue, fmt.Errorf("保存账号任务响应 Cookie: %w", err)
-	}
-	if c.senders != nil {
-		if sender, ok := c.senders.Sender(accountID); ok && sender != nil {
-			sender.UpdateCookie(newValue)
-		}
-	}
-	return newValue, nil
-}
-
 func beijingNow() time.Time {
 	return time.Now().In(time.FixedZone("Asia/Shanghai", 8*60*60))
 }

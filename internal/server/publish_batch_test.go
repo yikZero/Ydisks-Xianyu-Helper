@@ -49,39 +49,6 @@ func TestParsePublishIntervalSeconds(t *testing.T) {
 	}
 }
 
-// TestParsePublishSheetBytes 表格解析各格式。
-func TestParsePublishSheetBytes(t *testing.T) {
-	// CSV。
-	rows, err := parsePublishSheetBytes([]byte("账号ID,标题,价格,库存,图片\nacc1,商品A,12.50,5,a.png\n"), "products.csv")
-	if err != nil || len(rows) != 1 {
-		t.Fatalf("csv parse = %#v, %v", rows, err)
-	}
-	if rows[0]["cookie_id"] != "acc1" || rows[0]["title"] != "商品A" {
-		t.Fatalf("row = %#v", rows[0])
-	}
-
-	// TSV。
-	rows, err = parsePublishSheetBytes([]byte("账号ID\t标题\nacc1\t商品B\n"), "p.tsv")
-	if err != nil || len(rows) != 1 || rows[0]["title"] != "商品B" {
-		t.Fatalf("tsv parse = %#v, %v", rows, err)
-	}
-
-	// 空内容。
-	if _, err := parsePublishSheetBytes([]byte("  \n"), "x.csv"); err == nil {
-		t.Fatal("空内容应报错")
-	}
-
-	// .xls 拒绝。
-	if _, err := parsePublishSheetBytes([]byte("x"), "old.xls"); err == nil {
-		t.Fatal(".xls 应被拒绝")
-	}
-
-	// 仅表头。
-	if _, err := parsePublishSheetBytes([]byte("账号ID,标题\n"), "x.csv"); err == nil {
-		t.Fatal("仅表头应报错")
-	}
-}
-
 func TestParsePublishSheetBytesWithLimitRejectsTooManyRows(t *testing.T) {
 	var b strings.Builder
 	b.WriteString("账号ID,标题\n")
@@ -795,86 +762,6 @@ func TestWriteFileWithinRootTraversal(t *testing.T) {
 	}
 }
 
-// TestReadBatchImageFile 读取本地图片文件。
-func TestReadBatchImageFile(t *testing.T) {
-	dest := t.TempDir()
-	png := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82}
-	_ = os.MkdirAll(filepath.Join(dest, "imgs"), 0o750)
-	_ = os.WriteFile(filepath.Join(dest, "imgs", "a.png"), png, 0o600)
-
-	data, ct, name, err := readBatchImageFile(dest, "imgs/a.png")
-	if err != nil {
-		t.Fatalf("read: %v", err)
-	}
-	if len(data) == 0 || !strings.HasPrefix(ct, "image/") || name != "a.png" {
-		t.Fatalf("read result异常: ct=%s name=%s", ct, name)
-	}
-}
-
-// TestReadBatchImageFileNotFound 不存在图片报错。
-func TestReadBatchImageFileNotFound(t *testing.T) {
-	dest := t.TempDir()
-	if _, _, _, err := readBatchImageFile(dest, "no-such.png"); err == nil {
-		t.Fatal("不存在应报错")
-	}
-}
-
-// TestReadBatchImageFileTraversal 路径穿越拒绝。
-func TestReadBatchImageFileTraversal(t *testing.T) {
-	dest := t.TempDir()
-	if _, _, _, err := readBatchImageFile(dest, "../escape.png"); err == nil {
-		t.Fatal("路径穿越应报错")
-	}
-}
-
-// TestValidateBatchImageRef 校验图片引用。
-func TestValidateBatchImageRef(t *testing.T) {
-	dest := t.TempDir()
-	png := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82}
-	_ = os.WriteFile(filepath.Join(dest, "a.png"), png, 0o600)
-
-	if err := validateBatchImageRef(dest, "a.png"); err != nil {
-		t.Fatalf("存在图片应通过: %v", err)
-	}
-	if err := validateBatchImageRef(dest, "no-such.png"); err == nil {
-		t.Fatal("不存在应报错")
-	}
-	if err := validateBatchImageRef(dest, "https://example.com/a.png"); err != nil {
-		t.Fatalf("HTTP URL 应直接通过: %v", err)
-	}
-	if err := validateBatchImageRef(dest, "../escape.png"); err == nil {
-		t.Fatal("穿越应报错")
-	}
-}
-
-// TestIsHTTPURL isHTTPURL 表驱动。
-func TestIsHTTPURL(t *testing.T) {
-	cases := map[string]bool{
-		"http://x.com/a.png":  true,
-		"https://x.com/a.png": true,
-		"HTTP://X.com/a.png":  true,
-		"ftp://x.com/a.png":   false,
-		"a.png":               false,
-		"":                    false,
-	}
-	for in, want := range cases {
-		if got := isHTTPURL(in); got != want {
-			t.Errorf("isHTTPURL(%q)=%v want %v", in, got, want)
-		}
-	}
-}
-
-// TestPathBaseFromURL pathBaseFromURL 表驱动。
-func TestPathBaseFromURL(t *testing.T) {
-	if got := pathBaseFromURL("https://example.com/path/a.png?x=1"); got != "a.png" {
-		t.Fatalf("got %q", got)
-	}
-	// 仅 host 的 URL：base 为 host 名。
-	if got := pathBaseFromURL("https://example.com/"); got != "example.com" {
-		t.Fatalf("host-only base 异常: %q", got)
-	}
-}
-
 // TestSafeBaseName safeBaseName 表驱动。
 func TestSafeBaseName(t *testing.T) {
 	cases := map[string]string{
@@ -898,41 +785,6 @@ func TestRandomHex(t *testing.T) {
 	}
 }
 
-// TestFirstNonEmpty firstNonEmpty 表驱动。
-func TestFirstNonEmpty(t *testing.T) {
-	if got := firstNonEmpty("", "", "x"); got != "x" {
-		t.Fatalf("got %q", got)
-	}
-	if got := firstNonEmpty("", "", ""); got != "" {
-		t.Fatalf("got %q", got)
-	}
-}
-
-// TestDownloadImageURLInvalid 无效 URL 报错。
-func TestDownloadImageURLInvalid(t *testing.T) {
-	if _, _, err := downloadImageURL(context.Background(), "ftp://x.com/a.png"); err == nil {
-		t.Fatal("ftp 应报错")
-	}
-	if _, _, err := downloadImageURL(context.Background(), "not-a-url"); err == nil {
-		t.Fatal("非 URL 应报错")
-	}
-}
-
-// TestLoadBatchPublishImagesBadJSON imagesJSON 非数组。
-func TestLoadBatchPublishImagesBadJSON(t *testing.T) {
-	dest := t.TempDir()
-	// ImagesJSON 非法 JSON。
-	_, err := loadBatchPublishImages(context.Background(), dest, db.ItemPublishBatchRow{ImagesJSON: `not-json`})
-	if err == nil {
-		t.Fatal("非法 JSON 应报错")
-	}
-	// 空 refs。
-	_, err = loadBatchPublishImages(context.Background(), dest, db.ItemPublishBatchRow{ImagesJSON: `[]`})
-	if err == nil {
-		t.Fatal("空 refs 应报错")
-	}
-}
-
 // TestCookieOwnedByUser 归属判定。
 func TestCookieOwnedByUser(t *testing.T) {
 	srv, _, cleanup := newTestServer(t)
@@ -946,34 +798,6 @@ func TestCookieOwnedByUser(t *testing.T) {
 	}
 	if srv.cookieOwnedByUser(ctx, 999, "acc1") {
 		t.Fatal("不存在用户不应拥有")
-	}
-}
-
-// TestCardOwnedByUser 卡密归属判定。
-func TestCardOwnedByUser(t *testing.T) {
-	srv, store, cleanup := newTestServer(t)
-	defer cleanup()
-	ctx := context.Background()
-	store.DB.ExecContext(ctx, `INSERT INTO cards (name, type, user_id) VALUES ('卡1','text',1)`)
-	if !srv.cardOwnedByUser(ctx, 1, 1) {
-		t.Fatal("card 1 应属于 user 1")
-	}
-	if srv.cardOwnedByUser(ctx, 1, 999) {
-		t.Fatal("card 999 不应存在")
-	}
-}
-
-// TestCookieValueForUser 取 cookie 值。
-func TestCookieValueForUser(t *testing.T) {
-	srv, _, cleanup := newTestServer(t)
-	defer cleanup()
-	ctx := context.Background()
-	v, err := srv.cookieValueForUser(ctx, 1, "acc1")
-	if err != nil || v == "" {
-		t.Fatalf("取 cookie 值异常: v=%q err=%v", v, err)
-	}
-	if _, err := srv.cookieValueForUser(ctx, 1, "no-such"); err == nil {
-		t.Fatal("不存在应报错")
 	}
 }
 

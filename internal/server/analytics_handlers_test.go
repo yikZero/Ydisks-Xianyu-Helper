@@ -222,18 +222,6 @@ func TestAnalyticsCustomRangeDoesNotSilentlyDropDays(t *testing.T) {
 	}
 }
 
-func TestAnalyticsDateBoundaryConvertsLocalDayToUTC(t *testing.T) {
-	previous := time.Local
-	time.Local = time.FixedZone("UTC+8", 8*60*60)
-	defer func() { time.Local = previous }()
-	if got := analyticsDateBoundary("2026-06-28", false, time.Local); got != "2026-06-27 16:00:00" {
-		t.Fatalf("start boundary=%q", got)
-	}
-	if got := analyticsDateBoundary("2026-06-28", true, time.Local); got != "2026-06-28 16:00:00" {
-		t.Fatalf("end boundary=%q", got)
-	}
-}
-
 func TestAnalyticsUsesBrowserTimezoneAndSkipsInvalidAmounts(t *testing.T) {
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()

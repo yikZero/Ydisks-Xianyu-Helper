@@ -339,19 +339,6 @@ func newTestManager(maxSize int) *Manager {
 	}
 }
 
-// TestTouchUpdatesLastUsed touch 命中池中条目时更新 lastUsed。
-func TestTouchUpdatesLastUsed(t *testing.T) {
-	m := newTestManager(3)
-	old := time.Now().Add(-time.Hour)
-	m.pool["c1"] = &poolEntry{cookieID: "c1", lastUsed: old}
-	m.touch("c1")
-	if m.pool["c1"].lastUsed.Equal(old) {
-		t.Fatal("touch 应更新 lastUsed")
-	}
-	// touch 不存在的条目应 no-op 不 panic。
-	m.touch("no-such")
-}
-
 // TestEvictRemovesEntry evict 删除指定条目（nil browser 时 closeEntry 为 no-op）。
 func TestEvictRemovesEntry(t *testing.T) {
 	m := newTestManager(3)
@@ -430,15 +417,6 @@ func TestCleanupIdleSkipsActiveEntries(t *testing.T) {
 	}
 }
 
-// TestMarshalCookies 导出包装器等价 cookieMarshal。
-func TestMarshalCookies(t *testing.T) {
-	got := MarshalCookies(map[string]string{"unb": "1", "cna": "xx"})
-	// map 顺序不保证，逐项检查。
-	if !contains(got, "unb=1") || !contains(got, "cna=xx") {
-		t.Fatalf("MarshalCookies=%q", got)
-	}
-}
-
 // TestCookiesToMap playwright.Cookie 切片转 map。
 func TestCookiesToMap(t *testing.T) {
 	cs := []playwright.Cookie{
@@ -453,13 +431,4 @@ func TestCookiesToMap(t *testing.T) {
 	if m := cookiesToMap(nil); len(m) != 0 {
 		t.Fatalf("空切片应返回空 map，got %+v", m)
 	}
-}
-
-func contains(s, sub string) bool {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }

@@ -191,36 +191,6 @@ func TestAppendCardData(t *testing.T) {
 	}
 }
 
-// TestParseXLSXPublishSheet 解析 XLSX 表格（复用 buildMinimalXLSX 构造）。
-func TestParseXLSXPublishSheet(t *testing.T) {
-	xlsx := buildMinimalXLSXForPublish(t, [][]string{{"title", "price"}, {"商品A", "9.9"}})
-	rows, err := parseXLSXPublishSheet(xlsx)
-	if err != nil {
-		t.Fatalf("parseXLSX: %v", err)
-	}
-	if len(rows) != 1 || rows[0]["title"] != "商品A" {
-		t.Fatalf("rows = %#v", rows)
-	}
-
-	// 非 xlsx 字节 → 报错。
-	if _, err := parseXLSXPublishSheet([]byte("not-xlsx")); err == nil {
-		t.Fatal("非 xlsx 应报错")
-	}
-}
-
-// TestPublicHTTPClient 公网 HTTP 客户端拒绝非公网地址 + 重定向协议校验。
-func TestPublicHTTPClient(t *testing.T) {
-	cli := publicHTTPClient()
-	if cli == nil {
-		t.Fatal("应返回非 nil client")
-	}
-	// 访问私有 IP 应被拒绝。
-	_, err := cli.Get("http://127.0.0.1:1/")
-	if err == nil {
-		t.Fatal("私有 IP 应被拒绝")
-	}
-}
-
 // TestPublishBatchToMap 批次转具名 DTO 序列化并校验状态计数。
 func TestPublishBatchToMap(t *testing.T) {
 	batch := itemapp.BatchInfo{ID: "b1", Status: "running", Filename: "x.csv"}
@@ -236,11 +206,4 @@ func TestPublishBatchToMap(t *testing.T) {
 	if len(rs) != 2 {
 		t.Fatalf("rows 数异常: %d", len(rs))
 	}
-}
-
-// buildMinimalXLSXForPublish 构造最小 xlsx 供 parseXLSXPublishSheet 测试。
-// 复用 parser_test.go 的 buildMinimalXLSX 但独立命名避免冲突。
-func buildMinimalXLSXForPublish(t *testing.T, grid [][]string) []byte {
-	t.Helper()
-	return buildMinimalXLSX(t, grid)
 }

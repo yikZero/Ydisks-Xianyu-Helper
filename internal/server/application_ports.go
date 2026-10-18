@@ -694,11 +694,6 @@ func (server *Server) accountDeleteApplication() AccountDeletePort {
 	return server.applicationServiceSet().accountDelete
 }
 
-// loginAuditApplication 返回登录审计用例。
-func (server *Server) loginAuditApplication() LoginAuditPort {
-	return server.applicationServiceSet().loginAudit
-}
-
 // settingsApplication 返回系统设置用例。
 func (server *Server) settingsApplication() SettingsPort {
 	return server.applicationServiceSet().settings

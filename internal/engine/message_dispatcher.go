@@ -148,17 +148,6 @@ func (d *messageDispatcher) dispatch(decrypted map[string]any) {
 	}()
 }
 
-// handleMessage 分类并投递消息，供 Account facade 和测试调用。
-func (d *messageDispatcher) handleMessage(decrypted map[string]any) {
-	// ctx、finish、accepted 分别是同步分发任务的上下文、释放函数及生命周期接纳结果。
-	ctx, finish, accepted := d.beginTask()
-	if !accepted {
-		return
-	}
-	defer finish()
-	d.handleMessageContext(ctx, decrypted)
-}
-
 // handleMessageContext 将系统事件和聊天消息分别交给对应业务链。
 func (d *messageDispatcher) handleMessageContext(ctx context.Context, decrypted map[string]any) {
 	// observedAt 在分类和防抖之前固定消息的本地接纳顺序，后续数据库写入延迟不会改变它与删除动作的先后关系。

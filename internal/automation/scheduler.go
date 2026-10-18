@@ -225,31 +225,6 @@ func (s *Scheduler) scan(ctx context.Context) {
 	}
 }
 
-// scanPendingShipResumes 兜底续跑「有运行但剩余动作全部为幂等状态动作」的待发货订单。
-//
-// 存在意义：运行可能在没有完成全部动作的情况下收口（例如消息动作结果不确定被隔离，
-// 或收口过程中进程退出）。这类订单不会被 PendingShipOrdersWithoutPaidRunAfter 选中
-// （它已经有一条运行），于是永久停在待发货，且没有任何重试入口。
-//
-// 安全边界：续跑集合由 PendingShipResumableRunsAfter 限定为「游标已越过全部发卡/模板动作」，
-// 因此这里实际执行的只可能是 confirm_shipment 这类不会再次联系买家、且平台侧幂等的动作。
-func (s *Scheduler) scanPendingShipResumes(ctx context.Context) {
-	if ctx == nil {
-		return
-	}
-	// scanCtx 为直接调用该扫描入口时提供的独立单轮预算；正式调度由 scan 传入共享预算上下文。
-	scanCtx, cancel := context.WithTimeout(ctx, s.pendingShipScanBudgetValue())
-	defer cancel()
-	s.scanPendingShipResumesWithContext(scanCtx)
-}
-
-// scanPendingShipResumesWithContext 在给定预算内扫描并续跑尚未完成的待发货运行。
-func (s *Scheduler) scanPendingShipResumesWithContext(ctx context.Context) {
-	// remainingTasks 保存本次直接调用可使用的待发货任务额度。
-	remainingTasks := s.pendingShipScanMaxTasksValue()
-	_ = s.scanPendingShipResumesWithContextAndLimit(ctx, remainingTasks)
-}
-
 // scanPendingShipResumesWithContextAndLimit 在给定预算与剩余任务额度内扫描并续跑尚未完成的待发货运行。
 // 返回尚未消耗的额度，保持付款兜底和续跑扫描共享单轮上限。
 func (s *Scheduler) scanPendingShipResumesWithContextAndLimit(ctx context.Context, remainingTasks int) (leftTasks int) {

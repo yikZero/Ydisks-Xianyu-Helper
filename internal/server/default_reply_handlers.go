@@ -10,22 +10,6 @@ import (
 	"xianyu-go/internal/auth"
 )
 
-// btoi bool→int（SQLite 无原生 bool）。
-func btoi(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
-// nullIfEmpty 空串存为 NULL。
-func nullIfEmpty(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
 // mountDefaultRepliesReal 默认回复端点。
 func (s *Server) mountDefaultRepliesReal(r chi.Router) {
 	r.Get("/default-replies/{cid}", s.getDefaultReply)

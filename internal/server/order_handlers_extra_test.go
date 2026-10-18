@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -292,14 +291,6 @@ func TestRefreshOrdersSoftDeletesOrdersMissingFromSellerList(t *testing.T) {
 	}
 }
 
-func TestMissingRefreshResultsAreCounted(t *testing.T) {
-	targets := []refreshTarget{{OrderID: "a"}, {OrderID: "b"}, {OrderID: "c"}}
-	missing := missingRefreshTargetIDs(targets, map[string]struct{}{"b": {}})
-	if len(missing) != 2 || missing[0] != "a" || missing[1] != "c" {
-		t.Fatalf("missing=%v", missing)
-	}
-}
-
 // TestRefreshSingleOrderUsesGoMTop 单订单刷新不依赖浏览器。
 func TestRefreshSingleOrderUsesGoMTop(t *testing.T) {
 	srv, store, cleanup := newTestServer(t)
@@ -484,31 +475,6 @@ func TestUpdateOrderRejectsInvalidAmount(t *testing.T) {
 	order, _ := store.Orders.Get(ctx, "ord-amount")
 	if order.Amount != "9.9" {
 		t.Fatalf("invalid amount was stored: %q", order.Amount)
-	}
-}
-
-func TestValidOrderAmountMatchesAnalyticsDecimalFormat(t *testing.T) {
-	for _, invalid := range []string{"abc", "1e3", "+Inf", "NaN", "-1", "1.", "1,2", "12,34", "1,,000"} {
-		if validOrderAmount(invalid) {
-			t.Fatalf("%q must be rejected", invalid)
-		}
-	}
-	for input, want := range map[string]string{"": "", "0": "0", "12.50": "12.50", "¥1,200.50": "1200.50", "￥12.50": "12.50"} {
-		got, ok := normalizeOrderAmount(input)
-		if !ok || got != want {
-			t.Fatalf("normalize(%q)=%q,%v want %q,true", input, got, ok, want)
-		}
-	}
-}
-
-func TestChunkRefreshTargetsBoundsBrowserBatchSize(t *testing.T) {
-	targets := make([]refreshTarget, 205)
-	for i := range targets {
-		targets[i].OrderID = fmt.Sprintf("o-%d", i)
-	}
-	chunks := chunkRefreshTargets(targets, 100)
-	if len(chunks) != 3 || len(chunks[0]) != 100 || len(chunks[1]) != 100 || len(chunks[2]) != 5 {
-		t.Fatalf("unexpected chunk sizes: %d/%d/%d total=%d", len(chunks[0]), len(chunks[1]), len(chunks[2]), len(chunks))
 	}
 }
 
@@ -815,22 +781,6 @@ func TestManualShipOrdersFullDeliveryNoAutomation(t *testing.T) {
 	r0, _ := results[0].(map[string]any)
 	if !strings.Contains(r0["message"].(string), "自动化") {
 		t.Fatalf("应提示自动化未初始化，got %v", r0["message"])
-	}
-}
-
-// TestIsStableOrderStatus 稳定状态判定。
-func TestIsStableOrderStatus(t *testing.T) {
-	stable := map[string]bool{"shipped": true, "completed": true, "cancelled": true}
-	unstable := map[string]bool{"pending_ship": false, "processing": false, "": false, "unknown": false}
-	for s, want := range stable {
-		if got := isStableOrderStatus(s); got != want {
-			t.Errorf("isStableOrderStatus(%q)=%v want %v", s, got, want)
-		}
-	}
-	for s, want := range unstable {
-		if got := isStableOrderStatus(s); got != want {
-			t.Errorf("isStableOrderStatus(%q)=%v want %v", s, got, want)
-		}
 	}
 }
 

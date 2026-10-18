@@ -249,6 +249,8 @@ func TestSchedulerAPILoopCoversTimerAndDynamicDisable(t *testing.T) {
 	defer cancel()
 	// scheduler 保存本地设置仓储，API 续期开关明确关闭以避免外部请求。
 	scheduler := NewScheduler(store, nil, nil, nil)
+	// 本测试需要循环快速轮转，显式关闭生产环境的最短间隔下限。
+	scheduler.minInterval = 0
 	// apiEnabledErr 表示关闭 API 续期开关的错误。
 	apiEnabledErr := store.Settings.Set(ctx, apiCookieRenewEnabledSetting, "false")
 	if apiEnabledErr != nil {

@@ -75,11 +75,6 @@ var nonPublicPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("ff00::/8"), netip.MustParsePrefix("2001:db8::/32"),
 }
 
-// PublicHTTPClient 返回只允许连接公网 IP 的客户端。DNS 与每次重定向都会重新校验。
-func PublicHTTPClient(timeout time.Duration) *http.Client {
-	return policyHTTPClient(NewOutboundPolicy(true), timeout, 10*time.Second, 10*time.Second)
-}
-
 // ConfiguredHTTPClient 返回遵循默认运行时策略的用户配置 HTTP 客户端。
 func ConfiguredHTTPClient(timeout time.Duration) *http.Client {
 	return policyHTTPClient(defaultOutboundPolicy, timeout, 10*time.Second, 10*time.Second)
@@ -96,14 +91,6 @@ func ConfiguredEndpointHTTPClient(rawBaseURL string, timeout time.Duration) (*ht
 		return nil, fmt.Errorf("服务地址只支持 http 或 https")
 	}
 	return ConfiguredHTTPClient(timeout), nil
-}
-
-// PolicyHTTPClient 返回绑定指定运行时策略的 HTTP 客户端，测试和组合根可使用它隔离全局默认值。
-func PolicyHTTPClient(policy *OutboundPolicy, timeout time.Duration) *http.Client {
-	if policy == nil {
-		policy = defaultOutboundPolicy
-	}
-	return policyHTTPClient(policy, timeout, 10*time.Second, 10*time.Second)
 }
 
 // PolicyHTTPClientWithTimeouts 返回可保留特殊响应头和 TLS 超时约束的策略客户端。
@@ -204,23 +191,6 @@ func (t limitedResponseBodyTransport) RoundTrip(req *http.Request) (*http.Respon
 	}
 	response.Body = &limitedResponseBody{body: response.Body, remaining: ConfiguredResponseBodyLimit}
 	return response, nil
-}
-
-// TrustedEndpointHTTPClient 用于管理员明确配置的集成端点。目标地址完全由管理员
-// 信任并负责，因此不限制 IP 类型、DNS 结果或 HTTP 重定向；仅校验 HTTP(S) URL。
-func TrustedEndpointHTTPClient(rawBaseURL string, timeout time.Duration) (*http.Client, error) {
-	baseURL, err := url.Parse(strings.TrimSpace(rawBaseURL))
-	if err != nil || baseURL.Hostname() == "" {
-		return nil, fmt.Errorf("服务地址无效")
-	}
-	if baseURL.Scheme != "http" && baseURL.Scheme != "https" {
-		return nil, fmt.Errorf("服务地址只支持 http 或 https")
-	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	return &http.Client{
-		Transport: transport,
-		Timeout:   timeout,
-	}, nil
 }
 
 // IsPublicIP 判断 IP 是否为可公网访问的单播地址，排除私网、回环、链路本地等保留网段。

@@ -88,31 +88,6 @@ func TestNewClientUsesGoHTTPByDefault(t *testing.T) {
 	}
 }
 
-// TestMTopTokenCookieChangedIgnoresUnrelatedCookieChanges 验证签名令牌判断只关注非空 _m_h5_tk 轮换。
-func TestMTopTokenCookieChangedIgnoresUnrelatedCookieChanges(t *testing.T) {
-	// cases 覆盖普通 Cookie 变化、签名令牌轮换、令牌缺失和相同值重复写回。
-	cases := []struct {
-		name     string
-		previous string
-		current  string
-		changed  bool
-	}{
-		{name: "unrelated", previous: "_m_h5_tk=token-a; sdkSilent=1", current: "_m_h5_tk=token-a; sdkSilent=2", changed: false},
-		{name: "expiry-only", previous: "_m_h5_tk=token-a_100", current: "_m_h5_tk=token-a_200", changed: false},
-		{name: "rotated", previous: "_m_h5_tk=token-a", current: "_m_h5_tk=token-b", changed: true},
-		{name: "missing", previous: "_m_h5_tk=token-a", current: "sdkSilent=2", changed: false},
-		{name: "same", previous: "_m_h5_tk=token-a", current: "_m_h5_tk=token-a", changed: false},
-	}
-	// testCase 逐项承载签名令牌变化样例，避免把普通 Cookie 更新误判为恢复。
-	for _, testCase := range cases {
-		// changed 保存当前样例是否应被识别为有效签名轮换。
-		changed := MTopTokenCookieChanged(testCase.previous, testCase.current)
-		if changed != testCase.changed {
-			t.Errorf("%s changed=%v want %v", testCase.name, changed, testCase.changed)
-		}
-	}
-}
-
 func TestRefreshTokenRetriesOnceWithUpdatedCookie(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

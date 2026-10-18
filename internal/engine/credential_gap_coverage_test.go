@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -11,19 +10,6 @@ import (
 	"xianyu-go/internal/xianyu/mtop"
 	"xianyu-go/internal/xianyu/renew"
 )
-
-// statusCheckMtop 在基础 MTOP 替身上增加可编程的登录态检查，用于驱动凭证协调器分支。
-type statusCheckMtop struct {
-	// fakeRunMtop 提供其余 MTOP 接口的固定实现。
-	fakeRunMtop
-	// fn 是登录态检查的行为；ctx 携带操作级 Cookie 会话，cookie 是检查使用的扁平 Cookie。
-	fn func(ctx context.Context, cookie string) (*mtop.LoginStatusResult, error)
-}
-
-// CheckLoginStatusContext 调用测试注入的登录态检查行为。
-func (m *statusCheckMtop) CheckLoginStatusContext(ctx context.Context, cookie string) (*mtop.LoginStatusResult, error) {
-	return m.fn(ctx, cookie)
-}
 
 // gapCredentialAccount 构造使用加密密钥与指定 MTOP 的账号，返回账号、存储与上下文。
 func gapCredentialAccount(t *testing.T, client mtop.Client) (*Account, *db.Store) {
@@ -57,133 +43,6 @@ func gapSnapshot() []cookierefresh.BrowserCookie {
 		{Name: "unb", Value: "123", Domain: ".goofish.com", Path: "/"},
 		{Name: "sdk", Value: "1", Domain: ".goofish.com", Path: "/"},
 	}
-}
-
-// TestTryLoginStatusCheckSnapshotOutcomes 验证登录态检查更新 Cookie Jar 后的恢复、告警、持久化失败与重读失败。
-func TestTryLoginStatusCheckSnapshotOutcomes(t *testing.T) {
-	ctx := context.Background()
-	// replace 是把检查期间的 Cookie 会话替换为完整 Jar 的行为。
-	replace := func(c context.Context) {
-		mtop.CookieSessionFromContext(c).ReplaceSnapshot(gapSnapshot())
-	}
-	t.Run("恢复", func(t *testing.T) {
-		// client 在替换 Jar 后报告 Token 已刷新。
-		client := &statusCheckMtop{}
-		client.fn = func(c context.Context, _ string) (*mtop.LoginStatusResult, error) {
-			replace(c)
-			return &mtop.LoginStatusResult{Status: mtop.LoginStatusTokenRefreshed}, nil
-		}
-		acc, _ := gapCredentialAccount(t, client)
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); !result.recovered {
-			t.Fatalf("Jar 更新且刷新成功应视为恢复: %+v", result)
-		}
-	})
-	t.Run("检查失败但保存响应", func(t *testing.T) {
-		// client 在替换 Jar 后返回普通错误。
-		client := &statusCheckMtop{}
-		client.fn = func(c context.Context, _ string) (*mtop.LoginStatusResult, error) {
-			replace(c)
-			return nil, errors.New("boom")
-		}
-		acc, _ := gapCredentialAccount(t, client)
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); result.recovered || result.sessionExpired {
-			t.Fatalf("普通错误不应判定恢复或过期: %+v", result)
-		}
-	})
-	t.Run("持久化失败", func(t *testing.T) {
-		// client 在替换 Jar 后阻断随后的 Cookie 写入。
-		client := &statusCheckMtop{}
-		// store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
-		var store *db.Store
-		client.fn = func(c context.Context, _ string) (*mtop.LoginStatusResult, error) {
-			replace(c)
-			blockCookieUpdates(t, store)
-			return &mtop.LoginStatusResult{Status: mtop.LoginStatusTokenRefreshed}, nil
-		}
-		var acc *Account
-		acc, store = gapCredentialAccount(t, client)
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); result.recovered {
-			t.Fatalf("写入失败不应恢复: %+v", result)
-		}
-	})
-	t.Run("重读失败", func(t *testing.T) {
-		// client 在检查期间破坏 Cookie 密文，使检查后的重读失败。
-		client := &statusCheckMtop{}
-		// store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
-		var store *db.Store
-		client.fn = func(context.Context, string) (*mtop.LoginStatusResult, error) {
-			corruptCookieValue(t, store)
-			return &mtop.LoginStatusResult{Status: mtop.LoginStatusTokenRefreshed}, nil
-		}
-		var acc *Account
-		acc, store = gapCredentialAccount(t, client)
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); result.recovered {
-			t.Fatalf("重读失败不应恢复: %+v", result)
-		}
-	})
-	t.Run("检查前读取失败", func(t *testing.T) {
-		// client 不应被调用。
-		client := &statusCheckMtop{fn: func(context.Context, string) (*mtop.LoginStatusResult, error) {
-			t.Fatal("读取失败时不应发起外部检查")
-			return nil, nil
-		}}
-		acc, store := gapCredentialAccount(t, client)
-		corruptCookieValue(t, store)
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); result != (loginStatusCheckResult{}) {
-			t.Fatalf("读取失败应返回空结果: %+v", result)
-		}
-	})
-}
-
-// TestTryLoginStatusCheckPlainOutcomes 验证无 Jar 变化时的空结果、风控、过期、完整 Jar 起点与无存储账号。
-func TestTryLoginStatusCheckPlainOutcomes(t *testing.T) {
-	ctx := context.Background()
-	t.Run("非检查器", func(t *testing.T) {
-		acc, _ := gapCredentialAccount(t, &fakeRunMtop{token: "t"})
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); result != (loginStatusCheckResult{}) {
-			t.Fatalf("不支持检查应返回空结果: %+v", result)
-		}
-	})
-	t.Run("空结果", func(t *testing.T) {
-		acc, _ := gapCredentialAccount(t, &statusCheckMtop{fn: func(context.Context, string) (*mtop.LoginStatusResult, error) { return nil, nil }})
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); result != (loginStatusCheckResult{}) {
-			t.Fatalf("空结果应返回空: %+v", result)
-		}
-	})
-	t.Run("完整Jar起点且会话过期", func(t *testing.T) {
-		acc, store := gapCredentialAccount(t, &statusCheckMtop{fn: func(context.Context, string) (*mtop.LoginStatusResult, error) {
-			return &mtop.LoginStatusResult{Status: mtop.LoginStatusSessionExpired}, nil
-		}})
-		// metadata 是携带完整 Jar 的账号元数据。
-		metadata := cookierefresh.MetadataWithSnapshot("", gapSnapshot())
-		if err := store.Cookies.UpdateRenewalCookie(ctx, "cid", "unb=123; _m_h5_tk=tk_1;", metadata, time.Now().Unix()); err != nil {
-			t.Fatal(err)
-		}
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); !result.sessionExpired {
-			t.Fatalf("会话过期应被识别: %+v", result)
-		}
-	})
-	t.Run("无存储账号风控", func(t *testing.T) {
-		// acc 没有数据库存储，走纯内存分支。
-		acc := New(Config{CookieID: "mem", CookieStr: "unb=1", MTop: &statusCheckMtop{fn: func(context.Context, string) (*mtop.LoginStatusResult, error) {
-			return &mtop.LoginStatusResult{Status: mtop.LoginStatusRiskRequired, VerificationURL: "https://v.example"}, nil
-		}}})
-		// result 保存 tryLoginStatusCheck 的返回结果，供随后的断言使用
-		if result := acc.tryLoginStatusCheck(ctx); !result.riskRequired {
-			t.Fatalf("应识别风控: %+v", result)
-		}
-		if err := acc.handleMaxFailures(ctx); err == nil {
-			t.Fatal("风控应令 handleMaxFailures 返回错误")
-		}
-	})
 }
 
 // TestTryAPIRenewUsingBranches 验证接口续期在门控、禁用、读取失败、并发变更与各持久化路径下的结果。

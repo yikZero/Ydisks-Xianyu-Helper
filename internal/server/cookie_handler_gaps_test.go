@@ -291,33 +291,3 @@ func TestCookieMutationGapBranches(t *testing.T) {
 		t.Errorf("login info status=%d", rec.Code)
 	}
 }
-
-// TestCookieRuntimeSyncAndPlatformGuards 覆盖运行时同步失败日志、nil 端口保护和展示名称兜底。
-func TestCookieRuntimeSyncAndPlatformGuards(t *testing.T) {
-	// srv 是零值 Server，没有任何端口。
-	srv := &Server{}
-	srv.updateRunningCookie(context.Background(), "c", "v")
-	if _, err := srv.loadCookiePlatformDetail(context.Background(), "c"); err == nil {
-		t.Error("nil platform port should fail")
-	}
-	if _, err := srv.loadCookieSummaryDetail(context.Background(), 1, "c"); err == nil {
-		t.Error("nil summary port should fail")
-	}
-	// nilServer 是空指针 Server。
-	var nilServer *Server
-	if _, err := nilServer.loadCookiePlatformDetail(context.Background(), "c"); err == nil {
-		t.Error("nil server platform should fail")
-	}
-	if _, err := nilServer.loadCookieSummaryDetail(context.Background(), 1, "c"); err == nil {
-		t.Error("nil server summary should fail")
-	}
-	// logged 带日志器与失败的运行时端口。
-	logged := &Server{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), applications: &ApplicationPorts{accountRuntime: cookieGapRuntime{updateErr: errors.New("sync failed")}}}
-	logged.updateRunningCookie(context.Background(), "c", "v")
-	if got := cachedCookieSummaryNickname(accountapp.AccountSummary{ID: "abcdefgh", Nickname: " 昵称 "}); got != "昵称" {
-		t.Errorf("nickname = %q", got)
-	}
-	if got := cachedCookieSummaryNickname(accountapp.AccountSummary{ID: "abcdefgh"}); got != "账号 abcdef" {
-		t.Errorf("fallback = %q", got)
-	}
-}

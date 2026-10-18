@@ -477,17 +477,6 @@ func TestDeleteEmptySessionsRemovesGhostsButKeepsRealConversation(t *testing.T) 
 	}
 }
 
-func TestValidNicknameRejectsSystemReminderTitles(t *testing.T) {
-	for _, value := range []string{"", "203591535", "x***3", "快给ta一个评价吧～", "[卖家已发货]", "闲小蜜发来一条新消息"} {
-		if ValidNickname(value) {
-			t.Fatalf("system reminder accepted as nickname: %q", value)
-		}
-	}
-	if !ValidNickname("纽约做手工的石斑") {
-		t.Fatal("real nickname rejected")
-	}
-}
-
 func TestIncomingMessagePersistsDeduplicatesAndPublishesByOwner(t *testing.T) {
 	store, cleanup := chatTestStore(t)
 	defer cleanup()

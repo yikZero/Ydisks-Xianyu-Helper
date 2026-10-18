@@ -501,14 +501,6 @@ func (m *Manager) createEntry(cookieID, cookieStr string, headless bool) (*poolE
 	return entry, nil
 }
 
-func (m *Manager) touch(cookieID string) {
-	m.mu.Lock()
-	if e, ok := m.pool[cookieID]; ok {
-		e.lastUsed = time.Now()
-	}
-	m.mu.Unlock()
-}
-
 func (m *Manager) evict(cookieID string) {
 	m.mu.Lock()
 	e, ok := m.pool[cookieID]

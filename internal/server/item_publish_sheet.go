@@ -12,10 +12,6 @@ import (
 	"strings"
 )
 
-func parsePublishSheetBytes(raw []byte, filename string) ([]map[string]any, error) {
-	return parsePublishSheetBytesWithLimit(raw, filename, 0)
-}
-
 func parsePublishSheetBytesWithLimit(raw []byte, filename string, maxRows int) ([]map[string]any, error) {
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return nil, fmt.Errorf("导入内容为空")
@@ -68,10 +64,6 @@ func parseDelimitedPublishSheet(raw []byte, comma rune, maxRows int) ([]map[stri
 		return nil, fmt.Errorf("表格至少需要表头和一行数据")
 	}
 	return rows, nil
-}
-
-func parseXLSXPublishSheet(raw []byte) ([]map[string]any, error) {
-	return parseXLSXPublishSheetWithLimit(raw, 0)
 }
 
 func parseXLSXPublishSheetWithLimit(raw []byte, maxRows int) ([]map[string]any, error) {

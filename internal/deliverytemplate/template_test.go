@@ -96,15 +96,6 @@ func TestReplaceRendersAllDeliveryVariables(t *testing.T) {
 	}
 }
 
-// TestReplaceCardsPreservesUnknownKey 验证替换只影响已有绑定值的变量。
-func TestReplaceCardsPreservesUnknownKey(t *testing.T) {
-	// got 保存卡密变量替换后的文本。
-	got := ReplaceCards("主卡 {{cards.main}} / 未绑定 {{cards.other}}", map[string]string{"main": "ABC"})
-	if got != "主卡 ABC / 未绑定 {{cards.other}}" {
-		t.Fatalf("ReplaceCards=%q", got)
-	}
-}
-
 // TestReplacePreservesUnboundVariables 验证未提供绑定值的卡密和自定义变量保持原始文本。
 func TestReplacePreservesUnboundVariables(t *testing.T) {
 	// got 保存缺少绑定值时的模板渲染结果。

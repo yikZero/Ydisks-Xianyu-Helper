@@ -419,11 +419,6 @@ func firstBatchNonEmpty(values ...string) string {
 // 确保批量远端适配器实现应用层定义的端口。
 var _ itemapp.BatchPublishPort = (*ItemBatchPublishPort)(nil)
 
-// IsSessionExpiredError 保留批量发布旧接口名，仅允许明确 Session 失效触发账号恢复。
-func IsSessionExpiredError(err error) bool {
-	return IsCredentialExpiredError(err)
-}
-
 // IsCredentialExpiredError 判断 err 是否为需要账号恢复的 Session 失效；Token 内部刷新耗尽不进入此分支。
 func IsCredentialExpiredError(err error) bool {
 	return mtop.IsSessionExpiredErr(err)

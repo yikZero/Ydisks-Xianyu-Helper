@@ -116,13 +116,6 @@ type shipmentCookiePersistence struct {
 	changed bool
 }
 
-// executeAction 执行一个动作，并把消息发送错误分类为可安全重试或结果未知。
-func (e *automationActionExecutor) executeAction(ctx context.Context, task Task, action db.AutomationAction) (int, error) {
-	// result 保存不带发货凭证的兼容动作结果；直接调用该入口的旧调用方不附加确认发货内容。
-	result, err := e.executeActionWithProof(ctx, task, action, shipmentDeliveryProof{})
-	return result.sent, err
-}
-
 // executeActionWithProof 执行动作并把已发送的发货凭证传递给后续确认发货动作；
 // 运行协调器会把成功内容加密持久化为订单重发快照。
 func (e *automationActionExecutor) executeActionWithProof(ctx context.Context, task Task, action db.AutomationAction, proof shipmentDeliveryProof) (actionExecutionResult, error) {
@@ -159,11 +152,6 @@ func (e *automationActionExecutor) executeActionWithProof(ctx context.Context, t
 	default:
 		return actionExecutionResult{}, fmt.Errorf("未知自动化动作: %s", action.ActionType)
 	}
-}
-
-// confirmShipment 根据账号设置和任务强制标记决定是否确认订单发货。
-func (e *automationActionExecutor) confirmShipment(ctx context.Context, task Task) error {
-	return e.confirmShipmentWithProof(ctx, task, shipmentDeliveryProof{})
 }
 
 // confirmShipmentWithProof 使用已成功投递的凭证确认订单发货；会话恢复重试沿用同一份短暂凭证。

@@ -269,39 +269,6 @@ func TestRefreshCoversDiscoveryPersistenceBranches(t *testing.T) {
 	}
 }
 
-// TestRefreshCoversNoLocalDetailScanAndSessionBranches 覆盖批量同步不读本地详情游标和会话过期分支。
-func TestRefreshCoversNoLocalDetailScanAndSessionBranches(t *testing.T) {
-	// cursorRepository 保存不应被批量同步读取的本地详情游标。
-	cursorRepository := &refreshRepositoryFake{rows: []OrderRow{{OrderID: "stable", OrderStatus: "completed", Amount: "1.00"}}, rowsErr: errors.New("批量同步不应读取本地详情游标")}
-	// cursorRuntime 保存不支持订单列表的运行时。
-	cursorRuntime := &refreshRuntimeFake{}
-	// cursorResult、cursorErr 保存不读取本地游标的同步结果。
-	cursorResult, cursorErr := (&RefreshService{repository: cursorRepository, runtime: cursorRuntime}).Refresh(context.Background(), 7, "", "all")
-	if cursorErr != nil || cursorResult.Summary.DetailTotal != 0 || cursorRepository.rowsCalls != 0 {
-		t.Fatalf("游标重复或稳定订单跳过异常: result=%+v err=%v", cursorResult, cursorErr)
-	}
-
-	// expiredRepository 保存会话过期发现所需的凭证仓储。
-	expiredRepository := &refreshRepositoryFake{detail: &PlatformRuntimeData{UserID: 7, Value: "cookie"}}
-	// expiredRuntime 保存发现阶段会话过期的运行时。
-	expiredRuntime := &refreshRuntimeFake{soldAvailable: true, soldResult: RefreshSoldFetchResult{Orders: []RefreshSoldOrder{{OrderID: "remote-1"}}}, fetchErr: errors.New("会话过期"), expired: true, detailAvailable: true}
-	// expiredResult、expiredErr 保存会话过期后的批量结果。
-	expiredResult, expiredErr := (&RefreshService{repository: expiredRepository, runtime: expiredRuntime}).Refresh(context.Background(), 7, "", "all")
-	if expiredErr != nil || expiredResult.Summary.DetailTotal != 0 || !expiredRuntime.recovered {
-		t.Fatalf("会话过期详情跳过异常: result=%+v err=%v", expiredResult, expiredErr)
-	}
-
-	// detailExpiredRepository 保存直接详情分片调用的有效凭证。
-	detailExpiredRepository := &refreshRepositoryFake{detail: &PlatformRuntimeData{UserID: 7, Value: "cookie"}}
-	// detailExpiredRuntime 保存直接详情分片调用的会话过期错误。
-	detailExpiredRuntime := &refreshRuntimeFake{detailAvailable: true, detailErrors: []error{errors.New("详情会话过期")}, expired: true}
-	// detailExpiredFailed、detailExpiredResults、detailExpiredExpired 保存详情分片过期结果。
-	_, _, detailExpiredFailed, detailExpiredResults, detailExpiredExpired := (&RefreshService{repository: detailExpiredRepository, runtime: detailExpiredRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", []refreshTarget{{OrderID: "order-1", CurrentStatus: "processing"}})
-	if detailExpiredFailed != 1 || len(detailExpiredResults) != 1 || !detailExpiredExpired || !detailExpiredRuntime.recovered {
-		t.Fatalf("详情会话过期分支异常: failed=%d results=%d expired=%v recovered=%v", detailExpiredFailed, len(detailExpiredResults), detailExpiredExpired, detailExpiredRuntime.recovered)
-	}
-}
-
 // TestRefreshCoversSoldOrderNormalizationBranches 覆盖远端订单空标识、去重、砍价标记和空结果分支。
 func TestRefreshCoversSoldOrderNormalizationBranches(t *testing.T) {
 	// service 保存订单发现写入所需的最小服务。
@@ -317,98 +284,6 @@ func TestRefreshCoversSoldOrderNormalizationBranches(t *testing.T) {
 	discovered, updated, newIDs, remoteIDs, err = service.persistSoldOrders(context.Background(), "cookie-1", remoteOrders)
 	if err != nil || discovered != 1 || updated != 0 || len(newIDs) != 1 || len(remoteIDs) != 1 {
 		t.Fatalf("远端订单去重或砍价分支异常: discovered=%d updated=%d new=%v remote=%v err=%v", discovered, updated, newIDs, remoteIDs, err)
-	}
-}
-
-// TestRefreshDetailChunkCoversFailureAndCommitBranches 覆盖详情分片的请求失败、批量写入和凭证提交分支。
-func TestRefreshDetailChunkCoversFailureAndCommitBranches(t *testing.T) {
-	// target 保存详情分片目标。
-	target := []refreshTarget{{OrderID: "order-1", CurrentStatus: "processing"}, {OrderID: "order-2", CurrentStatus: "processing"}}
-	// missingRepository 保存无有效凭证的依赖。
-	missingRepository := &refreshRepositoryFake{}
-	// missingRuntime 保存详情能力运行时。
-	missingRuntime := &refreshRuntimeFake{detailAvailable: true}
-	// failed、results、expired 保存凭证缺失分片统计与结果。
-	_, _, failed, results, expired := (&RefreshService{repository: missingRepository, runtime: missingRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", target)
-	if failed != len(target) || len(results) != len(target) || expired {
-		t.Fatalf("详情分片凭证失败分支异常: failed=%d results=%d expired=%v", failed, len(results), expired)
-	}
-
-	// writeErr 保存详情批量写入错误。
-	writeErr := errors.New("详情批量写入失败")
-	// writeRepository 保存有效凭证和批量写入错误。
-	writeRepository := &refreshRepositoryFake{detail: &PlatformRuntimeData{UserID: 7, Value: "cookie"}, batchUpsertErr: writeErr}
-	// writeRuntime 保存一条成功详情和一条空详情。
-	writeRuntime := &refreshRuntimeFake{detailResults: []RefreshDetailFetchResult{{Detail: &RefreshDetail{OrderStatus: "2"}}, {}}, detailAvailable: true}
-	_, _, failed, results, expired = (&RefreshService{repository: writeRepository, runtime: writeRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", target)
-	// 一笔详情为空和一笔数据库失败都必须计入失败，不能把空详情漏计。
-	if failed != 2 || len(results) != 2 || expired {
-		t.Fatalf("详情批量写入错误分支异常: failed=%d results=%d expired=%v", failed, len(results), expired)
-	}
-
-	// expiredErr 保存会话过期详情错误。
-	expiredErr := errors.New("详情会话过期")
-	// expiredRepository 保存有效凭证依赖。
-	expiredRepository := &refreshRepositoryFake{detail: &PlatformRuntimeData{UserID: 7, Value: "cookie"}}
-	// expiredRuntime 保存会话过期错误运行时。
-	expiredRuntime := &refreshRuntimeFake{detailAvailable: true, detailErrors: []error{expiredErr}, expired: true}
-	// failed、results、expired 保存会话过期分片统计与结果。
-	_, _, failed, results, expired = (&RefreshService{repository: expiredRepository, runtime: expiredRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", target)
-	// 会话过期也是实际失败，必须使整轮同步展示未完成。
-	if failed != 1 || len(results) != 1 || !expired || !expiredRuntime.recovered {
-		t.Fatalf("详情会话过期分支异常: failed=%d results=%d expired=%v recovered=%v", failed, len(results), expired, expiredRuntime.recovered)
-	}
-
-	// reloadRepository 让详情请求后凭证复核失败。
-	reloadRepository := &refreshRepositoryFake{loadDetails: []*PlatformRuntimeData{{UserID: 7, Value: "cookie"}, {UserID: 7, Value: "rotated"}}}
-	// reloadRuntime 保存成功详情运行时。
-	reloadRuntime := &refreshRuntimeFake{detailAvailable: true, detailResult: RefreshDetailFetchResult{Detail: &RefreshDetail{OrderStatus: "2"}}}
-	_, _, failed, results, expired = (&RefreshService{repository: reloadRepository, runtime: reloadRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", target[:1])
-	// 凭证在请求期间变化时必须在写订单之前拒绝旧结果。
-	if failed != 1 || len(results) != 1 || expired || reloadRepository.batchUpsertCount != 0 || reloadRepository.upsertCount != 0 {
-		t.Fatalf("详情完成后凭证复核分支异常: failed=%d results=%d expired=%v", failed, len(results), expired)
-	}
-
-	// persistRepository 保存完整 Cookie Jar 提交所需凭证。
-	persistRepository := &refreshRepositoryFake{loadDetails: []*PlatformRuntimeData{{UserID: 7, Value: "cookie"}, {UserID: 7, Value: "cookie"}}}
-	// persistErr 保存详情 Cookie Jar 提交错误。
-	persistErr := errors.New("详情 Cookie 提交失败")
-	// persistRuntime 保存成功详情和 Cookie Jar 错误。
-	persistRuntime := &refreshRuntimeFake{detailAvailable: true, detailResult: RefreshDetailFetchResult{Detail: &RefreshDetail{OrderStatus: "processing"}, CookieUpdate: RefreshCookieUpdate{Changed: true, Value: "new-cookie"}}, persistConfigured: true, persistHandled: true, persistChanged: true, persistValue: "new-cookie", persistErr: persistErr}
-	_, _, failed, results, expired = (&RefreshService{repository: persistRepository, runtime: persistRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", target[:1])
-	if failed == 0 || len(results) < 2 || expired {
-		t.Fatalf("详情 Cookie 提交错误分支异常: failed=%d results=%d expired=%v", failed, len(results), expired)
-	}
-
-	// invalidStatusRepository 保存详情状态归一化使用的账号视图。
-	invalidStatusRepository := &refreshRepositoryFake{loadDetails: []*PlatformRuntimeData{{UserID: 7, Value: "cookie"}, {UserID: 7, Value: "cookie"}}}
-	// invalidStatusRuntime 保存不可编辑远端状态。
-	invalidStatusRuntime := &refreshRuntimeFake{detailAvailable: true, detailResult: RefreshDetailFetchResult{Detail: &RefreshDetail{OrderStatus: "not-editable"}}}
-	// invalidStatusUpdated、invalidStatusNoChange、invalidStatusFailed、invalidStatusResults、invalidStatusExpired 保存状态回退结果。
-	invalidStatusUpdated, invalidStatusNoChange, invalidStatusFailed, invalidStatusResults, invalidStatusExpired := (&RefreshService{repository: invalidStatusRepository, runtime: invalidStatusRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", []refreshTarget{{OrderID: "order-1", CurrentStatus: "processing"}})
-	if invalidStatusUpdated != 0 || invalidStatusNoChange != 1 || invalidStatusFailed != 0 || len(invalidStatusResults) != 1 || invalidStatusExpired {
-		t.Fatalf("详情状态回退分支异常: updated=%d noChange=%d failed=%d results=%d expired=%v", invalidStatusUpdated, invalidStatusNoChange, invalidStatusFailed, len(invalidStatusResults), invalidStatusExpired)
-	}
-
-	// reloadErrorRepository 保存详情完成后凭证读取错误。
-	reloadErrorRepository := &refreshRepositoryFake{detail: &PlatformRuntimeData{UserID: 7, Value: "cookie"}, loadErrors: []error{nil, errors.New("详情后凭证读取失败")}}
-	// reloadErrorRuntime 保存能够完成详情请求的运行时。
-	reloadErrorRuntime := &refreshRuntimeFake{detailAvailable: true, detailResult: RefreshDetailFetchResult{Detail: &RefreshDetail{OrderStatus: "processing"}}}
-	// reloadErrorFailed、reloadErrorResults、reloadErrorExpired 保存详情后复核错误结果。
-	_, _, reloadErrorFailed, reloadErrorResults, reloadErrorExpired := (&RefreshService{repository: reloadErrorRepository, runtime: reloadErrorRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", []refreshTarget{{OrderID: "order-1", CurrentStatus: "processing"}})
-	// 复核失败应只有失败结果，不能先写入再同时报告成功和失败。
-	if reloadErrorFailed != 1 || len(reloadErrorResults) != 1 || reloadErrorExpired || reloadErrorRepository.batchUpsertCount != 0 {
-		t.Fatalf("详情后凭证读取错误分支异常: failed=%d results=%d expired=%v", reloadErrorFailed, len(reloadErrorResults), reloadErrorExpired)
-	}
-
-	// successRepository 保存成功详情提交所需凭证。
-	successRepository := &refreshRepositoryFake{loadDetails: []*PlatformRuntimeData{{UserID: 7, Value: "cookie"}, {UserID: 7, Value: "cookie"}}}
-	// successRuntime 保存状态变化和 Cookie 更新。
-	successRuntime := &refreshRuntimeFake{detailAvailable: true, detailResult: RefreshDetailFetchResult{Detail: &RefreshDetail{OrderStatus: "3"}, CookieUpdate: RefreshCookieUpdate{Changed: true, Value: "new-cookie"}}, persistConfigured: true, persistHandled: true, persistChanged: true, persistValue: "new-cookie"}
-	// updated、noChange、failed、results、expired 保存成功分片统计和结果。
-	updated, noChange, failed, results, expired := (&RefreshService{repository: successRepository, runtime: successRuntime}).refreshDetailChunk(context.Background(), 7, "cookie-1", []refreshTarget{{OrderID: "order-1", CurrentStatus: "pending_ship"}})
-	if updated != 1 || noChange != 0 || failed != 0 || len(results) != 1 || expired || successRuntime.updatedCookie != "new-cookie" {
-		t.Fatalf("详情成功分支异常: updated=%d noChange=%d failed=%d results=%d expired=%v cookie=%q", updated, noChange, failed, len(results), expired, successRuntime.updatedCookie)
 	}
 }
 

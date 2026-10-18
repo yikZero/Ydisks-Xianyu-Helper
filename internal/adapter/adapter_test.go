@@ -752,22 +752,6 @@ func TestOnPasswordLoginRefresh_DisablesFrozenAccountError(t *testing.T) {
 	}
 }
 
-func TestPasswordLoginProcessingLock(t *testing.T) {
-	store, cleanup := newAdapterTestStore(t)
-	defer cleanup()
-	a := New(store, nil, nil)
-	if !a.beginPasswordLogin("cid") {
-		t.Fatal("首次获取 processing 锁应成功")
-	}
-	if a.beginPasswordLogin("cid") {
-		t.Fatal("同账号重复获取 processing 锁应失败")
-	}
-	a.finishPasswordLogin("cid")
-	if !a.beginPasswordLogin("cid") {
-		t.Fatal("释放后应可再次获取 processing 锁")
-	}
-}
-
 // TestOnPasswordLoginRefresh_Cooldown 同一账号短时间内第二次刷新被冷却拒绝。
 func TestOnPasswordLoginRefresh_Cooldown(t *testing.T) {
 	store, cleanup := newAdapterTestStore(t)

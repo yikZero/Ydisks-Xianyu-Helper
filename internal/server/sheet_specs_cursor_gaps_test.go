@@ -10,69 +10,6 @@ import (
 	chatapp "xianyu-go/internal/application/chat"
 )
 
-// TestParsePublishSheetBranches 覆盖铺货表格的 xlsx/xls 分流、限行、仅表头与 xlsx 结构错误。
-func TestParsePublishSheetBranches(t *testing.T) {
-	// sheetName 是 xlsx 内第一个工作表路径。
-	const sheetName = "xl/worksheets/sheet1.xml"
-	// okSheet 含表头与一个数据行。
-	okSheet := importSheetXML([][]string{{"标题", "价格"}, {"a", "1"}})
-	// okZip 是合法 xlsx 压缩包。
-	okZip := buildImportZip(t, []string{sheetName}, map[string]string{sheetName: okSheet})
-
-	// err、rows 分别保存本步骤的返回值：err为本步骤返回的错误，用于断言失败或成功路径；rows 为解析出的数据行
-	if rows, err := parsePublishSheetBytes(okZip, "a.xlsx"); err != nil || len(rows) != 1 {
-		t.Fatalf("xlsx rows=%v err=%v", rows, err)
-	}
-	if _, err := parsePublishSheetBytes(okZip, "a.xlsx"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := parsePublishSheetBytes([]byte("x"), "a.xls"); err == nil {
-		t.Error("xls should be rejected")
-	}
-	if _, err := parsePublishSheetBytes([]byte("标题\n"), "a.txt"); err == nil {
-		t.Error("header-only default csv should fail")
-	}
-	// err、rows 分别保存本步骤的返回值：err为本步骤返回的错误，用于断言失败或成功路径；rows 为解析出的数据行
-	if rows, err := parsePublishSheetBytes([]byte("标题\tprice\na\t1\n"), "a.tsv"); err != nil || len(rows) != 1 {
-		t.Errorf("tsv rows=%v err=%v", rows, err)
-	}
-	if _, err := parsePublishSheetBytes([]byte("标题\na\n\n b\n"), "a.csv"); err != nil {
-		t.Errorf("csv with blank row: %v", err)
-	}
-	if _, err := parsePublishSheetBytesWithLimit([]byte("标题\na\nb\n"), "a.csv", 1); err == nil {
-		t.Error("csv row limit should fail")
-	}
-	if _, err := parseDelimitedPublishSheet(nil, ',', 0); err == nil {
-		t.Error("empty header should fail")
-	}
-	if _, err := parseXLSXPublishSheet(okZip); err != nil {
-		t.Errorf("parseXLSXPublishSheet: %v", err)
-	}
-
-	if _, err := parseXLSXPublishSheetWithLimit([]byte("bad"), 0); err == nil {
-		t.Error("bad zip should fail")
-	}
-	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{"x"}, map[string]string{"x": "y"}), 0); err == nil {
-		t.Error("missing sheet should fail")
-	}
-	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{sheetName}, map[string]string{sheetName: "<w"}), 0); err == nil {
-		t.Error("bad sheet xml should fail")
-	}
-	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{"xl/sharedStrings.xml", sheetName}, map[string]string{"xl/sharedStrings.xml": "<s", sheetName: okSheet}), 0); err == nil {
-		t.Error("bad shared strings should fail")
-	}
-	// headerOnly 仅有表头，应报错。
-	headerOnly := importSheetXML([][]string{{"标题"}})
-	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{sheetName}, map[string]string{sheetName: headerOnly}), 0); err == nil {
-		t.Error("header-only xlsx should fail")
-	}
-	// threeRows 有两条数据，限制为 1 时必须报错。
-	threeRows := importSheetXML([][]string{{"标题"}, {"a"}, {"b"}})
-	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{sheetName}, map[string]string{sheetName: threeRows}), 1); err == nil {
-		t.Error("xlsx row limit should fail")
-	}
-}
-
 // TestParseItemPublishSpecsBranches 覆盖规格解析的空值、不完整、格式错误、图片引用与价格错误分支。
 func TestParseItemPublishSpecsBranches(t *testing.T) {
 	// err、skus、specs 分别保存本步骤的返回值：err为本步骤返回的错误，用于断言失败或成功路径；skus 为转换后的 SKU 组合；specs 为转换后的规格维度

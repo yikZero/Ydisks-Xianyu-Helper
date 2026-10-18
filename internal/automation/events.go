@@ -49,9 +49,10 @@ const (
 
 // Task 是自动化中心的统一输入。它可以来自 WS 系统事件、计划任务或手动触发。
 type Task struct {
-	Source      string // ws/scheduler/manual
-	AccountID   string
-	CookieStr   string
+	Source    string // ws/scheduler/manual
+	AccountID string
+	// CookieStr 是执行期使用的明文凭证；json:"-" 保证任务持久化（延期、运行快照）时永远不会写入数据库。
+	CookieStr   string `json:"-"`
 	TriggerType string
 	// OrderRole 是 WebSocket 交易卡片携带的接收方角色；未知时必须由本地订单和商品事实补证，不能直接发货。
 	OrderRole OrderRole

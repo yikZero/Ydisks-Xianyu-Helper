@@ -16,16 +16,12 @@ const (
 	maxCardBatchUploadBytes = 6 << 20
 	// maxOrderImportBytes 是订单原始文件与 JSON 请求体上限：32 MiB。
 	maxOrderImportBytes = 32 << 20
-	// maxOrderImportMultipartBytes 是订单文件加 multipart 元数据后的总请求上限。
-	maxOrderImportMultipartBytes = maxOrderImportBytes + maxMultipartMetadataBytes
 	// maxChatImageBytes 是聊天单张图片的业务上限：10 MiB。
 	maxChatImageBytes = 10 << 20
 	// maxChatImageMultipartBytes 是聊天图片加 multipart 元数据后的总请求上限。
 	maxChatImageMultipartBytes = maxChatImageBytes + maxMultipartMetadataBytes
 	// maxOrderRefreshRequestBytes 限制订单刷新筛选 DTO，避免无文件端点接受无界请求体。
 	maxOrderRefreshRequestBytes = 1 << 20
-	// maxOrderImportRows 单次订单导入最多订单数。
-	maxOrderImportRows = 5000
 	// maxItemPublishBytes 单品发布上限：9 张 10 MiB 图片 + multipart 元数据。
 	maxItemPublishBytes = 96 << 20
 	// maxItemPublishBatchBytes 批量发布上传上限：20 MiB 表格 + 200 MiB 图片压缩包 + multipart 元数据。

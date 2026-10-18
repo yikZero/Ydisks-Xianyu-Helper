@@ -9,13 +9,6 @@ import (
 	"xianyu-go/internal/db"
 )
 
-// sendCard 按规格和购买数量分配文本、图片或数据卡密。
-func (e *automationActionExecutor) sendCard(ctx context.Context, task Task, action db.AutomationAction) (int, error) {
-	// result 保存卡密动作的发送数量和短暂凭证；旧入口只返回数量以保持测试及兼容调用方稳定。
-	result, err := e.sendCardWithProof(ctx, task, action)
-	return result.sent, err
-}
-
 // sendCardWithProof 发送卡密并收集实际成功投递的文本或图片凭证，供同一运行的确认发货动作使用。
 func (e *automationActionExecutor) sendCardWithProof(ctx context.Context, task Task, action db.AutomationAction) (actionExecutionResult, error) {
 	if !actionMatchesOrderSpec(task, action) {

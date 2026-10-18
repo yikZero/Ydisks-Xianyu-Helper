@@ -31,19 +31,6 @@ func SnapshotFromMetadata(metadata string) ([]BrowserCookie, bool) {
 	return cookierefresh.SnapshotFromMetadataOK(metadata)
 }
 
-// HasStoredCookieCredential 判断凭证视图是否包含扁平 Cookie 或完整 Cookie 快照。
-func HasStoredCookieCredential(detail *accountapp.CredentialDetail) bool {
-	if detail == nil {
-		return false
-	}
-	if detail.Value != "" {
-		return true
-	}
-	// complete 表示 metadata 是否包含可用于平台请求的完整快照。
-	_, complete := cookierefresh.SnapshotFromMetadataOK(detail.MetadataJSON)
-	return complete
-}
-
 // PersistCookieSessionLocked 持久化平台响应后的 Cookie 会话；调用方必须已持有凭证锁。
 func PersistCookieSessionLocked(
 	ctx context.Context,

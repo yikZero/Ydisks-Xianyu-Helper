@@ -3,15 +3,10 @@ package server
 import (
 	"archive/zip"
 	"bytes"
-	"context"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"xianyu-go/internal/netguard"
 )
 
 // pngHeaderForTest 是 PNG 魔数，足以让 http.DetectContentType 识别为 image/png。
@@ -129,96 +124,5 @@ func TestExtractPublishImagesZipErrorBranches(t *testing.T) {
 	_ = rawWriter.Close()
 	if err = extractPublishImagesZip(rawBuf.Bytes(), t.TempDir()); err == nil {
 		t.Error("unsupported compression should fail")
-	}
-}
-
-// TestReadBatchImageFileBranches 覆盖批次图片读取的路径、缺失、空文件、超限和非图片分支。
-func TestReadBatchImageFileBranches(t *testing.T) {
-	// dir 是模拟批次上传目录。
-	dir := t.TempDir()
-	// writeFile 在 dir 中写入一个文件。
-	writeFile := func(name string, data []byte) {
-		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	writeFile("empty.png", nil)
-	writeFile("text.png", []byte("hello"))
-	writeFile("big.png", append(append([]byte{}, pngHeaderForTest...), make([]byte, 10<<20)...))
-	writeFile("ok.png", append(append([]byte{}, pngHeaderForTest...), 1))
-
-	if _, _, _, err := readBatchImageFile(dir, "../x.png"); err == nil {
-		t.Error("unsafe ref should fail")
-	}
-	if _, _, _, err := readBatchImageFile(filepath.Join(dir, "nope"), "ok.png"); err == nil {
-		t.Error("missing dir should fail")
-	}
-	// ref 表示每个应失败的图片引用。
-	for _, ref := range []string{"missing.png", "empty.png", "text.png", "big.png"} {
-		if _, _, _, err := readBatchImageFile(dir, ref); err == nil {
-			t.Errorf("%s should fail", ref)
-		}
-	}
-	// data、contentType、name、err 是成功读取的结果。
-	data, contentType, name, err := readBatchImageFile(dir, "ok.png")
-	if err != nil || len(data) == 0 || contentType != "image/png" || name != "ok.png" {
-		t.Fatalf("ok read: %v %q %q", err, contentType, name)
-	}
-}
-
-// TestWriteFileWithinRootAndValidateRef 覆盖根目录不存在、目标为目录以及图片引用校验。
-func TestWriteFileWithinRootAndValidateRef(t *testing.T) {
-	if err := writeFileWithinRoot(filepath.Join(t.TempDir(), "missing"), "a", []byte("x")); err == nil {
-		t.Error("missing root should fail")
-	}
-	// dir 是上传根目录，其中 sub 为目录。
-	dir := t.TempDir()
-	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	if err := writeFileWithinRoot(dir, "sub", []byte("x")); err == nil {
-		t.Error("writing onto directory should fail")
-	}
-	if err := validateBatchImageRef(dir, "https://example.test/a.png"); err != nil {
-		t.Errorf("http ref: %v", err)
-	}
-	if err := validateBatchImageRef(dir, "../a.png"); err == nil {
-		t.Error("unsafe ref should fail")
-	}
-	if err := validateBatchImageRef(dir, "sub"); err == nil {
-		t.Error("directory ref should fail")
-	}
-	if err := validateBatchImageRef(dir, "missing.png"); err == nil {
-		t.Error("missing ref should fail")
-	}
-	if got := randomHex(4); len(got) != 8 {
-		t.Errorf("randomHex length = %d", len(got))
-	}
-}
-
-// TestDownloadImageURLInvalidAndOversize 覆盖 URL 非法与远程图片超限分支。
-func TestDownloadImageURLInvalidAndOversize(t *testing.T) {
-	// previousPublicOnly 保存全局出站策略，测试结束后恢复。
-	previousPublicOnly := netguard.DefaultPublicOnly()
-	netguard.SetDefaultPublicOnly(false)
-	t.Cleanup(func() { netguard.SetDefaultPublicOnly(previousPublicOnly) })
-	// srv 返回超过 10 MiB 的图片。
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "image/png")
-		_, _ = w.Write(make([]byte, 10<<20+10))
-	}))
-	t.Cleanup(srv.Close)
-	if _, _, err := downloadImageURL(context.Background(), srv.URL); err == nil {
-		// 出站客户端自身限制响应体大小时同样以错误返回，业务上都必须拒绝超限图片。
-		t.Errorf("oversize should fail, err=%v", err)
-	}
-	// badURL 表示非 http 协议或缺少主机的地址。
-	for _, badURL := range []string{"ftp://x/a.png", "http:///a.png", "://bad"} {
-		if _, _, err := downloadImageURL(context.Background(), badURL); err == nil {
-			t.Errorf("%q should be invalid", badURL)
-		}
-	}
-	if got := pathBaseFromURL("https://x.test/"); got == "" {
-		t.Error("pathBaseFromURL fallback empty")
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -232,32 +231,6 @@ func historyMessageIsSystem(last map[string]any, summary string) bool {
 		}
 	}
 	return isOfficialSystemMessage(content, senderID, summary)
-}
-
-// invalidNicknames 保存不能作为买家真实昵称持久化的系统展示文本。
-var invalidNicknames = map[string]struct{}{
-	"交易消息": {}, "系统消息": {}, "卡片消息": {}, "我完成了评价": {}, "对方完成了评价": {},
-	"快给ta一个评价吧～": {}, "卖家已发货": {}, "买家已付款": {}, "买家已确认收货": {},
-	"等待您发货": {}, "超时未付款，系统关闭了订单": {}, "邀您填写售后问卷": {},
-}
-
-// ValidNickname 判断昵称是否为可展示的真实昵称，排除空值、脱敏值、纯数字 ID 和系统占位文本。
-func ValidNickname(value string) bool {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return false
-	}
-	if strings.Contains(value, "***") {
-		return false
-	}
-	if _, err := strconv.ParseUint(value, 10, 64); err == nil {
-		return false
-	}
-	trimmed := strings.TrimSuffix(strings.TrimPrefix(value, "["), "]")
-	if _, invalid := invalidNicknames[trimmed]; invalid {
-		return false
-	}
-	return !strings.Contains(value, "发来一条新消息")
 }
 
 func cleanNilString(value any) string {

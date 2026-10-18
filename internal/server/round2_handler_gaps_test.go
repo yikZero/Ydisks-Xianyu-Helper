@@ -11,7 +11,6 @@ import (
 	automationapp "xianyu-go/internal/application/automation"
 	cardsapp "xianyu-go/internal/application/cards"
 	notificationsapp "xianyu-go/internal/application/notifications"
-	orderapp "xianyu-go/internal/application/orders"
 )
 
 // ruleGapPort 包装自动化规则端口，让分页查询、更新与删除按预设返回错误。
@@ -212,70 +211,6 @@ func TestNotificationHandlerRound2(t *testing.T) {
 		if recorder := serveChatCoverageRequest(handler, cookie, tc.method, tc.path, tc.body); recorder.Code != tc.want {
 			t.Errorf("%s %s %v => %d want %d", tc.method, tc.path, tc.err, recorder.Code, tc.want)
 		}
-	}
-}
-
-// orderGapPort 是订单端口桩，各方法返回预设错误。
-type orderGapPort struct {
-	// OrdersPort 提供未覆盖方法的默认（空）实现。
-	OrdersPort
-	err error
-}
-
-// List 返回预设错误。
-func (p orderGapPort) List(context.Context, orderapp.ListQuery) (orderapp.ListResult, error) {
-	return orderapp.ListResult{}, p.err
-}
-
-// GetView 返回预设错误。
-func (p orderGapPort) GetView(context.Context, int64, string) (orderapp.DetailResult, error) {
-	return orderapp.DetailResult{}, p.err
-}
-
-// Delete 返回预设错误。
-func (p orderGapPort) Delete(context.Context, int64, string) error { return p.err }
-
-// Update 返回预设错误。
-func (p orderGapPort) Update(context.Context, int64, string, orderapp.UpdateRequest) error {
-	return p.err
-}
-
-// ManualShip 返回预设错误。
-func (p orderGapPort) ManualShip(context.Context, orderapp.ManualShipRequest) (orderapp.ManualShipResult, error) {
-	return orderapp.ManualShipResult{}, p.err
-}
-
-// TestOrderHandlerRound2 覆盖订单接口的 403 映射、默认发货模式和端口失败。
-func TestOrderHandlerRound2(t *testing.T) {
-	srv, _, cleanup := newTestServer(t)
-	defer cleanup()
-	handler := srv.Router()
-	cookie := loginHelper(t, handler)
-	// routes 描述订单接口、端口错误与期望状态。
-	routes := []struct {
-		// method、path、body 描述请求。
-		method, path, body string
-		// err 是注入端口错误。
-		err  error
-		want int
-	}{
-		{"GET", "/api/orders", ``, orderapp.ErrForbidden, 403},
-		{"GET", "/api/orders/o1", ``, orderapp.ErrForbidden, 403},
-		{"DELETE", "/api/orders/o1", ``, orderapp.ErrForbidden, 403},
-		{"PUT", "/api/orders/o1", `{}`, orderapp.ErrForbidden, 403},
-		{"POST", "/api/orders/manual-ship", `{"order_ids":["o1"]}`, errors.New("db"), 500},
-	}
-	// tc 表示当前订单场景。
-	for _, tc := range routes {
-		srv.applications.orders = orderGapPort{err: tc.err}
-		// recorder 是调用 tc.method tc.path 得到的响应记录，其状态码用于断言该场景的错误映射
-		if recorder := serveChatCoverageRequest(handler, cookie, tc.method, tc.path, tc.body); recorder.Code != tc.want {
-			t.Errorf("%s %s => %d want %d", tc.method, tc.path, recorder.Code, tc.want)
-		}
-	}
-	// chunks 是默认分块大小下切分出的订单分块
-	if chunks := chunkRefreshTargets([]refreshTarget{{OrderID: "a"}}, 0); len(chunks) != 1 {
-		t.Errorf("default chunk size produced %d chunks", len(chunks))
 	}
 }
 

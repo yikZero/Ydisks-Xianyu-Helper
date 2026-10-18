@@ -17,7 +17,6 @@ import (
 
 	"xianyu-go/internal/xianyu"
 	"xianyu-go/internal/xianyu/cookierefresh"
-	"xianyu-go/internal/xianyu/protocol"
 )
 
 // RegAppKey 是 WS 注册用的 appKey（与签名用的 protocol.SignAppKey 不同）。
@@ -374,14 +373,6 @@ func mtopTokenCookieChanged(previous, current string) bool {
 	return currentToken != "" && previousToken != currentToken
 }
 
-// MTopTokenCookieChanged 判断两份 Cookie 中实际用于 MTOP 签名的 _m_h5_tk 是否发生非空轮换。
-// 调用方只能据此确认签名输入是否变化，不能把普通 Cookie 或 metadata 变化当作签名恢复。
-func MTopTokenCookieChanged(previous, current string) bool {
-	// previousToken、currentToken 保存请求前后真正参与签名的令牌前缀，忽略仅更新时间戳后缀的变化。
-	previousToken, currentToken := protocol.SignToken(previous), protocol.SignToken(current)
-	return currentToken != "" && previousToken != currentToken
-}
-
 // mtopResponseFailure 按统一规则分类 MTOP 失败响应；它不参与成功响应处理。
 func (c *ClientImpl) mtopResponseFailure(api string, status int, ret []string, detail string) error {
 	return c.mtopResponseFailureWithCause(api, status, ret, detail, nil)
@@ -607,11 +598,6 @@ func IsSessionExpiredErr(err error) bool {
 	}
 	return isSessionExpiredRet([]string{msg}) ||
 		strings.Contains(msg, "登录凭证已失效")
-}
-
-// IsCredentialRefreshableErr 保留历史分类入口；Token 由 MTOP 客户端内部刷新，只有 Session 失效允许账号级恢复。
-func IsCredentialRefreshableErr(err error) bool {
-	return IsSessionExpiredErr(err)
 }
 
 func mtopString(v any) string {

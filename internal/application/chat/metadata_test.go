@@ -7,6 +7,9 @@ import (
 	"testing"
 )
 
+// quickReplyLimit 是测试仓储模拟的单账号快捷回复上限，与数据库层的限制保持一致。
+const quickReplyLimit = 50
+
 // metadataTestRepository 是快捷回复和买家备注用例的内存持久化替身。
 type metadataTestRepository struct {
 	// fakeRepository 复用聊天查询和账号归属所需的最小端口实现。

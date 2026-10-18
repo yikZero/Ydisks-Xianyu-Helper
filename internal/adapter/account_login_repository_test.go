@@ -15,7 +15,6 @@ func TestAccountLoginRepositoryKeepsPlatformViewNarrow(t *testing.T) {
 	// store 是包含测试账号和加密凭证的 SQLite 存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// metadata 是带浏览器快照的加密元数据样例。
 	metadata := cookierefresh.MetadataWithSnapshot(`{"device":"test"}`, []cookierefresh.BrowserCookie{{Name: "sid", Value: "snapshot", Domain: ".goofish.com", Path: "/"}})
@@ -43,7 +42,6 @@ func TestAccountLoginRepositoryUpdatesCookieSnapshot(t *testing.T) {
 	// store 是用于验证 Cookie metadata 合并的 SQLite 存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的账号登录适配器。
 	repository := NewAccountLoginRepository(store)
@@ -93,7 +91,6 @@ func TestAccountLoginRepositoryMapsOwnershipErrors(t *testing.T) {
 	// store 是包含一个账号所有者的 SQLite 存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的账号登录适配器。
 	repository := NewAccountLoginRepository(store)
@@ -121,7 +118,6 @@ func TestAccountLoginRepositoryMapsOwnershipErrors(t *testing.T) {
 
 // TestAccountLoginRepositoryMapsMissingPlatformCredential 验证平台凭证缺失时返回应用层哨兵。
 func TestAccountLoginRepositoryMapsMissingPlatformCredential(t *testing.T) {
-	// store、cleanup 保存用于查询不存在账号的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试存储的账号登录适配器。
@@ -140,7 +136,6 @@ func TestAccountLoginRepositoryPropagatesDatabaseFailure(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定待关闭存储的账号登录适配器。
 	repository := NewAccountLoginRepository(store)
-	// closeErr 保存主动关闭数据库的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

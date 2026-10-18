@@ -23,7 +23,6 @@ import (
 	xrenew "xianyu-go/internal/xianyu/renew"
 )
 
-// maxQRResponseBytes 用于本次流程后续判断的maxQR响应Bytes
 const (
 	maxQRResponseBytes = 2 << 20
 	qrPollInterval     = 2 * time.Second
@@ -31,7 +30,6 @@ const (
 	qrTopSite          = "https://goofish.com"
 )
 
-// host 用于本次流程后续判断的host
 const (
 	host          = "https://passport.goofish.com"
 	apiMiniLogin  = host + "/mini_login.htm"
@@ -42,10 +40,8 @@ const (
 	appKey        = "34839810"
 )
 
-// qrVerifyTargetURL 用于本次流程后续判断的qrVerifyTargetURL
 var qrVerifyTargetURL = "https://www.goofish.com/im"
 
-// qrHeaders 用于本次流程后续判断的qrHeaders
 var qrHeaders = map[string]string{
 	"Accept":          "application/json, text/plain, */*",
 	"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
@@ -78,14 +74,12 @@ type Session struct {
 	faceQRContent          string // 人脸验证二维码原始内容，便于排查协议变化
 }
 
-// isExpired 封装isExpired业务协调。
 func (s *Session) isExpired() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return time.Since(s.createdTime) > s.expireTime
 }
 
-// sessionSnapshot 用于本次流程后续判断的会话Snapshot
 type sessionSnapshot struct {
 	status                 string
 	cookies                map[string]string
@@ -99,7 +93,6 @@ type sessionSnapshot struct {
 	createdTime            time.Time
 }
 
-// snapshot 封装snapshot业务协调。
 func (s *Session) snapshot() sessionSnapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -236,7 +229,6 @@ func (m *Manager) GenerateQRCode(ctx context.Context) (sessionID string, qrCodeU
 	if err != nil {
 		return "", "", fmt.Errorf("生成扫码会话 ID: %w", err)
 	}
-	// sess 用于本次流程后续判断的sess
 	sess := &Session{
 		SessionID:      sessionID,
 		Status:         "waiting",
@@ -260,33 +252,27 @@ func (m *Manager) GenerateQRCode(ctx context.Context) (sessionID string, qrCodeU
 
 	// 3. 生成二维码。
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, apiGenerateQR, nil)
-	// q 用于本次流程后续判断的q
 	q := req.URL.Query()
-	// k、v 表示当前遍历过程中的k、v
 	for k, v := range loginParams {
 		q.Set(k, v)
 	}
 	req.URL.RawQuery = q.Encode()
 	m.setHeaders(req)
-	if // cookieStr 用于本次流程后续判断的登录凭证Str
-	cookieStr := sessionCookieHeader(sess, req.URL.String()); cookieStr != "" {
+	if cookieStr := sessionCookieHeader(sess, req.URL.String()); cookieStr != "" {
 		req.Header.Set("Cookie", cookieStr)
 	}
 
-	// resp、err 用于本次流程后续判断的resp、err
 	resp, err := m.httpc.Do(req)
 	if err != nil {
 		return "", "", fmt.Errorf("请求二维码接口失败: %w", err)
 	}
 	defer resp.Body.Close()
 	absorbSessionResponse(sess, apiGenerateQR, resp)
-	// body、err 用于本次流程后续判断的body、err
 	body, err := readQRBody(resp.Body)
 	if err != nil {
 		return "", "", err
 	}
 
-	// result 用于本次流程后续判断的结果
 	var result struct {
 		Content struct {
 			Success bool `json:"success"`
@@ -297,8 +283,7 @@ func (m *Manager) GenerateQRCode(ctx context.Context) (sessionID string, qrCodeU
 			} `json:"data"`
 		} `json:"content"`
 	}
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal(body, &result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return "", "", fmt.Errorf("解析二维码响应失败: %w (body=%s)", err, truncate(string(body), 300))
 	}
 	if !result.Content.Success {
@@ -307,8 +292,7 @@ func (m *Manager) GenerateQRCode(ctx context.Context) (sessionID string, qrCodeU
 
 	// t 是毫秒时间戳数字，必须转成纯数字字符串（不能用科学计数法）。
 	var tStr string
-	switch // tv 用于本次流程后续判断的tv
-	tv := result.Content.Data.T.(type) {
+	switch tv := result.Content.Data.T.(type) {
 	case float64:
 		tStr = strconv.FormatInt(int64(tv), 10)
 	case string:
@@ -326,9 +310,7 @@ func (m *Manager) GenerateQRCode(ctx context.Context) (sessionID string, qrCodeU
 		return "", "", fmt.Errorf("生成二维码失败: %w", err)
 	}
 	png.DisableBorder = false
-	// pngBytes 用于本次流程后续判断的pngBytes
 	pngBytes, _ := png.PNG(256)
-	// pngBytes64 用于本次流程后续判断的pngBytes64
 	pngBytes64 := base64.StdEncoding.EncodeToString(pngBytes)
 	qrCodeURL = "data:image/png;base64," + pngBytes64
 
@@ -361,7 +343,6 @@ func (m *Manager) GenerateQRCode(ctx context.Context) (sessionID string, qrCodeU
 // GetSessionStatus 查询扫码状态。
 func (m *Manager) GetSessionStatus(sessionID string) map[string]any {
 	m.mu.Lock()
-	// sess、ok 用于本次流程后续判断的sess、ok
 	sess, ok := m.sessions[sessionID]
 	m.mu.Unlock()
 	if !ok {
@@ -371,7 +352,6 @@ func (m *Manager) GetSessionStatus(sessionID string) map[string]any {
 	if time.Since(sess.createdTime) > sess.expireTime && sess.Status != "success" {
 		sess.Status = "expired"
 	}
-	// snapshot 用于本次流程后续判断的snapshot
 	snapshot := sessionSnapshot{
 		status: sess.Status, cookies: cloneCookieMap(sess.cookies), unb: sess.unb,
 		cookieSnapshot:  cloneCookieSnapshot(sess.cookieSnapshot),
@@ -379,7 +359,6 @@ func (m *Manager) GetSessionStatus(sessionID string) map[string]any {
 		faceQRURL: sess.faceQRURL,
 	}
 	sess.mu.Unlock()
-	// result 用于本次流程后续判断的结果
 	result := map[string]any{
 		"status":     snapshot.status,
 		"session_id": sessionID,
@@ -470,18 +449,14 @@ func (m *Manager) CloseContext(ctx context.Context) error {
 // monitorQRStatus 后台轮询扫码状态。
 func (m *Manager) monitorQRStatus(ctx context.Context, sessionID string) {
 	m.mu.Lock()
-	// sess 用于本次流程后续判断的sess
 	sess := m.sessions[sessionID]
 	m.mu.Unlock()
 	if sess == nil {
 		return
 	}
 
-	// maxWait 用于本次流程后续判断的maxWait
 	maxWait := 5 * time.Minute
-	// start 用于本次流程后续判断的开始
 	start := time.Now()
-	// serverErrors 用于本次流程后续判断的server错误列表
 	serverErrors := 0
 
 	for time.Since(start) < maxWait {
@@ -492,14 +467,12 @@ func (m *Manager) monitorQRStatus(ctx context.Context, sessionID string) {
 		}
 
 		m.mu.Lock()
-		if // ok 用于本次流程后续判断的ok
-		_, ok := m.sessions[sessionID]; !ok {
+		if _, ok := m.sessions[sessionID]; !ok {
 			m.mu.Unlock()
 			return
 		}
 		m.mu.Unlock()
 
-		// resp、err 用于本次流程后续判断的resp、err
 		resp, err := m.pollQRCodeStatus(ctx, sess)
 		if err != nil {
 			m.logger.Error("轮询扫码状态异常", "err", err)
@@ -509,9 +482,7 @@ func (m *Manager) monitorQRStatus(ctx context.Context, sessionID string) {
 			continue
 		}
 		absorbSessionResponse(sess, apiScanStatus, resp)
-		// body、readErr 用于本次流程后续判断的body、readErr
 		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
-		// closeErr 用于本次流程后续判断的closeErr
 		closeErr := resp.Body.Close()
 		if readErr != nil || closeErr != nil {
 			m.logger.Warn("读取扫码状态响应失败", "read_err", readErr, "close_err", closeErr)
@@ -521,7 +492,6 @@ func (m *Manager) monitorQRStatus(ctx context.Context, sessionID string) {
 			continue
 		}
 
-		// qrResult 用于本次流程后续判断的qr结果
 		var qrResult struct {
 			HasError bool `json:"hasError"`
 			Content  struct {
@@ -532,8 +502,7 @@ func (m *Manager) monitorQRStatus(ctx context.Context, sessionID string) {
 				} `json:"data"`
 			} `json:"content"`
 		}
-		if // err 用于本次流程后续判断的err
-		err := json.Unmarshal(body, &qrResult); err != nil {
+		if err := json.Unmarshal(body, &qrResult); err != nil {
 			m.logger.Warn("解析扫码状态响应失败", "err", err)
 			if !waitQRRetry(ctx, qrPollInterval) {
 				return
@@ -554,7 +523,6 @@ func (m *Manager) monitorQRStatus(ctx context.Context, sessionID string) {
 		}
 		serverErrors = 0
 
-		// status 用于本次流程后续判断的状态
 		status := qrResult.Content.Data.QRCodeStatus
 		switch status {
 		case "CONFIRMED":
@@ -606,46 +574,37 @@ func (m *Manager) monitorQRStatus(ctx context.Context, sessionID string) {
 
 // completeConfirmedLogin 对齐二维码组件确认后的顶层页面跳转。专用 Cookie
 // Jar 会捕获自动重定向链上的全部 Set-Cookie，并保留 Domain/Path/HttpOnly。
-// completeConfirmedLogin 封装completeConfirmed登录业务协调。
 func (m *Manager) completeConfirmedLogin(ctx context.Context, sess *Session) error {
 	if sess == nil {
 		return errors.New("扫码会话为空")
 	}
-	// state 用于本次流程后续判断的状态
 	state := sess.snapshot()
-	// client、jar、err 用于本次流程后续判断的client、jar、err
 	client, jar, err := m.faceHTTPClient(state.cookies, state.cookieSnapshot, apiScanStatus, qrVerifyTargetURL)
 	if err != nil {
 		return fmt.Errorf("创建扫码完成 Cookie Jar: %w", err)
 	}
-	// req、err 用于本次流程后续判断的req、err
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, qrVerifyTargetURL, nil)
 	if err != nil {
 		return fmt.Errorf("创建扫码完成请求: %w", err)
 	}
 	m.setDocumentHeaders(req)
-	// resp、err 用于本次流程后续判断的resp、err
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("访问闲鱼消息页完成登录: %w", err)
 	}
 	defer resp.Body.Close()
-	if // err 用于本次流程后续判断的err
-	_, err := io.Copy(io.Discard, io.LimitReader(resp.Body, 2<<20)); err != nil {
+	if _, err := io.Copy(io.Discard, io.LimitReader(resp.Body, 2<<20)); err != nil {
 		return fmt.Errorf("读取扫码完成响应: %w", err)
 	}
 
-	// urls 用于本次流程后续判断的urls
 	urls := []*url.URL{mustParseURL(qrVerifyTargetURL)}
 	if resp.Request != nil && resp.Request.URL != nil {
 		urls = append(urls, resp.Request.URL)
 	}
-	// finalCookies 用于本次流程后续判断的finalCookies
 	finalCookies := collectJarCookies(jar, urls...)
 	if finalCookies["unb"] == "" {
 		return errors.New("扫码完成跳转未保留账号标识")
 	}
-	// finalSnapshot、snapshotComplete 用于本次流程后续判断的finalSnapshot、snapshotComplete
 	finalSnapshot, snapshotComplete := jar.Snapshot()
 	sess.mu.Lock()
 	sess.cookies = finalCookies
@@ -661,18 +620,13 @@ func (m *Manager) completeConfirmedLogin(ctx context.Context, sess *Session) err
 
 // enableConfirmedLongLogin 对齐官网账号安全页的“保持登录”开关：先提交
 // status=0，再查询 hasLongTokenLogin，并保存两次响应更新后的完整 Cookie Jar。
-// enableConfirmedLongLogin 封装enableConfirmedLong登录业务协调。
 func (m *Manager) enableConfirmedLongLogin(ctx context.Context, sess *Session) error {
 	if sess == nil {
 		return errors.New("扫码会话为空")
 	}
-	// state 用于本次流程后续判断的状态
 	state := sess.snapshot()
-	// service 用于本次流程后续判断的service
 	service := xrenew.Service{HTTPClient: m.httpc, DocumentReferer: qrVerifyTargetURL}
-	// settings 用于本次流程后续判断的设置
 	var settings *xrenew.LongLoginSettings
-	// err 用于本次流程后续判断的err
 	var err error
 	if state.cookieSnapshot != nil {
 		settings, err = service.SetLongLoginSettings(ctx, cookieMarshal(state.cookies), true, state.cookieSnapshot)
@@ -689,8 +643,7 @@ func (m *Manager) enableConfirmedLongLogin(ctx context.Context, sess *Session) e
 			finalizeSessionCredentialsLocked(sess)
 		} else if strings.TrimSpace(settings.NewCookies) != "" {
 			sess.cookies = parseCookieStr(settings.NewCookies)
-			if // unb 用于本次流程后续判断的unb
-			unb := sess.cookies["unb"]; unb != "" {
+			if unb := sess.cookies["unb"]; unb != "" {
 				sess.unb = unb
 			}
 		}
@@ -705,21 +658,17 @@ func (m *Manager) enableConfirmedLongLogin(ctx context.Context, sess *Session) e
 	return nil
 }
 
-// runGoVerification 封装运行GoVerification业务协调。
 func (m *Manager) runGoVerification(ctx context.Context, sessionID, verificationURL string) {
 	if !strings.Contains(verificationURL, "/iv/") && !strings.Contains(verificationURL, "identity_verify") {
 		m.logger.Warn("扫码验证地址不属于已支持的人脸流程，保持人工验证状态", "session_id", sessionID, "verification_url", logsafe.URL(verificationURL))
 		return
 	}
-	if // err 用于本次流程后续判断的err
-	err := m.runFaceVerification(ctx, sessionID, verificationURL); err != nil {
+	if err := m.runFaceVerification(ctx, sessionID, verificationURL); err != nil {
 		m.logger.Warn("扫码人脸验证 Go HTTP 流程未完成，保持人工验证状态", "session_id", sessionID, "err", err)
 	}
 }
 
-// waitQRRetry 封装waitQR重试业务协调。
 func waitQRRetry(ctx context.Context, delay time.Duration) bool {
-	// timer 用于本次流程后续判断的定时器
 	timer := time.NewTimer(delay)
 	defer timer.Stop()
 	select {
@@ -732,4 +681,3 @@ func waitQRRetry(ctx context.Context, delay time.Duration) bool {
 
 // CompleteVerification 用户完成风控验证后调用。整个凭证换取过程只使用
 // Go Cookie Jar；不得导航浏览器页面或通过 DOM 判断登录状态。
-// CompleteVerification 封装CompleteVerification业务协调。

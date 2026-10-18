@@ -102,39 +102,31 @@ func TestQConnDelegatesWithRewrittenPlaceholders(t *testing.T) {
 	conn := &qConn{Conn: fake}
 	// ctx 是调用上下文。
 	ctx := context.Background()
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := conn.ExecContext(ctx, "UPDATE t SET a=? WHERE b=?", nil); err != nil || fake.lastQuery != "UPDATE t SET a=$1 WHERE b=$2" {
 		t.Fatalf("exec query=%q err=%v", fake.lastQuery, err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := conn.QueryContext(ctx, "SELECT ?", nil); err != nil || fake.lastQuery != "SELECT $1" {
 		t.Fatalf("query=%q err=%v", fake.lastQuery, err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := conn.PrepareContext(ctx, "SELECT '?' , ?"); err != nil || fake.lastQuery != "SELECT '?' , $1" {
 		t.Fatalf("prepare=%q err=%v", fake.lastQuery, err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := conn.BeginTx(ctx, driver.TxOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := conn.Ping(ctx); err != nil {
 		t.Fatal(err)
 	}
 	fake.pingErr = errors.New("ping failed")
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := conn.Ping(ctx); err == nil {
 		t.Fatal("ping 错误应被透传")
 	}
 	if !conn.IsValid() {
 		t.Fatal("底层有效时应有效")
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := conn.CheckNamedValue(&driver.NamedValue{}); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := conn.ResetSession(ctx); err != nil || !fake.resetCalled {
 		t.Fatalf("reset called=%v err=%v", fake.resetCalled, err)
 	}
@@ -146,34 +138,27 @@ func TestQConnFallsBackWhenOptionalInterfacesMissing(t *testing.T) {
 	conn := &qConn{Conn: barePgxConn{}}
 	// ctx 是调用上下文。
 	ctx := context.Background()
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := conn.ExecContext(ctx, "x", nil); !errors.Is(err, driver.ErrSkip) {
 		t.Fatalf("exec err=%v", err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := conn.QueryContext(ctx, "x", nil); !errors.Is(err, driver.ErrSkip) {
 		t.Fatalf("query err=%v", err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := conn.PrepareContext(ctx, "x"); !errors.Is(err, driver.ErrSkip) {
 		t.Fatalf("prepare err=%v", err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := conn.BeginTx(ctx, driver.TxOptions{}); !errors.Is(err, driver.ErrSkip) {
 		t.Fatalf("begin err=%v", err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := conn.Ping(ctx); err != nil {
 		t.Fatalf("ping err=%v", err)
 	}
 	if !conn.IsValid() {
 		t.Fatal("缺少 Validator 时应视为有效")
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := conn.CheckNamedValue(&driver.NamedValue{}); !errors.Is(err, driver.ErrSkip) {
 		t.Fatalf("check err=%v", err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := conn.ResetSession(ctx); err != nil {
 		t.Fatalf("reset err=%v", err)
 	}
@@ -189,7 +174,6 @@ func TestQPgDriverAndConnectorWrapBase(t *testing.T) {
 	if c, err := (&qPgDriver{base: ok}).Open("dsn"); err != nil || c == nil {
 		t.Fatalf("open c=%v err=%v", c, err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := (&qPgDriver{base: bad}).Open("dsn"); err == nil {
 		t.Fatal("Open 错误应透传")
 	}
@@ -197,7 +181,6 @@ func TestQPgDriverAndConnectorWrapBase(t *testing.T) {
 	if c, err := (&qPgConnector{base: ok}).Connect(context.Background()); err != nil || c == nil {
 		t.Fatalf("connect c=%v err=%v", c, err)
 	}
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := (&qPgConnector{base: bad}).Connect(context.Background()); err == nil {
 		t.Fatal("Connect 错误应透传")
 	}
@@ -208,7 +191,6 @@ func TestQPgDriverAndConnectorWrapBase(t *testing.T) {
 
 // TestNewPgxCompatConnectorParsesDSN 验证 DSN 解析（含 pgx:// 别名、UTC 时区注入、非法 DSN）及对不可达地址的连接失败。
 func TestNewPgxCompatConnectorParsesDSN(t *testing.T) {
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := newPgxCompatConnector("::not a dsn::\x00"); err == nil {
 		t.Fatal("非法 DSN 应报错")
 	}
@@ -225,7 +207,6 @@ func TestNewPgxCompatConnectorParsesDSN(t *testing.T) {
 	// ctx 限制连接尝试时长。
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if _, err := connector.Connect(ctx); err == nil {
 		t.Fatal("不可达地址应连接失败")
 	}

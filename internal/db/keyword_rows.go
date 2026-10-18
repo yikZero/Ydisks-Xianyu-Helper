@@ -66,13 +66,11 @@ func (k *Keywords) UpdateByID(ctx context.Context, row KeywordRow) error {
 
 // DeleteByID 删除ByID。
 func (k *Keywords) DeleteByID(ctx context.Context, cookieID string, id int64) error {
-	// res、err 用于本次流程后续判断的res、err
 	res, err := k.DB.ExecContext(ctx, `DELETE FROM keywords WHERE id=? AND cookie_id=?`, id, cookieID)
 	if err != nil {
 		return err
 	}
-	if // affected、err 用于本次流程后续判断的affected、err
-	affected, err := res.RowsAffected(); err == nil && affected == 0 {
+	if affected, err := res.RowsAffected(); err == nil && affected == 0 {
 		return ErrNotFound
 	}
 	return nil
@@ -96,8 +94,8 @@ func (k *Keywords) AllRows(ctx context.Context, cookieID string) ([]KeywordRow, 
 		var r KeywordRow
 		// rawExpressions 保存当前行的表达式 JSON 文本。
 		var rawExpressions string
-		if // err 表示当前行扫描错误。
-		err := rows.Scan(&r.ID, &r.Keyword, &r.Reply, &r.ItemID, &r.Type, &r.ImageURL, &rawExpressions, &r.MatchType); err != nil {
+		// err 表示当前行扫描错误。
+		if err := rows.Scan(&r.ID, &r.Keyword, &r.Reply, &r.ItemID, &r.Type, &r.ImageURL, &rawExpressions, &r.MatchType); err != nil {
 			return nil, err
 		}
 		r.Expressions = decodeKeywordExpressions(rawExpressions, r.Keyword)
@@ -141,8 +139,8 @@ func (k *Keywords) ReplaceForCookie(ctx context.Context, cookieID string, rows [
 		return err
 	}
 	defer tx.Rollback()
-	if // err 表示清理旧规则的事务错误。
-	_, err := tx.ExecContext(ctx, `DELETE FROM keywords WHERE cookie_id=?`, cookieID); err != nil {
+	// err 表示清理旧规则的事务错误。
+	if _, err := tx.ExecContext(ctx, `DELETE FROM keywords WHERE cookie_id=?`, cookieID); err != nil {
 		return err
 	}
 	// row 表示当前遍历的关键词规则行。
@@ -154,8 +152,8 @@ func (k *Keywords) ReplaceForCookie(ctx context.Context, cookieID string, rows [
 		if kwType == "" {
 			kwType = "text"
 		}
-		if // err 表示写入当前规则的事务错误。
-		_, err := tx.ExecContext(ctx,
+		// err 表示写入当前规则的事务错误。
+		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO keywords (cookie_id, keyword, reply, item_id, type, image_url, keyword_expressions, match_type) VALUES (?,?,?,?,?,?,?,?)`,
 			cookieID, keyword, row.Reply, nullable(row.ItemID), kwType, nullable(row.ImageURL), expressionsJSON, matchType); err != nil {
 			return err
@@ -166,20 +164,16 @@ func (k *Keywords) ReplaceForCookie(ctx context.Context, cookieID string, rows [
 
 // DeleteByIndex 按索引（0-based，按 id 顺序）删除某账号的一个关键字。
 func (k *Keywords) DeleteByIndex(ctx context.Context, cookieID string, index int) error {
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := k.DB.QueryContext(ctx,
 		`SELECT id FROM keywords WHERE cookie_id=? ORDER BY id`, cookieID)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	// ids 用于本次流程后续判断的ids
 	var ids []int64
 	for rows.Next() {
-		// id 用于本次流程后续判断的标识
 		var id int64
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&id); err != nil {
+		if err := rows.Scan(&id); err != nil {
 			return err
 		}
 		ids = append(ids, id)

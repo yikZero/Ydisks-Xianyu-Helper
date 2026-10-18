@@ -43,7 +43,6 @@ func TestVerifyCookieAndSettingsSucceeds(t *testing.T) {
 	// store、closeDB 是临时仓储及其关闭函数。
 	store, closeDB := newBranchStore(t)
 	defer closeDB()
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := verifyCookieAndSettings(context.Background(), store, "acc_branch", branchUserID(t, store)); err != nil {
 		t.Fatalf("verifyCookieAndSettings: %v", err)
 	}
@@ -81,11 +80,9 @@ func TestVerifyCookieAndSettingsStagedFailures(t *testing.T) {
 			defer closeDB()
 			// userID 是满足外键的验证用户 ID。
 			userID := branchUserID(t, store)
-			// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 			if _, err := store.DB.Exec(st.drop); err != nil {
 				t.Skipf("当前 schema 无法执行 %q: %v", st.drop, err)
 			}
-			// err 是破坏 schema 后验证返回的错误。
 			err := verifyCookieAndSettings(context.Background(), store, "acc_stage", userID)
 			if err == nil || !strings.Contains(err.Error(), st.want) {
 				t.Fatalf("err=%v want %q", err, st.want)
@@ -115,7 +112,6 @@ func TestSafeDiagnosticArgsRedactsErrorsOnly(t *testing.T) {
 
 // TestMaskURLWithoutCredentials 覆盖带已知 scheme 但没有 '@' 的 URL（原样返回）。
 func TestMaskURLWithoutCredentials(t *testing.T) {
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := maskURL("postgres://host:5432/db"); got != "postgres://host:5432/db" {
 		t.Fatalf("got=%q", got)
 	}
@@ -126,7 +122,6 @@ func TestCleanupVerifyDataFailsOnClosedDatabase(t *testing.T) {
 	// store、closeDB 是临时仓储，先关闭以模拟故障。
 	store, closeDB := newBranchStore(t)
 	closeDB()
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := cleanupVerifyData(context.Background(), store, newVerifyIDs(1)); err == nil {
 		t.Fatal("已关闭连接时清理应失败")
 	}

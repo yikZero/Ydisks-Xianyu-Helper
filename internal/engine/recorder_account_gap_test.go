@@ -50,14 +50,12 @@ func waitLog(t *testing.T, logs *lockedBuffer, fragment string) {
 
 // TestWSRecorderCleanupAndFlushLogging 验证清理删除历史、清理失败与批量写入失败的日志，以及默认日志器与空 done。
 func TestWSRecorderCleanupAndFlushLogging(t *testing.T) {
-	// ctx 与 cancel 控制 worker 生命周期。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// 成功清理历史报文。
 	account, _, store, cleanup := newAccountForTest(t)
 	defer cleanup()
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(ctx, `INSERT INTO ws_messages (cookie_id,created_at) VALUES (?, '2000-01-01 00:00:00')`, account.CookieID); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +69,6 @@ func TestWSRecorderCleanupAndFlushLogging(t *testing.T) {
 	// 表缺失：清理与写入都失败。
 	failAccount, _, failStore, failCleanup := newAccountForTest(t)
 	defer failCleanup()
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := failStore.DB.ExecContext(ctx, `DROP TABLE ws_messages`); err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +120,6 @@ func TestInitialTransportReadyRejectedAndReplyServiceWiring(t *testing.T) {
 	// stopCtx、stopCancel 为停止账号提供有限预算。
 	stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer stopCancel()
-	// err 保存 StopContext 调用返回的错误，随后断言账号能在预算内停止
 	if err := account.StopContext(stopCtx); err != nil {
 		t.Fatal(err)
 	}

@@ -26,7 +26,6 @@ func (r *editorRepository) GetFull(context.Context, int64) (Card, error) {
 
 // TestAPIEditorApplicationBranches 覆盖归属变更、配置损坏、空模板和三态草稿合并。
 func TestAPIEditorApplicationBranches(t *testing.T) {
-	// ctx 是不访问真实平台的测试上下文。
 	ctx := context.Background()
 	// card 是合法且三个模板均为空的已保存 API 卡密。
 	card := Card{ID: 1, UserID: 7, Type: "api", APIConfig: `{"url":"https://example.com","method":"GET"}`}

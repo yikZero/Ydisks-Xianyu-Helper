@@ -22,18 +22,14 @@ func makeAutomationRule(cid string, uid int64, itemID, trigger string, enabled b
 
 // TestAutomation_ListForUserAndActions ListForUser + Actions 路径。
 func TestAutomation_ListForUserAndActions(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
 
 	// 建一张卡券，动作里引用它。
 	cardID, _ := s.Cards.Create(ctx, &CardFull{Name: "卡密", Type: "text", TextContent: "C", Enabled: true, UserID: uid})
 
-	// ruleID、err 用于本次流程后续判断的规则ID、err
 	ruleID, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i1", "paid", true, 100,
 		AutomationActionInput{ActionType: "send_card", CardID: cardID, DeliveryCount: 2, Enabled: true, SortOrder: 1},
 		AutomationActionInput{ActionType: "send_msg", MessageTemplate: "hi", Enabled: false, SortOrder: 2},
@@ -46,7 +42,6 @@ func TestAutomation_ListForUserAndActions(t *testing.T) {
 	// 先建 item_info 以验证 LEFT JOIN 取到 title。
 	s.Items.Upsert(ctx, &ItemInfoRow{CookieID: cid, ItemID: "i1", ItemTitle: "商品1"})
 
-	// rules、err 用于本次流程后续判断的rules、err
 	rules, err := s.Automation.ListForUser(ctx, uid)
 	if err != nil {
 		t.Fatalf("ListForUser: %v", err)
@@ -54,7 +49,6 @@ func TestAutomation_ListForUserAndActions(t *testing.T) {
 	if len(rules) != 1 {
 		t.Fatalf("ListForUser len=%d want 1", len(rules))
 	}
-	// r 用于本次流程后续判断的r
 	r := rules[0]
 	if r.ID != ruleID || r.CookieID != cid || r.ItemID != "i1" || r.ItemTitle != "商品1" || !r.Enabled {
 		t.Fatalf("rule 字段: %#v", r)
@@ -89,10 +83,8 @@ func TestAutomation_ListForUserAndActions(t *testing.T) {
 // TestAutomationDeliveryProofIsEncryptedAndRestored 验证确认发货凭证会加密落库并能在运行恢复时解密。
 func TestAutomationDeliveryProofIsEncryptedAndRestored(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "automation-proof-test-key")
-	// store、cleanup 保存启用数据密钥的测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存创建自动化运行所需的账号归属。
 	userID, cookieID := seedAccount(t, store)
@@ -144,10 +136,8 @@ func TestAutomationDeliveryProofIsEncryptedAndRestored(t *testing.T) {
 // TestAutomationDeliveryProofWithoutConfiguredKeyFailsClosed 验证未配置持久化密钥时发货凭证写入被安全阻断。
 func TestAutomationDeliveryProofWithoutConfiguredKeyFailsClosed(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "")
-	// store、cleanup 保存无数据密钥的隔离测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存创建自动化运行所需的账号归属。
 	userID, cookieID := seedAccount(t, store)
@@ -190,12 +180,9 @@ func TestAutomationDeliveryProofWithoutConfiguredKeyFailsClosed(t *testing.T) {
 
 // TestAutomation_MatchPriority 商品精确规则优先于账号级规则；enabled=false 不匹配。
 func TestAutomation_MatchPriority(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
 
 	// 账号级规则（item_id 空），priority=200。
@@ -226,7 +213,6 @@ func TestAutomation_MatchPriority(t *testing.T) {
 		t.Fatalf("Create disabled rule: %v", err)
 	}
 
-	// matched、err 用于本次流程后续判断的matched、err
 	matched, err := s.Automation.Match(ctx, cid, "i1", "paid")
 	if err != nil {
 		t.Fatalf("Match: %v", err)
@@ -238,7 +224,6 @@ func TestAutomation_MatchPriority(t *testing.T) {
 	if matched[0].ID != itemRuleID {
 		t.Fatalf("Match 顺序: first id=%d want item rule %d", matched[0].ID, itemRuleID)
 	}
-	// fallback、err 用于本次流程后续判断的fallback、err
 	fallback, err := s.Automation.Match(ctx, cid, "other-item", "paid")
 	if err != nil || len(fallback) != 1 || fallback[0].ItemID != "" {
 		t.Fatalf("无商品级规则时应回退账号级: %#v err=%v", fallback, err)
@@ -251,25 +236,18 @@ func TestAutomation_MatchPriority(t *testing.T) {
 	}
 }
 
-// TestAutomationMatchReturnsOnlyHighestPriorityRule 封装Test自动化MatchReturnsOnlyHighest优先级规则业务协调。
 func TestAutomationMatchReturnsOnlyHighestPriorityRule(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
-	// first、err 用于本次流程后续判断的first、err
 	first, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i1", "paid", true, 50))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i1", "paid", true, 100)); err != nil {
+	if _, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i1", "paid", true, 100)); err != nil {
 		t.Fatal(err)
 	}
-	// matched、err 用于本次流程后续判断的matched、err
 	matched, err := s.Automation.Match(ctx, cid, "i1", "paid")
 	if err != nil || len(matched) != 1 || matched[0].ID != first {
 		t.Fatalf("matched=%+v err=%v", matched, err)
@@ -278,12 +256,9 @@ func TestAutomationMatchReturnsOnlyHighestPriorityRule(t *testing.T) {
 
 // TestAutomation_UpdateDelete Update 替换动作 + Delete 路径。
 func TestAutomation_UpdateDelete(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
 	// cardID、cardErr 保存规则动作引用的卡密组及创建错误，用于验证规则删除后引用被级联清理。
 	cardID, cardErr := s.Cards.Create(ctx, &CardFull{Name: "规则引用卡密", Type: "text", TextContent: "C", Enabled: true, UserID: uid})
@@ -291,7 +266,6 @@ func TestAutomation_UpdateDelete(t *testing.T) {
 		t.Fatalf("Create card: %v", cardErr)
 	}
 
-	// ruleID、err 用于本次流程后续判断的规则ID、err
 	ruleID, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i1", "paid", true, 100,
 		AutomationActionInput{ActionType: "send_card", CardID: cardID, Enabled: true},
 	))
@@ -310,12 +284,10 @@ func TestAutomation_UpdateDelete(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	// rules 用于本次流程后续判断的规则列表
 	rules, _ := s.Automation.ListForUser(ctx, uid)
 	if len(rules) != 1 {
 		t.Fatalf("Update 后 len=%d want 1", len(rules))
 	}
-	// r 用于本次流程后续判断的r
 	r := rules[0]
 	if r.ItemID != "i2" || r.TriggerType != "shipped" || r.Enabled || r.Priority != 50 || len(r.Actions) != 2 {
 		t.Fatalf("Update 后字段: %#v", r)
@@ -328,8 +300,7 @@ func TestAutomation_UpdateDelete(t *testing.T) {
 	}
 
 	// Delete。
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.Delete(ctx, uid, ruleID); err != nil {
+	if err := s.Automation.Delete(ctx, uid, ruleID); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 	rules, _ = s.Automation.ListForUser(ctx, uid)
@@ -338,8 +309,7 @@ func TestAutomation_UpdateDelete(t *testing.T) {
 	}
 	// ruleCount、actionCount 保存物理删除后规则及其动作的剩余数量。
 	var ruleCount, actionCount int
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_rules WHERE id=?`, ruleID).Scan(&ruleCount); err != nil {
+	if err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_rules WHERE id=?`, ruleID).Scan(&ruleCount); err != nil {
 		t.Fatalf("物理删除后查询规则失败: %v", err)
 	}
 	// err 表示物理删除后查询规则动作数量的数据库错误。
@@ -370,44 +340,34 @@ func TestAutomation_UpdateDelete(t *testing.T) {
 	}
 	// 跨用户 Delete → ErrNotFound（隔离校验）。
 	otherID, _ := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i3", "paid", true, 100))
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.Delete(ctx, uid+999, otherID); !errors.Is(err, ErrNotFound) {
+	if err := s.Automation.Delete(ctx, uid+999, otherID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("跨用户 Delete 应 ErrNotFound, got %v", err)
 	}
 }
 
 // TestAutomation_MarkOrderEventTime 白名单字段 + 非法字段拒绝。
 func TestAutomation_MarkOrderEventTime(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// cid 用于本次流程后续判断的cid
 	_, cid := seedAccount(t, s)
 	s.Orders.Upsert(ctx, "o1", OrderUpsertOpts{ItemID: "i1", BuyerID: "b1", CookieID: cid})
 
 	// 白名单字段全部能更新。
 	for _, f := range []string{"paid_at", "shipped_at", "completed_at", "buyer_reviewed_at", "last_review_request_at"} {
-		if // err 用于本次流程后续判断的err
-		err := s.Automation.MarkOrderEventTime(ctx, "o1", f); err != nil {
+		if err := s.Automation.MarkOrderEventTime(ctx, "o1", f); err != nil {
 			t.Fatalf("MarkOrderEventTime(%s): %v", f, err)
 		}
 	}
-	// originalPaidAt 用于本次流程后续判断的originalPaidAt
 	const originalPaidAt = "2020-01-02 03:04:05"
-	if // err 用于本次流程后续判断的err
-	_, err := s.DB.ExecContext(ctx, `UPDATE orders SET paid_at=? WHERE order_id='o1'`, originalPaidAt); err != nil {
+	if _, err := s.DB.ExecContext(ctx, `UPDATE orders SET paid_at=? WHERE order_id='o1'`, originalPaidAt); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.MarkOrderEventTime(ctx, "o1", "paid_at"); err != nil {
+	if err := s.Automation.MarkOrderEventTime(ctx, "o1", "paid_at"); err != nil {
 		t.Fatal(err)
 	}
-	// paidAt 用于本次流程后续判断的paidAt
 	var paidAt string
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRowContext(ctx, `SELECT paid_at FROM orders WHERE order_id='o1'`).Scan(&paidAt); err != nil || paidAt != originalPaidAt {
+	if err := s.DB.QueryRowContext(ctx, `SELECT paid_at FROM orders WHERE order_id='o1'`).Scan(&paidAt); err != nil || paidAt != originalPaidAt {
 		t.Fatalf("event timestamp overwritten: %q err=%v", paidAt, err)
 	}
 	// 非法字段拒绝。
@@ -422,17 +382,12 @@ func TestAutomation_MarkOrderEventTime(t *testing.T) {
 }
 
 // TestAutomation_IncrementReviewRequest + DueReviewRequestOrders。
-// TestAutomation_ReviewRequest 封装Test自动化Review请求业务协调。
 func TestAutomation_ReviewRequest(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
-	if // err 用于本次流程后续判断的err
-	_, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "", "review_missing_timeout", true, 100,
+	if _, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "", "review_missing_timeout", true, 100,
 		AutomationActionInput{ActionType: "send_text", MessageTemplate: "review", Enabled: true})); err != nil {
 		t.Fatal(err)
 	}
@@ -447,11 +402,9 @@ func TestAutomation_ReviewRequest(t *testing.T) {
 	s.Automation.MarkOrderEventTime(ctx, "o1", "paid_at")
 
 	// IncrementReviewRequest。
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.IncrementReviewRequest(ctx, "o1"); err != nil {
+	if err := s.Automation.IncrementReviewRequest(ctx, "o1"); err != nil {
 		t.Fatalf("IncrementReviewRequest: %v", err)
 	}
-	// got 用于本次流程后续判断的got
 	got, _ := s.Orders.Get(ctx, "o1")
 	if got.ReviewRequestCount != 1 {
 		t.Fatalf("ReviewRequestCount=%d want 1", got.ReviewRequestCount)
@@ -491,12 +444,9 @@ func TestAutomation_ReviewRequest(t *testing.T) {
 
 // TestAutomation_CreatePriorityDefault priority<=0 时默认 100。
 func TestAutomation_CreatePriorityDefault(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
 
 	// priority=0 → 应被改为 100。
@@ -507,7 +457,6 @@ func TestAutomation_CreatePriorityDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	// rules 用于本次流程后续判断的规则列表
 	rules, _ := s.Automation.ListForUser(ctx, uid)
 	if len(rules) != 1 || rules[0].ID != ruleID || rules[0].Priority != 100 {
 		t.Fatalf("priority 默认值: %#v", rules[0])
@@ -516,48 +465,35 @@ func TestAutomation_CreatePriorityDefault(t *testing.T) {
 
 // TestAutomation_TryStartRunPostgresBranch 占位：SQLite 走 LastInsertId 分支。
 // 这里验证 SQLite 下 id 单调递增、FinishRun 后状态。
-// TestAutomation_TryStartRunAndFinishRun 封装Test自动化Try开始运行AndFinish运行业务协调。
 func TestAutomation_TryStartRunAndFinishRun(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
 
-	// ruleID 用于本次流程后续判断的规则ID
 	ruleID, _ := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i1", "paid", true, 100,
 		AutomationActionInput{ActionType: "send_card", Enabled: true},
 	))
-	// run 用于本次流程后续判断的运行
 	run := AutomationRun{
 		RuleID: ruleID, CookieID: cid, ItemID: "i1", OrderID: "o1",
 		TriggerType: "paid", TriggerKey: "paid:o1",
 		RawEventJSON: `{"a":1}`, // 合法 JSON，验证 validJSON 透传
 	}
-	// id、started、err 用于本次流程后续判断的id、started、err
 	id, started, err := s.Automation.TryStartRun(ctx, run)
 	if err != nil || !started || id == 0 {
 		t.Fatalf("TryStartRun: id=%d started=%v err=%v", id, started, err)
 	}
 	// FinishRun。
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.FinishRun(ctx, id, 1, "done", 1, ""); err != nil {
+	if err := s.Automation.FinishRun(ctx, id, 1, "done", 1, ""); err != nil {
 		t.Fatalf("FinishRun: %v", err)
 	}
 }
 
-// TestAutomationRecoverDefinitelyUnsentReviewRun 封装Test自动化RecoverDefinitelyUnsentReview运行业务协调。
 func TestAutomationRecoverDefinitelyUnsentReviewRun(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// userID、cookieID 用于本次流程后续判断的用户ID、cookieID
 	userID, cookieID := seedAccount(t, s)
-	// ruleID、err 用于本次流程后续判断的规则ID、err
 	ruleID, err := s.Automation.Create(ctx, AutomationRuleInput{
 		UserID: userID, CookieID: cookieID, Name: "review", TriggerType: "review_missing_timeout", Enabled: true,
 		Actions: []AutomationActionInput{{ActionType: "send_text", MessageTemplate: "review", Enabled: true}},
@@ -565,7 +501,6 @@ func TestAutomationRecoverDefinitelyUnsentReviewRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// runID、started、err 用于本次流程后续判断的运行ID、started、err
 	runID, started, err := s.Automation.TryStartRun(ctx, AutomationRun{
 		RuleID: ruleID, CookieID: cookieID, OrderID: "legacy-ws", TriggerType: "review_missing_timeout",
 		TriggerKey: "review_missing_timeout:legacy-ws:1", RawEventJSON: `{}`,
@@ -573,19 +508,16 @@ func TestAutomationRecoverDefinitelyUnsentReviewRun(t *testing.T) {
 	if err != nil || !started {
 		t.Fatalf("TryStartRun: started=%v err=%v", started, err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.DB.ExecContext(ctx, `UPDATE automation_runs
+	if _, err := s.DB.ExecContext(ctx, `UPDATE automation_runs
 		SET status='needs_review',sent_count=0,action_started=1,
 		    error_message='自动化动作结果需要人工核对: 账号当前没有可用 WebSocket 连接'
 		WHERE id=?`, runID); err != nil {
 		t.Fatal(err)
 	}
-	// recovered、err 用于本次流程后续判断的recovered、err
 	recovered, err := s.Automation.RecoverDefinitelyUnsentReviewRuns(ctx)
 	if err != nil || recovered != 1 {
 		t.Fatalf("RecoverDefinitelyUnsentReviewRuns=%d err=%v", recovered, err)
 	}
-	// run、err 用于本次流程后续判断的run、err
 	run, err := s.Automation.GetRun(ctx, runID)
 	if err != nil {
 		t.Fatal(err)
@@ -595,23 +527,16 @@ func TestAutomationRecoverDefinitelyUnsentReviewRun(t *testing.T) {
 	}
 }
 
-// TestAutomation_TryStartRunRecoversStaleAndUnsentFailedRuns 封装Test自动化Try开始运行RecoversStaleAndUnsent失败运行记录业务协调。
 func TestAutomation_TryStartRunRecoversStaleAndUnsentFailedRuns(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
-	// ruleID 用于本次流程后续判断的规则ID
 	ruleID, _ := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i1", "paid", true, 100))
-	// run 用于本次流程后续判断的运行
 	run := AutomationRun{
 		RuleID: ruleID, CookieID: cid, ItemID: "i1", OrderID: "o-retry",
 		TriggerType: "paid", TriggerKey: "paid:o-retry",
 	}
-	// id、started、err 用于本次流程后续判断的id、started、err
 	id, started, err := s.Automation.TryStartRun(ctx, run)
 	if err != nil || !started {
 		t.Fatalf("first start: id=%d started=%v err=%v", id, started, err)
@@ -619,41 +544,34 @@ func TestAutomation_TryStartRunRecoversStaleAndUnsentFailedRuns(t *testing.T) {
 	if _, started, err = s.Automation.TryStartRun(ctx, run); err != nil || started {
 		t.Fatalf("active lease must deduplicate: started=%v err=%v", started, err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=?`, id); err != nil {
+	if _, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=?`, id); err != nil {
 		t.Fatal(err)
 	}
-	// recoveredID、started、err 用于本次流程后续判断的recoveredID、started、err
 	recoveredID, started, err := s.Automation.TryStartRun(ctx, run)
 	if err != nil || !started || recoveredID != id {
 		t.Fatalf("legacy/stale running row should recover: id=%d started=%v err=%v", recoveredID, started, err)
 	}
-	// recoveredRun、err 用于本次流程后续判断的recoveredRun、err
 	recoveredRun, err := s.Automation.GetRun(ctx, id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.FinishRun(ctx, id, recoveredRun.AttemptCount, "failed", 0, "temporary"); err != nil {
+	if err := s.Automation.FinishRun(ctx, id, recoveredRun.AttemptCount, "failed", 0, "temporary"); err != nil {
 		t.Fatal(err)
 	}
 	if _, started, err = s.Automation.TryStartRun(ctx, run); err != nil || started {
 		t.Fatalf("failed run must honor retry delay: started=%v err=%v", started, err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET next_retry_at=0 WHERE id=?`, id); err != nil {
+	if _, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET next_retry_at=0 WHERE id=?`, id); err != nil {
 		t.Fatal(err)
 	}
 	if _, started, err = s.Automation.TryStartRun(ctx, run); err != nil || !started {
 		t.Fatalf("unsent failed run should retry: started=%v err=%v", started, err)
 	}
-	// retriedRun、err 用于本次流程后续判断的retriedRun、err
 	retriedRun, err := s.Automation.GetRun(ctx, id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.FinishRun(ctx, id, retriedRun.AttemptCount, "failed", 1, "partial"); err != nil {
+	if err := s.Automation.FinishRun(ctx, id, retriedRun.AttemptCount, "failed", 1, "partial"); err != nil {
 		t.Fatal(err)
 	}
 	if _, started, err = s.Automation.TryStartRun(ctx, run); err != nil || started {
@@ -666,7 +584,6 @@ func TestAutomation_NoRetryFailureIsNotRecovered(t *testing.T) {
 	// s、cleanup 是本测试使用的临时 SQLite 数据库及清理函数。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作使用的非取消上下文。
 	ctx := context.Background()
 	// userID、cookieID 是规则所属用户和账号标识。
 	userID, cookieID := seedAccount(t, s)
@@ -705,115 +622,86 @@ func TestAutomation_NoRetryFailureIsNotRecovered(t *testing.T) {
 	}
 }
 
-// TestAutomationRunAttemptFencesStaleWorker 封装Test自动化运行尝试次数FencesStale工作器业务协调。
 func TestAutomationRunAttemptFencesStaleWorker(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
-	// ruleID、err 用于本次流程后续判断的规则ID、err
 	ruleID, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "i1", "paid", true, 100,
 		AutomationActionInput{ActionType: "send_text", MessageTemplate: "x", Enabled: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// runID、started、err 用于本次流程后续判断的运行ID、started、err
 	runID, started, err := s.Automation.TryStartRun(ctx, AutomationRun{
 		RuleID: ruleID, CookieID: cid, TriggerType: "paid", TriggerKey: "attempt-fence", LeaseExpiresAt: 1,
 	})
 	if err != nil || !started {
 		t.Fatalf("start=%v err=%v", started, err)
 	}
-	// stale、err 用于本次流程后续判断的stale、err
 	stale, err := s.Automation.GetRun(ctx, runID)
 	if err != nil || stale.AttemptCount != 1 {
 		t.Fatalf("stale run=%+v err=%v", stale, err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=?`, runID); err != nil {
+	if _, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=?`, runID); err != nil {
 		t.Fatal(err)
 	}
-	// claimed、err 用于本次流程后续判断的claimed、err
 	claimed, err := s.Automation.ClaimRecoveryRun(ctx, runID, time.Now().UTC().Add(time.Minute).Unix())
 	if err != nil || !claimed {
 		t.Fatalf("claim recovery=%v err=%v", claimed, err)
 	}
-	// current、err 用于本次流程后续判断的current、err
 	current, err := s.Automation.GetRun(ctx, runID)
 	if err != nil || current.AttemptCount != 2 {
 		t.Fatalf("current run=%+v err=%v", current, err)
 	}
-	if // ok、err 用于本次流程后续判断的ok、err
-	ok, err := s.Automation.StartRunAction(ctx, runID, stale.AttemptCount, 0, time.Now().Add(time.Minute).Unix()); err != nil || ok {
+	if ok, err := s.Automation.StartRunAction(ctx, runID, stale.AttemptCount, 0, time.Now().Add(time.Minute).Unix()); err != nil || ok {
 		t.Fatalf("stale worker must not start action: ok=%v err=%v", ok, err)
 	}
-	if // ok、err 用于本次流程后续判断的ok、err
-	ok, err := s.Automation.StartRunAction(ctx, runID, current.AttemptCount, 0, time.Now().Add(time.Minute).Unix()); err != nil || !ok {
+	if ok, err := s.Automation.StartRunAction(ctx, runID, current.AttemptCount, 0, time.Now().Add(time.Minute).Unix()); err != nil || !ok {
 		t.Fatalf("current worker start: ok=%v err=%v", ok, err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.FinishRun(ctx, runID, stale.AttemptCount, "failed", 0, "stale"); !errors.Is(err, ErrAutomationRunLeaseLost) {
+	if err := s.Automation.FinishRun(ctx, runID, stale.AttemptCount, "failed", 0, "stale"); !errors.Is(err, ErrAutomationRunLeaseLost) {
 		t.Fatalf("stale finish err=%v", err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.QuarantineRun(ctx, runID, stale.AttemptCount, "stale"); !errors.Is(err, ErrAutomationRunLeaseLost) {
+	if err := s.Automation.QuarantineRun(ctx, runID, stale.AttemptCount, "stale"); !errors.Is(err, ErrAutomationRunLeaseLost) {
 		t.Fatalf("stale quarantine err=%v", err)
 	}
-	// afterStale、err 用于本次流程后续判断的afterStale、err
 	afterStale, err := s.Automation.GetRun(ctx, runID)
 	if err != nil || afterStale.Status != "running" || !afterStale.ActionStarted || afterStale.AttemptCount != current.AttemptCount {
 		t.Fatalf("stale worker changed current run: %+v err=%v", afterStale, err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.AdvanceRunAction(ctx, AutomationRunActionAdvance{RunID: runID, Attempt: current.AttemptCount, Cursor: 0, SentDelta: 1}); err != nil {
+	if err := s.Automation.AdvanceRunAction(ctx, AutomationRunActionAdvance{RunID: runID, Attempt: current.AttemptCount, Cursor: 0, SentDelta: 1}); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.FinishRun(ctx, runID, current.AttemptCount, "success", 1, ""); err != nil {
+	if err := s.Automation.FinishRun(ctx, runID, current.AttemptCount, "success", 1, ""); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// TestPostponeRecoveryRunCannotOverwriteNewOwnerLease 封装TestPostponeRecovery运行CannotOverwriteNew所有者Lease业务协调。
 func TestPostponeRecoveryRunCannotOverwriteNewOwnerLease(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
-	// ruleID 用于本次流程后续判断的规则ID
 	ruleID, _ := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "item", "paid", true, 0))
-	// runID、started、err 用于本次流程后续判断的运行ID、started、err
 	runID, started, err := s.Automation.TryStartRun(ctx, AutomationRun{RuleID: ruleID, CookieID: cid, TriggerType: "paid", TriggerKey: "postpone-fence"})
 	if err != nil || !started {
 		t.Fatalf("start run: id=%d started=%v err=%v", runID, started, err)
 	}
-	// stale、err 用于本次流程后续判断的stale、err
 	stale, err := s.Automation.GetRun(ctx, runID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=?`, runID); err != nil {
+	if _, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=?`, runID); err != nil {
 		t.Fatal(err)
 	}
-	// newLease 用于本次流程后续判断的newLease
 	newLease := time.Now().UTC().Add(5 * time.Minute).Unix()
-	// claimed、err 用于本次流程后续判断的claimed、err
 	claimed, err := s.Automation.ClaimRecoveryRun(ctx, runID, newLease)
 	if err != nil || !claimed {
 		t.Fatalf("claim=%v err=%v", claimed, err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.PostponeRecoveryRun(ctx, runID, stale.AttemptCount, time.Now().UTC().Add(time.Minute).Unix()); !errors.Is(err, ErrAutomationRunLeaseLost) {
+	if err := s.Automation.PostponeRecoveryRun(ctx, runID, stale.AttemptCount, time.Now().UTC().Add(time.Minute).Unix()); !errors.Is(err, ErrAutomationRunLeaseLost) {
 		t.Fatalf("stale postpone err=%v want lease lost", err)
 	}
-	// current、err 用于本次流程后续判断的current、err
 	current, err := s.Automation.GetRun(ctx, runID)
 	if err != nil || current.LeaseExpiresAt != newLease {
 		t.Fatalf("new owner lease was overwritten: run=%+v err=%v", current, err)
@@ -822,55 +710,42 @@ func TestPostponeRecoveryRunCannotOverwriteNewOwnerLease(t *testing.T) {
 
 // TestValidJSON validJSON 的非法 JSON 兜底为 {}。
 func TestValidJSON(t *testing.T) {
-	if // got 用于本次流程后续判断的got
-	got := validJSON(""); got != "{}" {
+	if got := validJSON(""); got != "{}" {
 		t.Errorf("validJSON('')=%q want {}", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := validJSON("not json"); got != "{}" {
+	if got := validJSON("not json"); got != "{}" {
 		t.Errorf("validJSON('not json')=%q want {}", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := validJSON(`{"x":1}`); got != `{"x":1}` {
+	if got := validJSON(`{"x":1}`); got != `{"x":1}` {
 		t.Errorf("validJSON 合法 JSON 应原样: %q", got)
 	}
 }
 
-// TestAutomationIssuesCanBeListedAndResolved 封装Test自动化问题列表CanBeListedAndResolved业务协调。
 func TestAutomationIssuesCanBeListedAndResolved(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
-	// ruleID、err 用于本次流程后续判断的规则ID、err
 	ruleID, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "", "buyer_reviewed", true, 100,
 		AutomationActionInput{ActionType: "send_text", MessageTemplate: "x", Enabled: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// runID、started、err 用于本次流程后续判断的运行ID、started、err
 	runID, started, err := s.Automation.TryStartRun(ctx, AutomationRun{RuleID: ruleID, CookieID: cid, OrderID: "issue-order",
 		TriggerType: "buyer_reviewed", TriggerKey: "issue-key", RawEventJSON: `{"AccountID":"cid","ActionPlan":[{"ActionType":"send_text"}]}`, LeaseExpiresAt: 1})
 	if err != nil || !started {
 		t.Fatalf("start=%v err=%v", started, err)
 	}
-	if // ok、err 用于本次流程后续判断的ok、err
-	ok, err := s.Automation.StartRunAction(ctx, runID, 1, 0, 1); err != nil || !ok {
+	if ok, err := s.Automation.StartRunAction(ctx, runID, 1, 0, 1); err != nil || !ok {
 		t.Fatalf("action start=%v err=%v", ok, err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.QuarantineRunResult(ctx, runID, 1, 1, "unknown"); err != nil {
+	if err := s.Automation.QuarantineRunResult(ctx, runID, 1, 1, "unknown"); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.DeferTask(ctx, DeferredAutomationTask{TaskKey: "dead", CookieID: cid, TriggerType: "buyer_reviewed", TaskJSON: `{}`, DueAt: 0}); err != nil {
+	if err := s.Automation.DeferTask(ctx, DeferredAutomationTask{TaskKey: "dead", CookieID: cid, TriggerType: "buyer_reviewed", TaskJSON: `{}`, DueAt: 0}); err != nil {
 		t.Fatal(err)
 	}
 	_, _ = s.DB.ExecContext(ctx, `UPDATE automation_pending_tasks SET status='dead_letter',attempt_count=5,error_message='bad' WHERE task_key='dead'`)
-	// runs、tasks、err 用于本次流程后续判断的runs、tasks、err
 	runs, tasks, err := s.Automation.ListIssues(ctx, uid)
 	if err != nil || len(runs) != 1 || len(tasks) != 1 {
 		t.Fatalf("runs=%+v tasks=%+v err=%v", runs, tasks, err)
@@ -881,38 +756,29 @@ func TestAutomationIssuesCanBeListedAndResolved(t *testing.T) {
 	if containsString(runs[0].AllowedResolutions, "retry") {
 		t.Fatalf("unknown external result must not allow retry: %+v", runs[0])
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.ResolveRunIssue(ctx, uid, runID, "retry"); err == nil {
+	if err := s.Automation.ResolveRunIssue(ctx, uid, runID, "retry"); err == nil {
 		t.Fatal("unknown external result must reject retry")
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.ResolveRunIssue(ctx, uid, runID, "continue"); err != nil {
+	if err := s.Automation.ResolveRunIssue(ctx, uid, runID, "continue"); err != nil {
 		t.Fatal(err)
 	}
-	// run 用于本次流程后续判断的运行
 	run, _ := s.Automation.GetRun(ctx, runID)
 	if run.Status != "running" || run.ActionStarted || run.ActionCursor != 1 {
 		t.Fatalf("resolved run=%+v", run)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.PostponeRecoveryRun(ctx, runID, run.AttemptCount, 4102444800); err != nil {
+	if err := s.Automation.PostponeRecoveryRun(ctx, runID, run.AttemptCount, 4102444800); err != nil {
 		t.Fatal(err)
 	}
-	// due、err 用于本次流程后续判断的due、err
 	due, err := s.Automation.DueRecoveryRuns(ctx, 10)
 	if err != nil || len(due) != 0 {
 		t.Fatalf("postponed run must leave the due queue: %+v err=%v", due, err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.ResolveDeferredIssue(ctx, uid, tasks[0].ID, true); err != nil {
+	if err := s.Automation.ResolveDeferredIssue(ctx, uid, tasks[0].ID, true); err != nil {
 		t.Fatal(err)
 	}
-	// status 用于本次流程后续判断的状态
 	var status string
-	// attempts 用于本次流程后续判断的尝试次数
 	var attempts int
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRowContext(ctx, `SELECT status,attempt_count FROM automation_pending_tasks WHERE id=?`, tasks[0].ID).Scan(&status, &attempts); err != nil {
+	if err := s.DB.QueryRowContext(ctx, `SELECT status,attempt_count FROM automation_pending_tasks WHERE id=?`, tasks[0].ID).Scan(&status, &attempts); err != nil {
 		t.Fatal(err)
 	}
 	if status != "pending" || attempts != 0 {
@@ -923,10 +789,8 @@ func TestAutomationIssuesCanBeListedAndResolved(t *testing.T) {
 // TestAutomationUnknownDeliveryResultBlocksContinueAndCancelClearsProof 验证未知发卡结果不会进入空凭证确认流程。
 func TestAutomationUnknownDeliveryResultBlocksContinueAndCancelClearsProof(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "unknown-delivery-policy-test-key")
-	// store、cleanup 保存未知发货恢复策略测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存运行归属账号及其登录凭证标识。
 	userID, cookieID := seedAccount(t, store)
@@ -995,10 +859,8 @@ func TestAutomationUnknownDeliveryResultBlocksContinueAndCancelClearsProof(t *te
 // TestAutomationQuarantinePreservesDeliveryProofUntilCancel 验证人工核对期间凭证保留且取消时清除。
 func TestAutomationQuarantinePreservesDeliveryProofUntilCancel(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "quarantine-proof-test-key")
-	// store、cleanup 保存人工核对凭证生命周期测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存运行归属账号及其登录凭证标识。
 	userID, cookieID := seedAccount(t, store)
@@ -1067,32 +929,24 @@ func TestAutomationQuarantinePreservesDeliveryProofUntilCancel(t *testing.T) {
 	}
 }
 
-// TestInvalidAutomationSnapshotCanOnlyBeCanceled 封装TestInvalid自动化SnapshotCanOnlyBeCanceled业务协调。
 func TestInvalidAutomationSnapshotCanOnlyBeCanceled(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
-	// ruleID、err 用于本次流程后续判断的规则ID、err
 	ruleID, err := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "", "buyer_reviewed", true, 100,
 		AutomationActionInput{ActionType: "send_text", MessageTemplate: "x", Enabled: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// runID、started、err 用于本次流程后续判断的运行ID、started、err
 	runID, started, err := s.Automation.TryStartRun(ctx, AutomationRun{RuleID: ruleID, CookieID: cid,
 		TriggerType: "buyer_reviewed", TriggerKey: "invalid-snapshot", RawEventJSON: `{}`, LeaseExpiresAt: 1})
 	if err != nil || !started {
 		t.Fatalf("start=%v err=%v", started, err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.QuarantineRun(ctx, runID, 1, "历史运行数据无法安全解析，已移入人工检查"); err != nil {
+	if err := s.Automation.QuarantineRun(ctx, runID, 1, "历史运行数据无法安全解析，已移入人工检查"); err != nil {
 		t.Fatal(err)
 	}
-	// runs、err 用于本次流程后续判断的runs、err
 	runs, _, err := s.Automation.ListIssues(ctx, uid)
 	if err != nil || len(runs) != 1 {
 		t.Fatalf("runs=%+v err=%v", runs, err)
@@ -1100,31 +954,24 @@ func TestInvalidAutomationSnapshotCanOnlyBeCanceled(t *testing.T) {
 	if runs[0].IssueKind != "invalid_snapshot" || len(runs[0].AllowedResolutions) != 1 || runs[0].AllowedResolutions[0] != "cancel" {
 		t.Fatalf("policy=%+v", runs[0])
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.ResolveRunIssue(ctx, uid, runID, "retry"); err == nil {
+	if err := s.Automation.ResolveRunIssue(ctx, uid, runID, "retry"); err == nil {
 		t.Fatal("invalid snapshot must reject retry")
 	}
-	// run 用于本次流程后续判断的运行
 	run, _ := s.Automation.GetRun(ctx, runID)
 	if run.Status != "needs_review" {
 		t.Fatalf("rejected resolution changed run: %+v", run)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.ResolveRunIssue(ctx, uid, runID, "cancel"); err != nil {
+	if err := s.Automation.ResolveRunIssue(ctx, uid, runID, "cancel"); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// TestAutomationIssuePolicyForDisabledRuleRequiresReenableBeforeRetry 封装Test自动化问题PolicyForDisabled规则RequiresReenableBefore重试业务协调。
 func TestAutomationIssuePolicyForDisabledRuleRequiresReenableBeforeRetry(t *testing.T) {
-	// rawBytes、err 用于本次流程后续判断的原始Bytes、err
 	rawBytes, err := json.Marshal(struct{ AccountID string }{AccountID: "acc1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// raw 用于本次流程后续判断的原始
 	raw := string(rawBytes)
-	// kind、allowed 用于本次流程后续判断的kind、allowed
 	kind, allowed := automationIssuePolicy(raw, false, 0, false, 0, "自动化规则不存在或已停用，无法恢复")
 	if kind != "rule_unavailable" || containsString(allowed, "retry") || !containsString(allowed, "cancel") {
 		t.Fatalf("disabled policy kind=%q allowed=%v", kind, allowed)
@@ -1157,126 +1004,92 @@ func TestAutomationIssuePolicyRejectsManualReplayContinue(t *testing.T) {
 	}
 }
 
-// TestDeferTaskRevivesDeadLetterWithFreshAttemptBudget 封装TestDefer任务RevivesDeadLetterWithFresh尝试次数Budget业务协调。
 func TestDeferTaskRevivesDeadLetterWithFreshAttemptBudget(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// cid 用于本次流程后续判断的cid
 	_, cid := seedAccount(t, s)
-	// task 用于本次流程后续判断的任务
 	task := DeferredAutomationTask{TaskKey: "same", CookieID: cid, TriggerType: "buyer_reviewed", TaskJSON: `{"v":1}`, DueAt: 0}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.DeferTask(ctx, task); err != nil {
+	if err := s.Automation.DeferTask(ctx, task); err != nil {
 		t.Fatal(err)
 	}
 	_, _ = s.DB.ExecContext(ctx, `UPDATE automation_pending_tasks SET status='dead_letter',attempt_count=5 WHERE task_key='same'`)
 	task.TaskJSON = `{"v":2}`
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.DeferTask(ctx, task); err != nil {
+	if err := s.Automation.DeferTask(ctx, task); err != nil {
 		t.Fatal(err)
 	}
-	// claimed、err 用于本次流程后续判断的claimed、err
 	claimed, err := s.Automation.ClaimDueDeferredTasks(ctx, 10)
 	if err != nil || len(claimed) != 1 {
 		t.Fatalf("claimed=%+v err=%v", claimed, err)
 	}
 }
 
-// TestDeferredRetryBackoffAndCredentialWake 封装TestDeferred重试BackoffAndCredentialWake业务协调。
 func TestDeferredRetryBackoffAndCredentialWake(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// cid 用于本次流程后续判断的cid
 	_, cid := seedAccount(t, s)
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.DeferTask(ctx, DeferredAutomationTask{TaskKey: "wake-task", CookieID: cid, TriggerType: "order_paid", TaskJSON: `{}`, DueAt: 0, ErrorMessage: "FAIL_SYS_SESSION_EXPIRED"}); err != nil {
+	if err := s.Automation.DeferTask(ctx, DeferredAutomationTask{TaskKey: "wake-task", CookieID: cid, TriggerType: "order_paid", TaskJSON: `{}`, DueAt: 0, ErrorMessage: "FAIL_SYS_SESSION_EXPIRED"}); err != nil {
 		t.Fatal(err)
 	}
-	// claimed、err 用于本次流程后续判断的claimed、err
 	claimed, err := s.Automation.ClaimDueDeferredTasks(ctx, 1)
 	if err != nil || len(claimed) != 1 {
 		t.Fatalf("claim=%v err=%v", claimed, err)
 	}
-	// before 用于本次流程后续判断的before
 	before := time.Now().UTC().Unix()
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.FinishDeferredTask(ctx, claimed[0].ID, claimed[0].ClaimVersion, false, "session expired"); err != nil {
+	if err := s.Automation.FinishDeferredTask(ctx, claimed[0].ID, claimed[0].ClaimVersion, false, "session expired"); err != nil {
 		t.Fatal(err)
 	}
-	// dueAt 用于本次流程后续判断的dueAt
 	var dueAt int64
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE id=?`, claimed[0].ID).Scan(&dueAt); err != nil {
+	if err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE id=?`, claimed[0].ID).Scan(&dueAt); err != nil {
 		t.Fatal(err)
 	}
 	if dueAt < before+int64((5*time.Minute)/time.Second)-1 {
 		t.Fatalf("first retry due_at=%d before=%d", dueAt, before)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.WakeCredentialBlocked(ctx, cid); err != nil {
+	if err := s.Automation.WakeCredentialBlocked(ctx, cid); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.DeferTask(ctx, DeferredAutomationTask{TaskKey: "ws-wake", CookieID: cid, TriggerType: "buyer_reviewed", TaskJSON: `{}`, DueAt: before + 3600, ErrorMessage: "当前没有可用 WebSocket 连接"}); err != nil {
+	if err := s.Automation.DeferTask(ctx, DeferredAutomationTask{TaskKey: "ws-wake", CookieID: cid, TriggerType: "buyer_reviewed", TaskJSON: `{}`, DueAt: before + 3600, ErrorMessage: "当前没有可用 WebSocket 连接"}); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.WakeCredentialBlocked(ctx, cid); err != nil {
+	if err := s.Automation.WakeCredentialBlocked(ctx, cid); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key='ws-wake'`).Scan(&dueAt); err != nil || dueAt != 0 {
+	if err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key='ws-wake'`).Scan(&dueAt); err != nil || dueAt != 0 {
 		t.Fatalf("WS 恢复必须立即唤醒任务: due_at=%d err=%v", dueAt, err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE id=?`, claimed[0].ID).Scan(&dueAt); err != nil || dueAt != 0 {
+	if err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE id=?`, claimed[0].ID).Scan(&dueAt); err != nil || dueAt != 0 {
 		t.Fatalf("wake due_at=%d err=%v", dueAt, err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.DeferTask(ctx, DeferredAutomationTask{TaskKey: "intentional-delay", CookieID: cid, TriggerType: "buyer_reviewed", TaskJSON: `{}`, DueAt: before + 3600}); err != nil {
+	if err := s.Automation.DeferTask(ctx, DeferredAutomationTask{TaskKey: "intentional-delay", CookieID: cid, TriggerType: "buyer_reviewed", TaskJSON: `{}`, DueAt: before + 3600}); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.WakeCredentialBlocked(ctx, cid); err != nil {
+	if err := s.Automation.WakeCredentialBlocked(ctx, cid); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key='intentional-delay'`).Scan(&dueAt); err != nil || dueAt != before+3600 {
+	if err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key='intentional-delay'`).Scan(&dueAt); err != nil || dueAt != before+3600 {
 		t.Fatalf("intentional delay must not be woken: due_at=%d err=%v", dueAt, err)
 	}
 }
 
-// TestDeferredTaskFencingRejectsStaleWorker 封装TestDeferred任务FencingRejectsStale工作器业务协调。
 func TestDeferredTaskFencingRejectsStaleWorker(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// cid 用于本次流程后续判断的cid
 	_, cid := seedAccount(t, s)
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.DeferTask(ctx, DeferredAutomationTask{
+	if err := s.Automation.DeferTask(ctx, DeferredAutomationTask{
 		TaskKey: "fenced-task", CookieID: cid, TriggerType: "buyer_reviewed", TaskJSON: `{}`, DueAt: 0,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// first、err 用于本次流程后续判断的first、err
 	first, err := s.Automation.ClaimDueDeferredTasks(ctx, 1)
 	if err != nil || len(first) != 1 {
 		t.Fatalf("first claim=%+v err=%v", first, err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.DB.ExecContext(ctx, `UPDATE automation_pending_tasks SET lease_expires_at=0 WHERE id=?`, first[0].ID); err != nil {
+	if _, err := s.DB.ExecContext(ctx, `UPDATE automation_pending_tasks SET lease_expires_at=0 WHERE id=?`, first[0].ID); err != nil {
 		t.Fatal(err)
 	}
-	// second、err 用于本次流程后续判断的second、err
 	second, err := s.Automation.ClaimDueDeferredTasks(ctx, 1)
 	if err != nil || len(second) != 1 {
 		t.Fatalf("second claim=%+v err=%v", second, err)
@@ -1284,46 +1097,37 @@ func TestDeferredTaskFencingRejectsStaleWorker(t *testing.T) {
 	if second[0].ClaimVersion <= first[0].ClaimVersion {
 		t.Fatalf("claim versions first=%d second=%d", first[0].ClaimVersion, second[0].ClaimVersion)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.FinishDeferredTask(ctx, first[0].ID, first[0].ClaimVersion, true, ""); !errors.Is(err, ErrDeferredTaskLeaseLost) {
+	if err := s.Automation.FinishDeferredTask(ctx, first[0].ID, first[0].ClaimVersion, true, ""); !errors.Is(err, ErrDeferredTaskLeaseLost) {
 		t.Fatalf("stale finish err=%v want ErrDeferredTaskLeaseLost", err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.RenewDeferredTaskLease(ctx, second[0].ID, second[0].ClaimVersion, time.Now().Add(time.Minute).Unix()); err != nil {
+	if err := s.Automation.RenewDeferredTaskLease(ctx, second[0].ID, second[0].ClaimVersion, time.Now().Add(time.Minute).Unix()); err != nil {
 		t.Fatalf("current renew: %v", err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.FinishDeferredTask(ctx, second[0].ID, second[0].ClaimVersion, true, ""); err != nil {
+	if err := s.Automation.FinishDeferredTask(ctx, second[0].ID, second[0].ClaimVersion, true, ""); err != nil {
 		t.Fatalf("current finish: %v", err)
 	}
 }
 
-// TestAutomationRuleDeleteRejectsActiveRun 封装Test自动化规则DeleteRejectsActive运行业务协调。
 func TestAutomationRuleDeleteRejectsActiveRun(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// uid、cid 用于本次流程后续判断的uid、cid
 	uid, cid := seedAccount(t, s)
-	// ruleID 用于本次流程后续判断的规则ID
 	ruleID, _ := s.Automation.Create(ctx, makeAutomationRule(cid, uid, "", "buyer_reviewed", true, 100,
 		AutomationActionInput{ActionType: "send_text", MessageTemplate: "x", Enabled: true}))
 	_, _, _ = s.Automation.TryStartRun(ctx, AutomationRun{RuleID: ruleID, CookieID: cid, TriggerType: "buyer_reviewed",
 		TriggerKey: "active", RawEventJSON: `{}`, LeaseExpiresAt: 1})
-	if // err 用于本次流程后续判断的err
-	err := s.Automation.Delete(ctx, uid, ruleID); !errors.Is(err, ErrAutomationRunActive) {
+	if err := s.Automation.Delete(ctx, uid, ruleID); !errors.Is(err, ErrAutomationRunActive) {
 		t.Fatalf("delete err=%v", err)
 	}
 	// ruleCount、actionCount 保存被保护规则及其动作的数量，确认运行中规则不会被物理删除。
 	var ruleCount, actionCount int
-	if // err 表示查询受保护规则数量的数据库错误。
-	err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_rules WHERE id=?`, ruleID).Scan(&ruleCount); err != nil {
+	// err 表示查询受保护规则数量的数据库错误。
+	if err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_rules WHERE id=?`, ruleID).Scan(&ruleCount); err != nil {
 		t.Fatalf("query active rule: %v", err)
 	}
-	if // err 表示查询受保护规则动作数量的数据库错误。
-	err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_rule_actions WHERE rule_id=?`, ruleID).Scan(&actionCount); err != nil {
+	// err 表示查询受保护规则动作数量的数据库错误。
+	if err := s.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_rule_actions WHERE rule_id=?`, ruleID).Scan(&actionCount); err != nil {
 		t.Fatalf("query active rule actions: %v", err)
 	}
 	if ruleCount != 1 || actionCount != 1 {

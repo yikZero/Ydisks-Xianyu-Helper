@@ -7,10 +7,8 @@ import (
 
 // TestStoreAccountTaskRepositoryUpdatesExistingCookie 覆盖账号任务仓储的 Cookie 更新委托路径。
 func TestStoreAccountTaskRepositoryUpdatesExistingCookie(t *testing.T) {
-	// store、cleanup 保存自动化测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制本测试数据库操作的生命周期。
 	ctx := context.Background()
 	// repository 保存完整 Store 到账号任务窄接口的适配器。
 	repository := newStoreAccountTaskRepository(store)

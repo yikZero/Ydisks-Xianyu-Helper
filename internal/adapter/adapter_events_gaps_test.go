@@ -25,8 +25,7 @@ type engineCaptchaBrowser struct {
 	cookies string
 	// engineName 是返回给适配器的引擎标签。
 	engineName string
-	// err 是恢复失败时返回的错误。
-	err error
+	err        error
 	// snapshotErr 是读取完整 Cookie Jar 时返回的错误。
 	snapshotErr error
 }
@@ -48,7 +47,6 @@ func (b *engineCaptchaBrowser) TokenCaptchaCookieSnapshot(context.Context, strin
 
 // TestAdapterChatSessionRoleAndSave 覆盖会话角色查询/保存在未装配与已装配聊天服务时的行为。
 func TestAdapterChatSessionRoleAndSave(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// nilAdapter 是空指针适配器，所有入口必须安全。
 	var nilAdapter *Adapter
@@ -56,7 +54,6 @@ func TestAdapterChatSessionRoleAndSave(t *testing.T) {
 	if row, err := nilAdapter.ChatSessionRole(ctx, "a", "c", "i"); err != nil || row.AccountRole != "unknown" {
 		t.Fatalf("空适配器角色: %+v %v", row, err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := nilAdapter.SaveChatSessionRole(ctx, "a", "c", "i", "seller", "b", "s", "x"); err == nil {
 		t.Fatal("空适配器保存角色应失败")
 	}
@@ -64,7 +61,6 @@ func TestAdapterChatSessionRoleAndSave(t *testing.T) {
 	if ok, err := nilAdapter.ItemBelongsToAccount(ctx, "a", "i"); ok || err == nil {
 		t.Fatalf("空适配器商品归属: %v %v", ok, err)
 	}
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 先不装配聊天服务，再装配。
@@ -74,7 +70,6 @@ func TestAdapterChatSessionRoleAndSave(t *testing.T) {
 		t.Fatalf("未装配角色: %+v %v", row, err)
 	}
 	adapter.SetChatService(chat.New(store))
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := adapter.ChatSessionRole(ctx, "cid", "chat", "item"); err != nil {
 		t.Fatalf("已装配角色查询: %v", err)
 	}
@@ -84,15 +79,12 @@ func TestAdapterChatSessionRoleAndSave(t *testing.T) {
 
 // TestAdapterHandleMessageReadFallbacks 覆盖已读回执按消息键未命中时回退最近出站消息，以及全部未命中时忽略。
 func TestAdapterHandleMessageReadFallbacks(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 装配聊天服务。
 	adapter := New(store, nil, nil)
 	adapter.SetChatService(chat.New(store))
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := adapter.HandleOutgoingChatMessage(ctx, engine.OutgoingChatMessage{AccountID: "cid", ChatID: "chat-r", BuyerID: "buyer", MessageKey: "out-1", Text: "hi"}); err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +104,6 @@ func TestAdapterHandleMessageReadFallbacks(t *testing.T) {
 
 // TestAdapterOnAccountEventWithoutNotifier 覆盖未注入通知器时仅记录日志不 panic。
 func TestAdapterOnAccountEventWithoutNotifier(t *testing.T) {
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	New(store, nil, nil).OnAccountEvent(context.Background(), "cid", engine.EventSystemError, "warn", "t", "b")
@@ -120,7 +111,6 @@ func TestAdapterOnAccountEventWithoutNotifier(t *testing.T) {
 
 // TestOnTokenCaptchaVerificationFailureBranches 覆盖 token 风控恢复的存储缺失、浏览器缺失、失败、空结果、引擎标签与快照回退路径。
 func TestOnTokenCaptchaVerificationFailureBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// notifier 记录安全验证事件。
 	notifier := &fakeNotifier{}
@@ -131,7 +121,6 @@ func TestOnTokenCaptchaVerificationFailureBranches(t *testing.T) {
 	if res, ok := bare.OnTokenCaptchaVerification(ctx, "cid", "unb=1", "https://v", "dev"); ok || res != nil || len(notifier.events) != 1 {
 		t.Fatalf("存储缺失: %+v %v %+v", res, ok, notifier.events)
 	}
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 先不注入浏览器。
@@ -163,7 +152,6 @@ func TestOnTokenCaptchaVerificationFailureBranches(t *testing.T) {
 	}
 	// engineName 读取最近一条风控日志中记录的引擎。
 	var engineName string
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := store.DB.QueryRowContext(ctx, `SELECT captcha_engine FROM risk_control_logs WHERE cookie_id='cid' ORDER BY id DESC LIMIT 1`).Scan(&engineName); err != nil || engineName != "direct" {
 		t.Fatalf("引擎日志: %q %v", engineName, err)
 	}
@@ -177,9 +165,7 @@ func TestOnTokenCaptchaVerificationFailureBranches(t *testing.T) {
 
 // TestOnTokenCaptchaVerificationProviderBranches 覆盖链接重取回调在未注入、报错与空结果时的返回。
 func TestOnTokenCaptchaVerificationProviderBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// fb 记录回调结果。
@@ -205,9 +191,7 @@ func TestOnTokenCaptchaVerificationProviderBranches(t *testing.T) {
 
 // TestOnTokenCaptchaVerificationRemoteFallsBackWhenUnreachable 覆盖远程服务不可达时回退本机逻辑。
 func TestOnTokenCaptchaVerificationRemoteFallsBackWhenUnreachable(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// dead 是已关闭的远程端点。
@@ -215,7 +199,6 @@ func TestOnTokenCaptchaVerificationRemoteFallsBackWhenUnreachable(t *testing.T) 
 	// deadURL 已关闭的本地测试端点地址，用于模拟网络不可达。
 	deadURL := dead.URL
 	dead.Close()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := store.Settings.SetMany(ctx, map[string]string{"captcha.remote_service_url": deadURL, "captcha.remote_secret_key": "s", "captcha.remote_pass_cookies": "true"}); err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +212,6 @@ func TestOnTokenCaptchaVerificationRemoteFallsBackWhenUnreachable(t *testing.T) 
 	// 远程明确失败不回退，直接按失败处理。
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(`{"success":false}`)) }))
 	defer failing.Close()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := store.Settings.SetMany(ctx, map[string]string{"captcha.remote_service_url": failing.URL}); err != nil {
 		t.Fatal(err)
 	}
@@ -241,16 +223,13 @@ func TestOnTokenCaptchaVerificationRemoteFallsBackWhenUnreachable(t *testing.T) 
 
 // TestFetchOrderDetailAttemptErrorPaths 覆盖订单详情的账号缺失、空 Cookie、空结果、会话变化与凭证并发变更路径。
 func TestFetchOrderDetailAttemptErrorPaths(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 使用可编排的订单详情客户端，并关闭账号限流等待以保持测试快速。
 	adapter := New(store, nil, nil)
 	adapter.orderDetails = newOrderDetailCoordinator(0, 0, nil)
 	adapter.SetOrderDetailClient(&fakeOrderDetailClient{})
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := adapter.FetchOrderDetail(ctx, "missing", "o1", "i", "b", ""); err == nil || !strings.Contains(err.Error(), "读取订单账号最新 Cookie") {
 		t.Fatalf("账号缺失: %v", err)
 	}
@@ -258,11 +237,9 @@ func TestFetchOrderDetailAttemptErrorPaths(t *testing.T) {
 	if err := store.Cookies.UpdateValueExisting(ctx, "cid", ""); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := adapter.FetchOrderDetail(ctx, "cid", "o2", "i", "b", ""); err == nil {
 		t.Fatal("空 Cookie 应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := store.Cookies.UpdateValueExisting(ctx, "cid", "unb=1; _m_h5_tk=tk"); err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +249,6 @@ func TestFetchOrderDetailAttemptErrorPaths(t *testing.T) {
 	}
 	// 非会话过期的平台错误原样返回，不触发续期。
 	adapter.SetOrderDetailClient(&fakeOrderDetailClient{err: errors.New("boom")})
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := adapter.FetchOrderDetail(ctx, "cid", "o4", "i", "b", ""); err == nil {
 		t.Fatal("平台错误应返回")
 	}
@@ -280,7 +256,6 @@ func TestFetchOrderDetailAttemptErrorPaths(t *testing.T) {
 	renewal.GlobalCooldown.Reset("cid")
 	adapter.SetOrderDetailClient(&fakeOrderDetailClient{err: errors.New("FAIL_SYS_SESSION_EXPIRED::Session过期")})
 	adapter.SetRenewService(xrenew.Service{HTTPClient: &http.Client{Timeout: time.Second}, SilentHasLoginURL: "http://127.0.0.1:1", RetryDelay: -1})
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := adapter.FetchOrderDetail(ctx, "cid", "o5", "i", "b", ""); err == nil || !strings.Contains(err.Error(), "续期失败") {
 		t.Fatalf("续期失败: %v", err)
 	}
@@ -302,9 +277,7 @@ func (c *concurrentCookieDetailClient) FetchOrderDetail(context.Context, string,
 
 // TestFetchOrderDetailDropsStaleCookieWhenCredentialChanged 覆盖外部调用期间凭证被更新时丢弃旧响应 Cookie。
 func TestFetchOrderDetailDropsStaleCookieWhenCredentialChanged(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 使用会并发改写 Cookie 的客户端。
@@ -313,7 +286,6 @@ func TestFetchOrderDetailDropsStaleCookieWhenCredentialChanged(t *testing.T) {
 		mutate: func() { _ = store.Cookies.UpdateValueExisting(ctx, "cid", "unb=1; _m_h5_tk=other") },
 		detail: &mtop.OrderDetailResult{Quantity: "1", Amount: "1", UpdatedCookies: "unb=1; stale=1"},
 	})
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := adapter.FetchOrderDetail(ctx, "cid", "o6", "i", "b", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -326,9 +298,7 @@ func TestFetchOrderDetailDropsStaleCookieWhenCredentialChanged(t *testing.T) {
 
 // TestOnPasswordLoginRefreshCoordinatorBranches 覆盖续期冷却、进行中、账号读取失败和成功/失败收尾路径。
 func TestOnPasswordLoginRefreshCoordinatorBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 使用独立冷却管理器，避免污染全局状态。
@@ -374,9 +344,7 @@ func TestOnPasswordLoginRefreshCoordinatorBranches(t *testing.T) {
 
 // TestTryProtocolCredentialRenewBranches 覆盖协议续期的空入参、平台拒绝与无结果分支。
 func TestTryProtocolCredentialRenewBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 注入拒绝续期的本地服务。

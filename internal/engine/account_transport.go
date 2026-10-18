@@ -18,12 +18,10 @@ func (a *Account) acquireToken(ctx context.Context) (string, string, error) {
 
 // acquireRuntimeToken is retained as a compatibility wrapper for focused
 // tests and older internal callers. It follows the same fresh-token rule.
-// acquireRuntimeToken 封装acquireRuntime令牌业务协调。
 func (a *Account) acquireRuntimeToken(ctx context.Context) (string, string, error) {
 	return a.acquireFreshConnectionToken(ctx)
 }
 
-// acquireTokenWithMinGap 封装acquire令牌WithMinGap业务协调。
 func (a *Account) acquireTokenWithMinGap(ctx context.Context, _ bool) (string, string, error) {
 	// Invalidate any access token left by an older process/attempt before asking
 	// MTOP for the token that will be bound to this connection.
@@ -31,7 +29,6 @@ func (a *Account) acquireTokenWithMinGap(ctx context.Context, _ bool) (string, s
 	return a.refreshToken(ctx)
 }
 
-// setLastTokenStatus 封装setLast令牌状态业务协调。
 func (c *credentialCoordinator) setLastTokenStatus(status string) {
 	// a 是本凭证协调器绑定的账号 facade，持有刷新诊断状态。
 	a := c.account
@@ -40,7 +37,6 @@ func (c *credentialCoordinator) setLastTokenStatus(status string) {
 	a.mu.Unlock()
 }
 
-// classifyTokenFailure 封装classify令牌Failure业务协调。
 func classifyTokenFailure(err error) string {
 	if err == nil {
 		return tokenRefreshFailedAPI
@@ -51,7 +47,6 @@ func classifyTokenFailure(err error) string {
 	if errors.Is(err, context.DeadlineExceeded) || strings.Contains(strings.ToLower(err.Error()), "timeout") || strings.Contains(err.Error(), "超时") {
 		return tokenRefreshFailedTimeout
 	}
-	// msg 用于本次流程后续判断的msg
 	msg := strings.ToLower(err.Error())
 	if strings.Contains(msg, "network") || strings.Contains(msg, "connection") || strings.Contains(msg, "请求失败") {
 		return tokenRefreshFailedNetwork
@@ -59,7 +54,6 @@ func classifyTokenFailure(err error) string {
 	return tokenRefreshFailedAPI
 }
 
-// tokenFailureIsNonCounted 封装令牌FailureIsNonCounted业务协调。
 func tokenFailureIsNonCounted(status string) bool {
 	switch status {
 	case tokenRefreshFailedCaptcha, tokenRefreshFailedCaptchaError, tokenRefreshSkippedCooldown:
@@ -85,7 +79,6 @@ func (a *Account) RuntimeStatus() RuntimeStatus {
 	a.runtimeMu.Unlock()
 
 	a.mu.Lock()
-	// remaining 用于本次流程后续判断的remaining
 	remaining := int64(0)
 	if !a.tokenExpiresAt.IsZero() {
 		remaining = int64(time.Until(a.tokenExpiresAt).Seconds())
@@ -93,7 +86,6 @@ func (a *Account) RuntimeStatus() RuntimeStatus {
 			remaining = 0
 		}
 	}
-	// status 用于本次流程后续判断的状态
 	status := RuntimeStatus{
 		State:                 state,
 		Message:               message,
@@ -145,15 +137,11 @@ func (a *Account) dialRetryDelay() time.Duration {
 	return dialBackoff(failures)
 }
 
-// tokenRetryDelay 封装令牌重试延迟业务协调。
 func (a *Account) tokenRetryDelay() time.Duration {
 	a.mu.Lock()
-	// expiresAt 用于本次流程后续判断的expiresAt
 	expiresAt := a.tokenExpiresAt
-	// failures 用于本次流程后续判断的failures
 	failures := a.tokenFetchFailures
 	a.mu.Unlock()
-	// delay 用于本次流程后续判断的延迟
 	delay := time.Minute
 	if failures > 1 {
 		delay = 2 * time.Minute
@@ -164,10 +152,8 @@ func (a *Account) tokenRetryDelay() time.Duration {
 	return delay
 }
 
-// notifyTransportReady 封装notifyTransportReady业务协调。
 func (a *Account) notifyTransportReady(ctx context.Context) {
-	if // handler、ok 用于本次流程后续判断的handler、ok
-	handler, ok := a.handler.(transportReadyHandler); ok {
+	if handler, ok := a.handler.(transportReadyHandler); ok {
 		handler.OnTransportReady(ctx, a.CookieID)
 	}
 }
@@ -193,7 +179,6 @@ func (a *Account) notifyInitialTransportReady() {
 	})
 }
 
-// setRuntimeState 封装setRuntime状态业务协调。
 func (a *Account) setRuntimeState(state, message string) {
 	a.runtimeMu.Lock()
 	defer a.runtimeMu.Unlock()
@@ -266,12 +251,11 @@ func (a *Account) SendItemCard(ctx context.Context, chatID, toUserID, itemID, ti
 // FetchChatHistory reuses the account's registered IM connection. Keeping this
 // optional capability outside WSConn avoids forcing non-chat test transports to
 // implement history retrieval.
-// FetchChatHistory 封装Fetch聊天History业务协调。
 func (a *Account) FetchChatHistory(ctx context.Context, chatID string, cursor int64, limit int) (map[string]any, string, error) {
 	return a.outgoing.fetchChatHistory(ctx, chatID, cursor, limit)
 }
 
-// FetchChatConversations 封装Fetch聊天Conversations业务协调。
+// FetchChatConversations 通过当前 WebSocket 连接拉取一页会话列表。
 func (a *Account) FetchChatConversations(ctx context.Context, cursor int64, limit int) (map[string]any, string, error) {
 	return a.outgoing.fetchChatConversations(ctx, cursor, limit)
 }
@@ -283,10 +267,8 @@ func (a *Account) AutomationReady() bool {
 
 // rotatePageDeviceID 对应官网 auto-login 成功后的 location.reload()：
 // 新 FishEngine 使用新的 UUID-userID，普通 Set-Cookie 与自然重连不会调用它。
-// rotatePageDeviceID 封装rotate页码DeviceID业务协调。
 func (a *Account) rotatePageDeviceID() {
 	a.mu.Lock()
-	// userID 用于本次流程后续判断的用户ID
 	userID := a.UserID
 	if userID == "" {
 		userID = protocol.TransCookies(a.CookieStr)["unb"]

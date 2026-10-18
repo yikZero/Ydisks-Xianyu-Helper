@@ -8,11 +8,9 @@ import (
 	"testing"
 )
 
-// TestParseLevelAndSetLevel 封装TestParseLevelAndSetLevel业务协调。
 func TestParseLevelAndSetLevel(t *testing.T) {
 	defer Level.Set(slog.LevelInfo)
 
-	// cases 用于本次流程后续判断的cases
 	cases := map[string]slog.Level{
 		"":        slog.LevelInfo,
 		"debug":   slog.LevelDebug,
@@ -20,9 +18,7 @@ func TestParseLevelAndSetLevel(t *testing.T) {
 		"warning": slog.LevelWarn,
 		"error":   slog.LevelError,
 	}
-	// in、want 表示当前遍历过程中的in、want
 	for in, want := range cases {
-		// got、err 用于本次流程后续判断的got、err
 		got, err := ParseLevel(in)
 		if err != nil {
 			t.Fatalf("ParseLevel(%q): %v", in, err)
@@ -31,20 +27,17 @@ func TestParseLevelAndSetLevel(t *testing.T) {
 			t.Fatalf("ParseLevel(%q)=%v want %v", in, got, want)
 		}
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := ParseLevel("verbose"); err == nil {
+	if _, err := ParseLevel("verbose"); err == nil {
 		t.Fatal("invalid level should fail")
 	}
-	if // err 用于本次流程后续判断的err
-	err := SetLevel("debug"); err != nil {
+	if err := SetLevel("debug"); err != nil {
 		t.Fatalf("SetLevel: %v", err)
 	}
-	if // err 是无效日志等级返回的配置错误。
-	err := SetLevel("verbose"); err == nil {
+	// err 是无效日志等级返回的配置错误。
+	if err := SetLevel("verbose"); err == nil {
 		t.Fatal("无效日志等级应返回错误")
 	}
-	if // got 用于本次流程后续判断的got
-	got := Level.Level(); got != slog.LevelDebug {
+	if got := Level.Level(); got != slog.LevelDebug {
 		t.Fatalf("global level=%v want debug", got)
 	}
 }
@@ -81,18 +74,14 @@ func TestRedactionHandlerCoversFallbackTypes(t *testing.T) {
 	}
 }
 
-// TestNewLoggerHonorsDynamicLevel 封装TestNewLoggerHonorsDynamicLevel业务协调。
 func TestNewLoggerHonorsDynamicLevel(t *testing.T) {
 	defer Level.Set(slog.LevelInfo)
-	// buf 用于本次流程后续判断的buf
 	var buf bytes.Buffer
-	// logger 用于本次流程后续判断的logger
 	logger := NewLogger(&buf, "text")
 
 	Level.Set(slog.LevelWarn)
 	logger.Info("hidden")
 	logger.Warn("visible")
-	// out 用于本次流程后续判断的out
 	out := buf.String()
 	if strings.Contains(out, "hidden") {
 		t.Fatalf("info log should be filtered: %s", out)

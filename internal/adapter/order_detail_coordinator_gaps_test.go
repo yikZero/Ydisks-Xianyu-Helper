@@ -26,25 +26,20 @@ func (f *blockingDetailFetcher) FetchOrderDetail(context.Context, string, string
 
 // TestOrderDetailCoordinatorGuards 覆盖协调器空接收者、空抓取器与空标识的保护。
 func TestOrderDetailCoordinatorGuards(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// nilCoordinator 是空指针协调器。
 	var nilCoordinator *OrderDetailCoordinator
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := nilCoordinator.Fetch(ctx, "a", "o", "c", &fakeOrderDetailClient{}); err == nil {
 		t.Fatal("空协调器应失败")
 	}
 	// coordinator 是零间隔协调器。
 	coordinator := newOrderDetailCoordinator(0, 0, nil)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := coordinator.Fetch(ctx, "a", "o", "c", nil); err == nil {
 		t.Fatal("空抓取器应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := coordinator.Fetch(ctx, " ", "o", "c", &fakeOrderDetailClient{}); err == nil {
 		t.Fatal("空账号应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := coordinator.Fetch(ctx, "a", " ", "c", &fakeOrderDetailClient{}); err == nil {
 		t.Fatal("空订单应失败")
 	}
@@ -62,7 +57,6 @@ func TestOrderDetailCoordinatorWaiterCancelAndGapCancel(t *testing.T) {
 	// firstDone 接收首个调用的结果。
 	firstDone := make(chan error, 1)
 	go func() {
-		// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 		_, err := coordinator.Fetch(context.Background(), "acct", "order", "c", fetcher)
 		firstDone <- err
 	}()
@@ -70,25 +64,21 @@ func TestOrderDetailCoordinatorWaiterCancelAndGapCancel(t *testing.T) {
 	// waitCtx 是等待者的可取消上下文，取消后应立即返回而不影响首个请求。
 	waitCtx, cancel := context.WithCancel(context.Background())
 	cancel()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := coordinator.Fetch(waitCtx, "acct", "order", "c", fetcher); !errors.Is(err, context.Canceled) {
 		t.Fatalf("等待者取消: %v", err)
 	}
 	close(fetcher.release)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := <-firstDone; err != nil {
 		t.Fatalf("首个请求: %v", err)
 	}
 	// slow 使用较长限流间隔：首个请求设定时隙后，第二个订单在等待期间取消。
 	slow := newOrderDetailCoordinator(time.Hour, time.Hour, nil)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := slow.Fetch(context.Background(), "acct", "o1", "c", &fakeOrderDetailClient{detail: &mtop.OrderDetailResult{}}); err != nil {
 		t.Fatal(err)
 	}
 	// gapCtx 在等待限流前已取消。
 	gapCtx, gapCancel := context.WithCancel(context.Background())
 	gapCancel()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := slow.Fetch(gapCtx, "acct", "o2", "c", &fakeOrderDetailClient{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("限流等待取消: %v", err)
 	}

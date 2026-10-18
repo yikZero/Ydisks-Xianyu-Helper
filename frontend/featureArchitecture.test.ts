@@ -18,7 +18,7 @@ const collectSourceFiles = (directory: string): string[] => readdirSync(director
 }) /* flatMap 回调递归汇总当前目录下的生产 TypeScript/TSX 文件。 */;
 
 // productionSources 返回排除测试文件后的生产源码及其相对路径。
-const productionSources = (): Array<{ /* relativePath 表示relative当前路径。 */ relativePath: string; /* source 表示source。 */ source: string }> => collectSourceFiles(sourceRoot)
+const productionSources = (): Array<{ /* relativePath 表示relative当前路径。 */ relativePath: string; source: string }> => collectSourceFiles(sourceRoot)
   .filter(filePath => !filePath.endsWith('.test.ts') && !filePath.endsWith('.test.tsx') /* filePath 为待排除测试文件的源码路径。 */)
   .map(filePath => ({
     relativePath: relative(sourceRoot, filePath).split('/').join('/'),

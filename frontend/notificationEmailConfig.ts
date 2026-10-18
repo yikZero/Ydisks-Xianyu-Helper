@@ -7,7 +7,7 @@ const smtpOverrideKeys = [
   'smtp_from_address',
   'smtp_use_tls',
   'smtp_use_ssl',
-] as const; /* smtpOverrideKeys 表示smtpOverrideKeys。 */
+] as const;
 
 const parseBoolean = (value: unknown, fallback: boolean): boolean => {
   if (typeof value === 'boolean') return value;
@@ -16,10 +16,11 @@ const parseBoolean = (value: unknown, fallback: boolean): boolean => {
     if (['false', '0', 'no', 'off'].includes(value.toLowerCase())) return false;
   }
   return fallback;
-}; /* parseBoolean 表示parseBoolean。 */
+};
 
+// normalizeEmailChannelConfig 补齐邮件渠道的 use_custom_smtp：未显式设置时，只要存在旧 SMTP 字段就视为自定义 SMTP。
 export const normalizeEmailChannelConfig = (config: Record<string, unknown>): Record<string, unknown> => {
-  const hasExplicitMode = Object.prototype.hasOwnProperty.call(config, 'use_custom_smtp'); /* hasExplicitMode 表示hasExplicitMode。 */
+  const hasExplicitMode = Object.prototype.hasOwnProperty.call(config, 'use_custom_smtp');
   // hasLegacyOverrides 表示旧 SMTP 字段中是否仍有非空值，以便兼容层推断配置模式。
   const hasLegacyOverrides = smtpOverrideKeys.some(key => String(config[key] ?? '').trim() !== '' /* key 是当前检查的旧 SMTP 字段名。 */);
   return {
@@ -28,14 +29,15 @@ export const normalizeEmailChannelConfig = (config: Record<string, unknown>): Re
       ? parseBoolean(config.use_custom_smtp, false)
       : hasLegacyOverrides,
   };
-}; /* normalizeEmailChannelConfig 表示normalizeEmailChannelConfig。 */
+};
 
+// enableCustomSMTP 切换为自定义 SMTP，空字段用系统 SMTP 设置填充并补齐端口、发件人和加密默认值。
 export const enableCustomSMTP = (
   config: Record<string, unknown>,
   systemSettings: Record<string, unknown>,
 ): Record<string, unknown> => {
-  const next: Record<string, unknown> = { ...config, use_custom_smtp: true }; /* next 表示next。 */
-  for (const key /* key 表示key。 */ of smtpOverrideKeys) {
+  const next: Record<string, unknown> = { ...config, use_custom_smtp: true };
+  for (const key of smtpOverrideKeys) {
     if (String(next[key] ?? '').trim() === '' && systemSettings[key] !== undefined) {
       next[key] = systemSettings[key];
     }
@@ -45,16 +47,17 @@ export const enableCustomSMTP = (
   next.smtp_use_tls = parseBoolean(next.smtp_use_tls, true);
   next.smtp_use_ssl = parseBoolean(next.smtp_use_ssl, false);
   return next;
-}; /* enableCustomSMTP 表示enableCustomSMTP。 */
+};
 
+// buildEmailChannelConfig 生成提交给后端的邮件渠道配置；仅在自定义 SMTP 时携带 SMTP 字段。
 export const buildEmailChannelConfig = (config: Record<string, unknown>): Record<string, unknown> => {
-  const normalized = normalizeEmailChannelConfig(config); /* normalized 表示normalized。 */
+  const normalized = normalizeEmailChannelConfig(config);
   const result: Record<string, unknown> = {
     to_email: String(normalized.to_email ?? '').trim(),
     use_custom_smtp: normalized.use_custom_smtp === true,
   }; /* result 表示处理结果。 */
   if (result.use_custom_smtp) {
-    for (const key /* key 表示key。 */ of smtpOverrideKeys) result[key] = normalized[key];
+    for (const key of smtpOverrideKeys) result[key] = normalized[key];
   }
   return result;
-}; /* buildEmailChannelConfig 表示buildEmailChannelConfig。 */
+};

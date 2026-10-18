@@ -58,7 +58,6 @@ func TestItemBatchRepositoryRejectsUnconfiguredAdapter(t *testing.T) {
 
 // TestItemBatchRepositoryPropagatesDatabaseFailures 验证数据库不可用时各仓储入口把错误向上传播。
 func TestItemBatchRepositoryPropagatesDatabaseFailures(t *testing.T) {
-	// store、cleanup 是隔离数据库；关闭后所有查询都会失败。
 	store, cleanup := newAdapterTestStore(t)
 	cleanup()
 	// repository 绑定已关闭的数据库。
@@ -73,7 +72,6 @@ func TestItemBatchRepositoryPropagatesDatabaseFailures(t *testing.T) {
 
 // TestItemBatchRepositoryCreateBatchRejectsUnserializableRaw 验证原始行包含无法序列化的值时拒绝写入。
 func TestItemBatchRepositoryCreateBatchRejectsUnserializableRaw(t *testing.T) {
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// err 是含函数值的原始行序列化失败错误。

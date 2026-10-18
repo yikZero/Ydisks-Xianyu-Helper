@@ -12,7 +12,6 @@ func TestGetCookiePlatformRuntimeDataExcludesLoginSecrets(t *testing.T) {
 	// store 是本测试使用的 SQLite repository 聚合器；cleanup 负责关闭数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是平台运行视图测试共用的上下文。
 	ctx := context.Background()
 	// userID 是测试账号所属的本地用户 ID。
 	var userID int64

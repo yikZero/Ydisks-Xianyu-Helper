@@ -64,18 +64,15 @@ func TestListChatItemsRejectsInvalidUnavailableAndOwnershipFailure(t *testing.T)
 		// query 是被破坏后的输入副本。
 		query := base
 		mutate(&query)
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if _, err := service.ListChatItems(context.Background(), query); !errors.Is(err, ErrChatItemInvalid) {
 			t.Fatalf("err=%v", err)
 		}
 	}
 	// unavailable 没有装配目录端口。
 	unavailable := New(repository)
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := unavailable.ListChatItems(context.Background(), base); !errors.Is(err, ErrChatItemUnavailable) {
 		t.Fatalf("err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := service.ListChatItems(context.Background(), base); !errors.Is(err, ownershipFailure) {
 		t.Fatalf("err=%v", err)
 	}
@@ -87,7 +84,6 @@ func TestSendItemCardPreconditionFailures(t *testing.T) {
 	session := Session{AccountID: "account-1", ChatID: "chat-1", PeerUserID: "buyer-1"}
 	// input 是合法商品卡片输入。
 	input := ItemCardInput{UserID: 7, AccountID: "account-1", ChatID: "chat-1", Item: ChatItem{ItemID: "i", Title: "t", ImageURL: "https://img.example/a.png", Price: "1"}}
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
 	// build 构造使用给定仓储与发送器的服务。
 	build := func(repository *itemRepository, sender Sender) *Service {
@@ -98,37 +94,30 @@ func TestSendItemCardPreconditionFailures(t *testing.T) {
 	// invalid 是缺少用户标识的非法输入。
 	invalid := input
 	invalid.UserID = 0
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := build(good, plainSender{}).SendItemCard(ctx, invalid); !errors.Is(err, ErrChatItemInvalid) {
 		t.Fatalf("invalid err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := NewWithSending(nil, nil, nil, nil).SendItemCard(ctx, input); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("unavailable err=%v", err)
 	}
 	// ownershipFailure 是归属查询注入的错误。
 	ownershipFailure := errors.New("ownership down")
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := build(&itemRepository{fakeRepository: &fakeRepository{ownedErr: ownershipFailure}}, plainSender{}).SendItemCard(ctx, input); !errors.Is(err, ownershipFailure) {
 		t.Fatalf("ownership err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := build(&itemRepository{fakeRepository: &fakeRepository{}}, plainSender{}).SendItemCard(ctx, input); !errors.Is(err, ErrChatItemForbidden) {
 		t.Fatalf("forbidden err=%v", err)
 	}
 	// lookupFailure 是精确会话查询注入的普通错误。
 	lookupFailure := errors.New("lookup down")
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := build(&itemRepository{fakeRepository: &fakeRepository{owned: true}, findErr: lookupFailure}, plainSender{}).SendItemCard(ctx, input); !errors.Is(err, lookupFailure) {
 		t.Fatalf("lookup err=%v", err)
 	}
 	// noPeer 的会话缺少对端身份，必须按会话不存在处理。
 	noPeer := &itemRepository{fakeRepository: &fakeRepository{owned: true}, session: Session{AccountID: "account-1", ChatID: "chat-1"}}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := build(noPeer, plainSender{}).SendItemCard(ctx, input); !errors.Is(err, ErrChatSessionNotFound) {
 		t.Fatalf("no peer err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := build(good, plainSender{}).SendItemCard(ctx, input); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("plain sender err=%v", err)
 	}
@@ -153,7 +142,6 @@ func TestSendItemCardUncertainResult(t *testing.T) {
 func TestLookupOwnedSessionWithoutCapabilityAndEmptyChat(t *testing.T) {
 	// plain 的仓储没有精确会话查询能力。
 	plain := New(historyOnlyRepository{})
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := plain.lookupOwnedSession(context.Background(), 1, "a", "c"); !errors.Is(err, ErrSessionUnavailable) {
 		t.Fatalf("err=%v", err)
 	}
@@ -161,7 +149,6 @@ func TestLookupOwnedSessionWithoutCapabilityAndEmptyChat(t *testing.T) {
 	empty := New(&itemRepository{fakeRepository: &fakeRepository{}, session: Session{AccountID: "a", ChatID: "c"}})
 	// emptyRepository 在查询时返回零值会话。
 	empty.repository = zeroLookupRepository{}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := empty.lookupOwnedSession(context.Background(), 1, "a", "c"); !errors.Is(err, ErrChatSessionNotFound) {
 		t.Fatalf("err=%v", err)
 	}
@@ -179,33 +166,26 @@ func (zeroLookupRepository) FindSession(context.Context, int64, string, string) 
 
 // TestListSessionPageValidationAndDelegation 覆盖会话分页的输入校验、仓储错误与成功路径。
 func TestListSessionPageValidationAndDelegation(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
 	// service 使用返回空页的仓储。
 	service := New(historyOnlyRepository{})
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := service.ListSessionPage(ctx, 0, "a", nil, 10); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := service.ListSessionPage(ctx, 1, " ", nil, 10); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := service.ListSessionPage(ctx, 1, "a", &SessionCursor{ChatID: " "}, 10); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := (*Service)(nil).ListSessionPage(ctx, 1, "a", nil, 10); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := service.ListSessionPage(ctx, 1, " a ", &SessionCursor{ChatID: "c"}, 10); err != nil {
 		t.Fatalf("err=%v", err)
 	}
 	// pageFailure 是仓储分页注入的错误。
 	pageFailure := errors.New("page down")
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := New(pageErrorRepository{err: pageFailure}).ListSessionPage(ctx, 1, "a", nil, 10); !errors.Is(err, pageFailure) {
 		t.Fatalf("err=%v", err)
 	}
@@ -214,7 +194,6 @@ func TestListSessionPageValidationAndDelegation(t *testing.T) {
 // pageErrorRepository 让会话分页返回预置错误。
 type pageErrorRepository struct {
 	historyOnlyRepository
-	// err 是分页查询应返回的错误。
 	err error
 }
 
@@ -225,15 +204,12 @@ func (r pageErrorRepository) ListSessionPage(context.Context, int64, string, *Se
 
 // TestDeleteConversationCapabilityAndOwnershipFailure 覆盖删除会话时仓储能力缺失与归属查询失败。
 func TestDeleteConversationCapabilityAndOwnershipFailure(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := New(historyOnlyRepository{}).DeleteConversation(ctx, 1, "a", "c"); !errors.Is(err, ErrSessionUnavailable) {
 		t.Fatalf("err=%v", err)
 	}
 	// ownershipFailure 是归属查询注入的错误。
 	ownershipFailure := errors.New("ownership down")
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := New(&fakeRepository{ownedErr: ownershipFailure}).DeleteConversation(ctx, 1, "a", "c"); !errors.Is(err, ownershipFailure) {
 		t.Fatalf("err=%v", err)
 	}
@@ -241,7 +217,6 @@ func TestDeleteConversationCapabilityAndOwnershipFailure(t *testing.T) {
 
 // TestSendUncertainAndReplyValidation 覆盖文字/图片不确定结果、回复输入非法与不可用、文字段失败及图片下载输入校验。
 func TestSendUncertainAndReplyValidation(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
 	// session 是合法发送会话。
 	session := Session{AccountID: "a", ChatID: "c", PeerUserID: "p"}
@@ -249,11 +224,9 @@ func TestSendUncertainAndReplyValidation(t *testing.T) {
 	uncertainSender := &sendSender{sendErr: ErrSendUncertain}
 	// textService 用于文字不确定分支。
 	textService := NewWithSending(nil, &sendRepository{}, sendProvider{sender: uncertainSender}, sendUploader{result: ImageUpload{URL: "https://img.example/u.png", Width: 1, Height: 1}})
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期；msg 保存被测函数返回的消息对象。
 	if msg, err := textService.SendText(ctx, OutgoingInput{Session: session, Text: "hi"}); !errors.Is(err, ErrSendUncertain) || msg == nil || msg.Status != "uncertain" {
 		t.Fatalf("text msg=%+v err=%v", msg, err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期；msg 保存被测函数返回的消息对象。
 	if msg, err := textService.SendImage(ctx, ImageInput{Session: session, Filename: "a.png", ContentType: "image/png", Data: []byte{1}}); !errors.Is(err, ErrSendUncertain) || msg == nil || msg.Status != "uncertain" {
 		t.Fatalf("image msg=%+v err=%v", msg, err)
 	}
@@ -274,19 +247,15 @@ func TestSendUncertainAndReplyValidation(t *testing.T) {
 	downloadService := NewWithSendingAndDownloader(nil, &sendRepository{}, sendProvider{sender: &sendSender{}}, sendUploader{}, func(context.Context, string) ([]byte, string, string, error) {
 		return nil, "image/png", "a.png", nil
 	})
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := downloadService.SendImageURL(ctx, ImageURLInput{Session: session, ImageURL: "https://img.example/a.png"}); !errors.Is(err, ErrSend) {
 		t.Fatalf("empty data err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := downloadService.SendImageURL(ctx, ImageURLInput{Session: session}); !errors.Is(err, ErrSendInvalidInput) {
 		t.Fatalf("blank url err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := NewWithSending(nil, nil, nil, nil).SendImageURL(ctx, ImageURLInput{Session: session, ImageURL: "https://img.example/a.png"}); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("unwired err=%v", err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := (*Service)(nil).downloadImageInput(ctx, session, "https://img.example/a.png"); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("nil service err=%v", err)
 	}

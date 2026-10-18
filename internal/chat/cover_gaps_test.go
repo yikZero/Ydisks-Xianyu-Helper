@@ -46,11 +46,9 @@ func TestSessionRoleDelegatesToStore(t *testing.T) {
 	ctx := context.Background()
 	// service 使用生产仓储适配器。
 	service := New(store)
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := store.Chats.UpsertSession(ctx, db.ChatSession{CookieID: "account-1", ChatID: "chat-1", ItemID: "item-1", BuyerID: "buyer"}); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := service.UpdateSessionRole(ctx, "account-1", "chat-1", "item-1", "seller", "buyer", "me", "local_item"); err != nil {
 		t.Fatal(err)
 	}

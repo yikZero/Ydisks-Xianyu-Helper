@@ -34,7 +34,6 @@ func TestOpenAPIOperationsHaveContractScenarios(t *testing.T) {
 			defer cleanup()
 			// handler 是当前 operation 使用的完整 chi Router。
 			handler := srv.Router()
-			// sessionCookie 是当前 operation 独占的管理员会话，避免删除或登出影响其他场景。
 			sessionCookie := loginHelper(t, handler)
 			// request 是根据路径参数、必需查询参数和请求体 schema 生成的最小真实请求。
 			request := newOpenAPICoverageRequest(t, operation.path, operation.method, operation.operation)

@@ -256,42 +256,42 @@ func TestChannelServiceCoversCRUDBindingsAndValidation(t *testing.T) {
 	}
 	// service 是待验证的通知渠道服务。
 	service := NewChannelService(repository, &channelSenderStub{})
-	if // err 是渠道列表成功查询的错误。
-	_, err := service.ListChannels(context.Background(), 7); err != nil {
+	// err 是渠道列表成功查询的错误。
+	if _, err := service.ListChannels(context.Background(), 7); err != nil {
 		t.Fatalf("渠道列表失败: %v", err)
 	}
-	if // err 是绑定列表成功查询的错误。
-	_, err := service.ListBindings(context.Background(), 7); err != nil {
+	// err 是绑定列表成功查询的错误。
+	if _, err := service.ListBindings(context.Background(), 7); err != nil {
 		t.Fatalf("绑定列表失败: %v", err)
 	}
-	if // err 是渠道删除成功调用的错误。
-	err := service.DeleteChannel(context.Background(), 7, 1); err != nil {
+	// err 是渠道删除成功调用的错误。
+	if err := service.DeleteChannel(context.Background(), 7, 1); err != nil {
 		t.Fatalf("渠道删除失败: %v", err)
 	}
-	if // err 是绑定删除成功调用的错误。
-	err := service.DeleteBinding(context.Background(), 7, 3); err != nil {
+	// err 是绑定删除成功调用的错误。
+	if err := service.DeleteBinding(context.Background(), 7, 3); err != nil {
 		t.Fatalf("绑定删除失败: %v", err)
 	}
-	if // err 是账号绑定批量删除成功调用的错误。
-	err := service.DeleteAccountBindings(context.Background(), 7, "acc"); err != nil {
+	// err 是账号绑定批量删除成功调用的错误。
+	if err := service.DeleteAccountBindings(context.Background(), 7, "acc"); err != nil {
 		t.Fatalf("账号绑定删除失败: %v", err)
 	}
-	if // err 是账号绑定 ID 查询成功调用的错误。
-	_, err := service.GetBindingIDs(context.Background(), 7, "acc"); err != nil {
+	// err 是账号绑定 ID 查询成功调用的错误。
+	if _, err := service.GetBindingIDs(context.Background(), 7, "acc"); err != nil {
 		t.Fatalf("绑定 ID 查询失败: %v", err)
 	}
-	if // err 是覆盖多个绑定成功调用的错误。
-	err := service.SetBindings(context.Background(), 7, "acc", []int64{1, 2}); err != nil || len(repository.sentBindings) != 2 {
+	// err 是覆盖多个绑定成功调用的错误。
+	if err := service.SetBindings(context.Background(), 7, "acc", []int64{1, 2}); err != nil || len(repository.sentBindings) != 2 {
 		t.Fatalf("覆盖绑定失败: err=%v ids=%v", err, repository.sentBindings)
 	}
-	if // err 是单条绑定成功调用的错误。
-	err := service.SetSingleBinding(context.Background(), 7, "acc", 1, true); err != nil {
+	// err 是单条绑定成功调用的错误。
+	if err := service.SetSingleBinding(context.Background(), 7, "acc", 1, true); err != nil {
 		t.Fatalf("单条绑定失败: %v", err)
 	}
 	// name、channelType、config、eventTypes、enabled 保存完整部分更新输入。
 	name, channelType, config, eventTypes, enabled := "新名", "webhook", "new", "all", true
-	if // err 是完整渠道部分更新的错误。
-	err := service.UpdateChannel(context.Background(), 7, 1, ChannelPatch{Name: &name, Type: &channelType, Config: &config, EventTypes: &eventTypes, Enabled: &enabled}); err != nil {
+	// err 是完整渠道部分更新的错误。
+	if err := service.UpdateChannel(context.Background(), 7, 1, ChannelPatch{Name: &name, Type: &channelType, Config: &config, EventTypes: &eventTypes, Enabled: &enabled}); err != nil {
 		t.Fatalf("完整渠道更新失败: %v", err)
 	}
 	if repository.updatedRecord == nil || repository.updatedRecord.Config != "new" || !repository.updatedRecord.Enabled {
@@ -308,40 +308,40 @@ func TestChannelServiceCoversCRUDBindingsAndValidation(t *testing.T) {
 	failingRepository := &channelRepositoryStub{err: storageErr, record: repository.record, ownedChannel: true, ownedAccount: true}
 	// failingService 是注入存储错误端口的服务。
 	failingService := NewChannelService(failingRepository, &channelSenderStub{err: storageErr})
-	if // err 是创建端口错误。
-	_, err := failingService.CreateChannel(context.Background(), 7, ChannelInput{Name: "x", Type: "email"}); !errors.Is(err, storageErr) {
+	// err 是创建端口错误。
+	if _, err := failingService.CreateChannel(context.Background(), 7, ChannelInput{Name: "x", Type: "email"}); !errors.Is(err, storageErr) {
 		t.Fatalf("创建端口错误未透传: %v", err)
 	}
-	if // err 是更新端口错误。
-	err := failingService.UpdateChannel(context.Background(), 7, 1, ChannelPatch{}); !errors.Is(err, storageErr) {
+	// err 是更新端口错误。
+	if err := failingService.UpdateChannel(context.Background(), 7, 1, ChannelPatch{}); !errors.Is(err, storageErr) {
 		t.Fatalf("更新端口错误未透传: %v", err)
 	}
-	if // err 是删除渠道端口错误。
-	err := failingService.DeleteChannel(context.Background(), 7, 1); !errors.Is(err, storageErr) {
+	// err 是删除渠道端口错误。
+	if err := failingService.DeleteChannel(context.Background(), 7, 1); !errors.Is(err, storageErr) {
 		t.Fatalf("删除渠道错误未透传: %v", err)
 	}
-	if // err 是绑定 ID 查询端口错误。
-	_, err := failingService.GetBindingIDs(context.Background(), 7, "acc"); !errors.Is(err, storageErr) {
+	// err 是绑定 ID 查询端口错误。
+	if _, err := failingService.GetBindingIDs(context.Background(), 7, "acc"); !errors.Is(err, storageErr) {
 		t.Fatalf("绑定 ID 错误未透传: %v", err)
 	}
-	if // err 是覆盖绑定端口错误。
-	err := failingService.SetBindings(context.Background(), 7, "acc", nil); !errors.Is(err, storageErr) {
+	// err 是覆盖绑定端口错误。
+	if err := failingService.SetBindings(context.Background(), 7, "acc", nil); !errors.Is(err, storageErr) {
 		t.Fatalf("覆盖绑定错误未透传: %v", err)
 	}
-	if // err 是单条绑定端口错误。
-	err := failingService.SetSingleBinding(context.Background(), 7, "acc", 1, false); !errors.Is(err, storageErr) {
+	// err 是单条绑定端口错误。
+	if err := failingService.SetSingleBinding(context.Background(), 7, "acc", 1, false); !errors.Is(err, storageErr) {
 		t.Fatalf("单条绑定错误未透传: %v", err)
 	}
-	if // err 是绑定删除端口错误。
-	err := failingService.DeleteBinding(context.Background(), 7, 3); !errors.Is(err, storageErr) {
+	// err 是绑定删除端口错误。
+	if err := failingService.DeleteBinding(context.Background(), 7, 3); !errors.Is(err, storageErr) {
 		t.Fatalf("删除绑定错误未透传: %v", err)
 	}
-	if // err 是账号绑定删除端口错误。
-	err := failingService.DeleteAccountBindings(context.Background(), 7, "acc"); !errors.Is(err, storageErr) {
+	// err 是账号绑定删除端口错误。
+	if err := failingService.DeleteAccountBindings(context.Background(), 7, "acc"); !errors.Is(err, storageErr) {
 		t.Fatalf("删除账号绑定错误未透传: %v", err)
 	}
-	if // err 是测试发送端口错误。
-	err := failingService.TestChannel(context.Background(), 7, 1, time.Unix(1, 0)); !errors.Is(err, storageErr) {
+	// err 是测试发送端口错误。
+	if err := failingService.TestChannel(context.Background(), 7, 1, time.Unix(1, 0)); !errors.Is(err, storageErr) {
 		t.Fatalf("测试发送错误未透传: %v", err)
 	}
 
@@ -391,12 +391,12 @@ func TestChannelServiceCoversCRUDBindingsAndValidation(t *testing.T) {
 			t.Errorf("%s: 参数错误=%v", testCase.name, err)
 		}
 	}
-	if // err 是空服务渠道列表的参数错误。
-	_, err := (*ChannelService)(nil).ListChannels(context.Background(), 1); !errors.Is(err, ErrChannelInvalidInput) {
+	// err 是空服务渠道列表的参数错误。
+	if _, err := (*ChannelService)(nil).ListChannels(context.Background(), 1); !errors.Is(err, ErrChannelInvalidInput) {
 		t.Fatalf("空服务列表错误异常: %v", err)
 	}
-	if // err 是空服务账号归属的参数错误。
-	_, err := (*ChannelService)(nil).GetBindingIDs(context.Background(), 1, "acc"); !errors.Is(err, ErrChannelInvalidInput) {
+	// err 是空服务账号归属的参数错误。
+	if _, err := (*ChannelService)(nil).GetBindingIDs(context.Background(), 1, "acc"); !errors.Is(err, ErrChannelInvalidInput) {
 		t.Fatalf("空服务账号错误异常: %v", err)
 	}
 
@@ -412,50 +412,50 @@ func TestChannelServiceCoversCRUDBindingsAndValidation(t *testing.T) {
 	}
 	// repository.record 保存更新字段校验使用的无效现有记录。
 	repository.record = &ChannelRecord{ID: 1, Name: "", Type: "email"}
-	if // err 是更新合并后字段校验返回的参数错误。
-	err := service.UpdateChannel(context.Background(), 7, 1, ChannelPatch{}); !errors.Is(err, ErrChannelInvalidInput) {
+	// err 是更新合并后字段校验返回的参数错误。
+	if err := service.UpdateChannel(context.Background(), 7, 1, ChannelPatch{}); !errors.Is(err, ErrChannelInvalidInput) {
 		t.Fatalf("更新字段校验未拒绝: %v", err)
 	}
 	repository.record = nil
-	if // err 是渠道归属查询为空时的禁止错误。
-	err := service.UpdateChannel(context.Background(), 7, 1, ChannelPatch{}); !errors.Is(err, ErrChannelForbidden) {
+	// err 是渠道归属查询为空时的禁止错误。
+	if err := service.UpdateChannel(context.Background(), 7, 1, ChannelPatch{}); !errors.Is(err, ErrChannelForbidden) {
 		t.Fatalf("空渠道记录错误异常: %v", err)
 	}
 
 	// noSenderService 是未装配测试发送端口的服务。
 	noSenderService := NewChannelService(repository, nil)
-	if // err 是未装配通知器的测试发送错误。
-	err := noSenderService.TestChannel(context.Background(), 7, 1, time.Time{}); !errors.Is(err, ErrNotifierUnavailable) {
+	// err 是未装配通知器的测试发送错误。
+	if err := noSenderService.TestChannel(context.Background(), 7, 1, time.Time{}); !errors.Is(err, ErrNotifierUnavailable) {
 		t.Fatalf("未装配通知器错误异常: %v", err)
 	}
 	// zeroTimeSender 是验证零时间自动填充的发送端口替身。
 	zeroTimeSender := &channelSenderStub{}
 	// zeroTimeService 是使用零时间测试发送的渠道服务。
 	zeroTimeService := NewChannelService(&channelRepositoryStub{ownedChannel: true}, zeroTimeSender)
-	if // err 是零时间测试正文生成的发送结果。
-	err := zeroTimeService.TestChannel(context.Background(), 7, 1, time.Time{}); err != nil {
+	// err 是零时间测试正文生成的发送结果。
+	if err := zeroTimeService.TestChannel(context.Background(), 7, 1, time.Time{}); err != nil {
 		t.Fatalf("零时间测试发送失败: %v", err)
 	}
 	// channelFailure 是渠道归属查询失败原因。
 	channelFailure := errors.New("channel ownership failed")
 	// channelFailureService 是注入渠道归属查询错误的服务。
 	channelFailureService := NewChannelService(&channelRepositoryStub{ownedAccount: true, channelErr: channelFailure}, nil)
-	if // err 是批量绑定渠道归属查询错误。
-	err := channelFailureService.SetBindings(context.Background(), 7, "acc", []int64{1}); !errors.Is(err, channelFailure) {
+	// err 是批量绑定渠道归属查询错误。
+	if err := channelFailureService.SetBindings(context.Background(), 7, "acc", []int64{1}); !errors.Is(err, channelFailure) {
 		t.Fatalf("批量绑定归属错误未透传: %v", err)
 	}
-	if // err 是单条绑定渠道归属查询错误。
-	err := channelFailureService.SetSingleBinding(context.Background(), 7, "acc", 1, true); !errors.Is(err, channelFailure) {
+	// err 是单条绑定渠道归属查询错误。
+	if err := channelFailureService.SetSingleBinding(context.Background(), 7, "acc", 1, true); !errors.Is(err, channelFailure) {
 		t.Fatalf("单条绑定归属错误未透传: %v", err)
 	}
 	// forbiddenBindingService 是拒绝渠道归属的绑定服务。
 	forbiddenBindingService := NewChannelService(&channelRepositoryStub{ownedAccount: true, ownedChannel: false}, nil)
-	if // err 是批量绑定渠道归属禁止错误。
-	err := forbiddenBindingService.SetBindings(context.Background(), 7, "acc", []int64{1}); !errors.Is(err, ErrChannelForbidden) {
+	// err 是批量绑定渠道归属禁止错误。
+	if err := forbiddenBindingService.SetBindings(context.Background(), 7, "acc", []int64{1}); !errors.Is(err, ErrChannelForbidden) {
 		t.Fatalf("批量绑定禁止错误异常: %v", err)
 	}
-	if // err 是单条绑定归属禁止错误。
-	err := forbiddenBindingService.SetSingleBinding(context.Background(), 7, "acc", 1, true); !errors.Is(err, ErrChannelForbidden) {
+	// err 是单条绑定归属禁止错误。
+	if err := forbiddenBindingService.SetSingleBinding(context.Background(), 7, "acc", 1, true); !errors.Is(err, ErrChannelForbidden) {
 		t.Fatalf("单条绑定禁止错误异常: %v", err)
 	}
 }

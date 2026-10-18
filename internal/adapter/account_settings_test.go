@@ -13,7 +13,6 @@ import (
 func TestAccountSettingsRepositoryRejectsMissingStore(t *testing.T) {
 	// repository 保存未装配数据库的账号设置适配器。
 	repository := NewAccountSettingsRepository(nil)
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// err 保存缺少数据库时的账号设置写入错误。
 	if _, err := repository.UpdateSettings(ctx, accountapp.SettingsUpdateInput{AccountID: "cid"}); err == nil {
@@ -49,12 +48,10 @@ func TestAccountSettingsRepositoryRejectsMissingStore(t *testing.T) {
 func TestAccountSettingsRepositoryWritesAndReadsSettings(t *testing.T) {
 	// XIANYU_DATA_KEY 让本测试验证启用密钥时登录秘密确实加密落盘。
 	t.Setenv("XIANYU_DATA_KEY", "account-settings-test-key")
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的账号设置适配器。
 	repository := NewAccountSettingsRepository(store)
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// admin、userErr 保存测试账号所属用户和查询错误。
 	admin, userErr := store.Users.GetByUsername(ctx, "admin")
@@ -138,7 +135,6 @@ func TestAccountSettingsRepositoryWritesAndReadsSettings(t *testing.T) {
 
 // TestAccountSettingsRepositoryClearTokensWithoutTokenStore 验证未装配 Token 仓储时清理动作保持兼容空操作。
 func TestAccountSettingsRepositoryClearTokensWithoutTokenStore(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的账号设置适配器。

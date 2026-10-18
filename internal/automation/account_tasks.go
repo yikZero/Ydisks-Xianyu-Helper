@@ -14,7 +14,6 @@ import (
 	"xianyu-go/internal/xianyu/mtop"
 )
 
-// TaskAutoRate 用于本次流程后续判断的任务AutoRate
 const (
 	TaskAutoRate       = "auto_rate"
 	TaskAutoPolish     = "auto_polish"
@@ -25,7 +24,7 @@ const (
 // errAccountTaskCredentialRenewed 表示本轮任务因凭证已续期而提前结束，等待后续扫描使用新凭证重试。
 var errAccountTaskCredentialRenewed = errors.New("账号任务凭证已续期，等待下一轮重试")
 
-// AccountTaskClient 用于本次流程后续判断的账号任务Client
+// AccountTaskClient 是账号自动任务（自动评价、商品擦亮）所需的平台调用能力。
 type AccountTaskClient interface {
 	RateBuyer(ctx context.Context, cookiesStr, tradeID, feedback string) (*mtop.AccountTaskResult, error)
 	FetchAllItems(ctx context.Context, cookiesStr string, pageSize, maxPages int) (*mtop.ItemListResult, error)
@@ -52,7 +51,7 @@ type accountTaskCredentialSession struct {
 	persistedMetadata string
 }
 
-// AccountTaskSummary 用于本次流程后续判断的账号任务Summary
+// AccountTaskSummary 汇总一次账号任务执行中发现、成功、失败和跳过的目标数量。
 type AccountTaskSummary struct {
 	TaskType string `json:"task_type"`
 	Found    int    `json:"found"`
@@ -64,7 +63,6 @@ type AccountTaskSummary struct {
 
 // accountTaskCoordinator 负责账号自动评价、商品擦亮和凭证阻断状态。
 // 它拥有账号任务专用的 Session 指纹状态，Center 只保留兼容调用入口和依赖装配。
-// accountTaskCoordinator 用于本次流程后续判断的账号任务Coordinator
 type accountTaskCoordinator struct {
 	// repository 提供账号任务所需的最小持久化能力。
 	repository AccountTaskRepository
@@ -91,14 +89,12 @@ func (c *accountTaskCoordinator) accountAutomationAllowed(ctx context.Context, a
 	}
 	// paused 表示账号是否被用户临时暂停。
 	// err 保存读取账号暂停状态的错误。
-	// paused、err 用于本次流程后续判断的paused、err
 	paused, _, err := c.repository.IsPaused(ctx, accountID)
 	if err != nil {
 		return false, fmt.Errorf("读取账号暂停状态: %w", err)
 	}
 	// enabled 表示账号是否处于启用状态。
 	// statusErr 保存读取账号启用状态的错误。
-	// enabled、statusErr 用于本次流程后续判断的enabled、statusErr
 	enabled, statusErr := c.repository.Status(ctx, accountID)
 	if statusErr != nil {
 		return false, fmt.Errorf("读取账号启用状态: %w", statusErr)
@@ -108,7 +104,6 @@ func (c *accountTaskCoordinator) accountAutomationAllowed(ctx context.Context, a
 
 // runAccountTask 执行指定账号任务，并在执行前检查账号状态门禁。
 func (c *accountTaskCoordinator) runAccountTask(ctx context.Context, accountID, taskType string) (AccountTaskSummary, error) {
-	// allowed、err 用于本次流程后续判断的allowed、err
 	allowed, err := c.accountAutomationAllowed(ctx, accountID)
 	if err != nil {
 		return AccountTaskSummary{TaskType: taskType}, err
@@ -116,7 +111,6 @@ func (c *accountTaskCoordinator) runAccountTask(ctx context.Context, accountID, 
 	if !allowed {
 		return AccountTaskSummary{TaskType: taskType}, fmt.Errorf("账号已停用或暂停，无法执行任务")
 	}
-	// settings、err 用于本次流程后续判断的settings、err
 	settings, err := c.repository.Get(ctx, accountID)
 	if err != nil {
 		return AccountTaskSummary{TaskType: taskType}, err
@@ -124,16 +118,13 @@ func (c *accountTaskCoordinator) runAccountTask(ctx context.Context, accountID, 
 	return c.runConfiguredAccountTask(ctx, settings, taskType)
 }
 
-// runConfiguredAccountTask 封装运行Configured账号任务业务协调。
 func (c *accountTaskCoordinator) runConfiguredAccountTask(ctx context.Context, settings db.AccountTaskSettings, taskType string) (AccountTaskSummary, error) {
-	if // blocked、err 用于本次流程后续判断的blocked、err
-	blocked, err := c.accountTaskSessionBlocked(ctx, settings.CookieID); err != nil {
+	if blocked, err := c.accountTaskSessionBlocked(ctx, settings.CookieID); err != nil {
 		return AccountTaskSummary{TaskType: taskType}, err
 	} else if blocked {
 		return AccountTaskSummary{TaskType: taskType, Skipped: 1, Message: "Session 已失效，等待续期或重新登录"},
 			fmt.Errorf("账号 Session 已失效，已停止自动化 API 请求，等待续期或重新登录")
 	}
-	// summary 用于本次流程后续判断的summary
 	var (
 		summary AccountTaskSummary
 		err     error
@@ -152,22 +143,17 @@ func (c *accountTaskCoordinator) runConfiguredAccountTask(ctx context.Context, s
 	return summary, err
 }
 
-// scanAccountTasks 封装scan账号任务列表业务协调。
 func (c *accountTaskCoordinator) scanAccountTasks(ctx context.Context) {
 	if c.client() == nil || c.repository == nil {
 		return
 	}
-	// settings、err 用于本次流程后续判断的settings、err
 	settings, err := c.repository.Enabled(ctx)
 	if err != nil {
 		c.logger.Warn("扫描账号任务配置失败", "err", err)
 		return
 	}
-	// now 用于本次流程后续判断的now
 	now := beijingNow()
-	// setting 表示当前遍历过程中的设置
 	for _, setting := range settings {
-		// allowed、err 用于本次流程后续判断的allowed、err
 		allowed, err := c.accountAutomationAllowed(ctx, setting.CookieID)
 		if err != nil {
 			c.logger.Warn("检查账号任务账号状态失败", "account", setting.CookieID, "err", err)
@@ -176,8 +162,7 @@ func (c *accountTaskCoordinator) scanAccountTasks(ctx context.Context) {
 		if !allowed {
 			continue
 		}
-		if // blocked、blockErr 用于本次流程后续判断的blocked、blockErr
-		blocked, blockErr := c.accountTaskSessionBlocked(ctx, setting.CookieID); blockErr != nil || blocked {
+		if blocked, blockErr := c.accountTaskSessionBlocked(ctx, setting.CookieID); blockErr != nil || blocked {
 			if blockErr != nil {
 				c.logger.Warn("检查账号任务 Session 状态失败", "account", setting.CookieID, "err", blockErr)
 			} else if blocked {
@@ -200,8 +185,7 @@ func (c *accountTaskCoordinator) scanAccountTasks(ctx context.Context) {
 			}
 		}
 		if setting.AutoPolishEnabled && polishDue(setting, now) {
-			if // blocked 用于本次流程后续判断的blocked
-			blocked, _ := c.accountTaskSessionBlocked(ctx, setting.CookieID); blocked {
+			if blocked, _ := c.accountTaskSessionBlocked(ctx, setting.CookieID); blocked {
 				continue
 			}
 			// polishSummary、taskErr 保存本轮擦亮结果及其错误；成功结果必须落一条可检索日志。
@@ -244,14 +228,11 @@ func (c *accountTaskCoordinator) recoverAccountTaskCredential(ctx context.Contex
 	return fmt.Errorf("%w；已停止该账号自动化 API 请求，等待续期或重新登录", credentialErr)
 }
 
-// accountTaskSessionBlocked 封装账号任务会话Blocked业务协调。
 func (c *accountTaskCoordinator) accountTaskSessionBlocked(ctx context.Context, accountID string) (bool, error) {
-	// blockedFingerprint、ok 用于本次流程后续判断的blockedFingerprint、ok
 	blockedFingerprint, ok := c.sessionExpired.Load(accountID)
 	if !ok {
 		return false, nil
 	}
-	// current、err 用于本次流程后续判断的current、err
 	current, err := c.accountCredentialFingerprint(ctx, accountID)
 	if err != nil {
 		return true, err
@@ -263,7 +244,6 @@ func (c *accountTaskCoordinator) accountTaskSessionBlocked(ctx context.Context, 
 	return true, nil
 }
 
-// accountCredentialFingerprint 封装账号CredentialFingerprint业务协调。
 func (c *accountTaskCoordinator) accountCredentialFingerprint(ctx context.Context, accountID string) (string, error) {
 	// data 是生成自动化 Session 阻断指纹所需的最小 Cookie 与 metadata 输入。
 	data, err := c.repository.GetCookieRuntimeData(ctx, accountID)
@@ -355,7 +335,6 @@ func newAccountTaskCompensationContext(parent context.Context) (context.Context,
 
 // runAutoRate 只消费 WebSocket 已确认收货的本地完成订单；它不会以远端 MTOP 列表扫描发现候选订单。
 func (c *accountTaskCoordinator) runAutoRate(ctx context.Context, settings db.AccountTaskSettings) (AccountTaskSummary, error) {
-	// summary 用于本次流程后续判断的summary
 	summary := AccountTaskSummary{TaskType: TaskAutoRate}
 	if c.repository == nil {
 		return summary, fmt.Errorf("账号任务存储未初始化")
@@ -385,9 +364,7 @@ func (c *accountTaskCoordinator) runAutoRate(ctx context.Context, settings db.Ac
 	current := credential.cookieValue
 	// orderID 表示当前由买家确认收货 WebSocket 确认、可执行评价动作的订单。
 	for _, orderID := range orderIDs {
-		// runKey 用于本次流程后续判断的运行Key
 		runKey := "rate:" + settings.CookieID + ":" + orderID
-		// claimed、err 用于本次流程后续判断的claimed、err
 		claimed, err := c.repository.ClaimRun(ctx, db.AccountTaskRun{RunKey: runKey, CookieID: settings.CookieID,
 			TaskType: TaskAutoRate, TargetID: orderID}, time.Now().UTC().Unix())
 		if err != nil {
@@ -397,14 +374,12 @@ func (c *accountTaskCoordinator) runAutoRate(ctx context.Context, settings db.Ac
 			summary.Skipped++
 			continue
 		}
-		// result、rateErr 用于本次流程后续判断的result、rateErr
 		result, rateErr := c.client().RateBuyer(credential.requestContext, current, orderID, settings.RateContent)
 		// alreadyRated 表示平台明确回答订单已评价；评价目标已达成，按成功收口，不再重试也不计为失败。
 		alreadyRated := rateErr != nil && mtop.IsRateAlreadyRatedErr(rateErr)
 		if !alreadyRated && (rateErr != nil || result == nil || !result.Success) {
 			// persistErr 保存动作失败前已收到的响应 Cookie，避免平台已轮换凭证却被错误路径丢弃。
 			_, persistErr := c.persistTaskCookieSession(ctx, settings.CookieID, current, "", &credential)
-			// message 用于本次流程后续判断的消息
 			message := errorString(rateErr)
 			if result != nil && result.Message != "" {
 				message = result.Message
@@ -462,22 +437,15 @@ func (c *accountTaskCoordinator) runAutoRate(ctx context.Context, settings db.Ac
 	return summary, nil
 }
 
-// runAutoPolish 封装运行AutoPolish业务协调。
 func (c *accountTaskCoordinator) runAutoPolish(ctx context.Context, settings db.AccountTaskSettings, now time.Time, manual bool) (AccountTaskSummary, error) {
-	// summary 用于本次流程后续判断的summary
 	summary := AccountTaskSummary{TaskType: TaskAutoPolish}
 	if c.client() == nil {
 		return summary, fmt.Errorf("擦亮客户端未初始化")
 	}
-	// date 用于本次流程后续判断的日期
 	date := now.Format("2006-01-02")
-	// runKey 用于本次流程后续判断的运行Key
 	runKey := "polish:" + settings.CookieID + ":" + date
-	// run 用于本次流程后续判断的运行
 	run := db.AccountTaskRun{RunKey: runKey, CookieID: settings.CookieID, TaskType: TaskAutoPolish, RunDate: date}
-	// claimed 用于本次流程后续判断的claimed
 	var claimed bool
-	// err 用于本次流程后续判断的err
 	var err error
 	if manual {
 		claimed, err = c.repository.ClaimRunImmediately(ctx, run, time.Now().UTC().Unix())
@@ -503,7 +471,6 @@ func (c *accountTaskCoordinator) runAutoPolish(ctx context.Context, settings db.
 		_, persistErr := c.persistTaskCookieSession(ctx, settings.CookieID, credential.cookieValue, "", &credential)
 		return summary, errors.Join(err, persistErr, c.finishAccountTaskRun(ctx, runKey, "failed", 0, 1, err.Error(), time.Now().UTC().Add(10*time.Minute).Unix()))
 	}
-	// current 用于本次流程后续判断的current
 	// current 保存擦亮接口返回前可继续使用的最新 Cookie。
 	current, cookieErr := c.persistTaskCookieSession(ctx, settings.CookieID, credential.cookieValue, items.UpdatedCookies, &credential)
 	if cookieErr != nil {
@@ -531,11 +498,8 @@ func (c *accountTaskCoordinator) runAutoPolish(ctx context.Context, settings db.
 		summary.Message = emptyMessage
 		return summary, nil
 	}
-	// lastError 用于本次流程后续判断的last错误
 	var lastError string
-	// item 表示当前遍历过程中的商品
 	for _, item := range items.Items {
-		// result、polishErr 用于本次流程后续判断的result、polishErr
 		result, polishErr := c.client().PolishItem(credential.requestContext, current, item.ID)
 		if polishErr != nil || result == nil || !result.Success {
 			// persistErr 保存擦亮失败前已收到的响应 Cookie，避免错误路径丢弃平台轮换的凭证。
@@ -564,7 +528,6 @@ func (c *accountTaskCoordinator) runAutoPolish(ctx context.Context, settings db.
 		current = updatedCookies
 		summary.Success++
 	}
-	// status、retryAt 用于本次流程后续判断的status、retryAt
 	status, retryAt := "success", int64(0)
 	if summary.Failed > 0 {
 		status, retryAt = "failed", time.Now().UTC().Add(10*time.Minute).Unix()
@@ -659,31 +622,26 @@ func (c *accountTaskCoordinator) persistTaskCookies(ctx context.Context, account
 	if newValue == "" || newValue == oldValue {
 		return oldValue, nil
 	}
-	if // err 用于本次流程后续判断的err
-	err := c.repository.UpdateValueExisting(ctx, accountID, newValue); err != nil {
+	if err := c.repository.UpdateValueExisting(ctx, accountID, newValue); err != nil {
 		c.logger.Warn("保存账号任务响应 Cookie 失败", "account", accountID, "err", err)
 		return oldValue, fmt.Errorf("保存账号任务响应 Cookie: %w", err)
 	}
 	if c.senders != nil {
-		if // sender、ok 用于本次流程后续判断的sender、ok
-		sender, ok := c.senders.Sender(accountID); ok && sender != nil {
+		if sender, ok := c.senders.Sender(accountID); ok && sender != nil {
 			sender.UpdateCookie(newValue)
 		}
 	}
 	return newValue, nil
 }
 
-// beijingNow 封装beijingNow业务协调。
 func beijingNow() time.Time {
 	return time.Now().In(time.FixedZone("Asia/Shanghai", 8*60*60))
 }
 
-// polishDue 封装polishDue业务协调。
 func polishDue(settings db.AccountTaskSettings, now time.Time) bool {
 	if settings.LastPolishDate == now.Format("2006-01-02") {
 		return false
 	}
-	// target、err 用于本次流程后续判断的target、err
 	target, err := time.Parse("15:04", settings.PolishTime)
 	if err != nil {
 		target, _ = time.Parse("15:04", "03:00")

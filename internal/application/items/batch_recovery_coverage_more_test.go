@@ -173,7 +173,6 @@ func TestBatchRecoveryReportsReleaseFailuresAfterPostClaimErrors(t *testing.T) {
 	startError := errors.New("start failed")
 	// cases 保存重置、明细读取和 worker 启动失败三种接管后场景。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// repository 构造当前阶段失败和租约释放失败的仓储替身。
 		repository *batchRecoveryRepositoryFake

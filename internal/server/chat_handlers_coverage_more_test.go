@@ -259,9 +259,7 @@ func TestChatSendTextHandlerCoversAvailabilityValidationAndErrors(t *testing.T) 
 	port := &chatHandlerCoveragePort{sendingAvailable: true, imageUploadAvailable: true, ownsAccountResult: true,
 		sendTextResult: &chatapp.Message{AccountID: "acc1", ChatID: "chat1", SenderID: "buyer1", Content: "已发送", Status: "sent"}}
 	srv.applications.chat = port
-	// handler 是注入可控聊天端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 	// successRecorder 保存文字发送成功响应。
 	successRecorder := serveChatCoverageRequest(handler, cookie, http.MethodPost, "/api/v1/chat/messages", `{"account_id":"acc1","chat_id":"chat1","peer_user_id":"buyer1","text":"你好"}`)
@@ -391,9 +389,7 @@ func TestChatSendImageHandlerCoversValidationAndErrors(t *testing.T) {
 	port := &chatHandlerCoveragePort{sendingAvailable: true, imageUploadAvailable: true, ownsAccountResult: true,
 		sendImageResult: &chatapp.Message{AccountID: "acc1", ChatID: "chat1", SenderID: "buyer1", Content: "image", Status: "sent"}}
 	srv.applications.chat = port
-	// handler 是注入可控聊天端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 	// successRequest 是合法图片上传请求。
 	successRequest := newChatImageCoverageRequest(t, cookie, "", "image-bytes", true)
@@ -510,9 +506,7 @@ func TestChatSessionAndMessageHandlersCoverRefreshFallbacks(t *testing.T) {
 		resolveIdentityResult:    chatapp.Session{AccountID: "acc1", ChatID: "chat1", PeerUserID: "buyer1", PeerName: "本地补全"},
 	}
 	srv.applications.chat = port
-	// handler 是注入可控聊天端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// refreshSessionsRecorder 保存联系人刷新成功响应。
@@ -613,9 +607,7 @@ func TestDeleteChatSessionHandlerMapsApplicationResults(t *testing.T) {
 	// port 是当前测试注入的可控会话删除应用端口。
 	port := &chatHandlerCoveragePort{}
 	srv.applications.chat = port
-	// handler 是注入可控聊天端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 	// cases 保存应用错误与 HTTP 状态、稳定错误码之间的映射断言。
 	cases := []struct {
@@ -667,9 +659,7 @@ func TestMarkChatReadHandlerCoversValidationAndErrorBranches(t *testing.T) {
 		resolvedReadID: "incoming-1.PNM",
 	}
 	srv.applications.chat = port
-	// handler 是注入可控聊天端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// successRecorder 保存未显式提供 message_ids 时自动补全并提交成功的响应。
@@ -719,7 +709,6 @@ func TestMarkChatReadHandlerCoversValidationAndErrorBranches(t *testing.T) {
 
 // TestCookieSettingsHandlersCoverStatusUpdateAndValidation 覆盖账号设置、启停、备注和暂停 handler 的分支。
 func TestCookieSettingsHandlersCoverStatusUpdateAndValidation(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// port 是当前测试注入的账号设置应用端口。
@@ -729,9 +718,7 @@ func TestCookieSettingsHandlersCoverStatusUpdateAndValidation(t *testing.T) {
 		pauseState:           accountapp.PauseState{Duration: 30, PausedUntil: 3, Paused: true},
 	}
 	srv.applications.accountSettings = port
-	// handler 是注入可控账号设置端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// successCases 保存账号设置类成功请求。
@@ -892,15 +879,12 @@ func TestCookieSettingsHandlersCoverStatusUpdateAndValidation(t *testing.T) {
 
 // TestCookieCreateAndUpdateHandlersCoverValidationAndErrors 覆盖 Cookie 新增和更新的成功、校验及应用错误路径。
 func TestCookieCreateAndUpdateHandlersCoverValidationAndErrors(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// port 是当前测试注入的账号登录应用端口。
 	port := &cookieLoginCoveragePort{}
 	srv.applications.accountLogin = port
-	// handler 是注入可控登录端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// createRecorder 保存 Cookie 新增成功响应。

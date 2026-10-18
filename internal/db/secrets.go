@@ -15,7 +15,6 @@ import (
 	"strings"
 )
 
-// encryptedValuePrefix 用于本次流程后续判断的encrypted值Prefix
 const (
 	encryptedValuePrefix = "enc:v1:"
 	cookieMetadataScope  = "cookie-metadata"
@@ -37,28 +36,21 @@ func (c *secretCodec) currentAEAD() cipher.AEAD {
 	return c.aead
 }
 
-// secretCodecFromEnvironment 封装secretCodecFromEnvironment业务协调。
 func secretCodecFromEnvironment() *secretCodec {
-	// codec 用于本次流程后续判断的codec
 	codec, _ := newSecretCodec(strings.TrimSpace(os.Getenv("XIANYU_DATA_KEY")))
 	return codec
 }
 
-// newSecretCodec 封装newSecretCodec业务协调。
 func newSecretCodec(key string) (*secretCodec, error) {
-	// codec 用于本次流程后续判断的codec
 	codec := &secretCodec{}
 	if key == "" {
 		return codec, nil
 	}
-	// digest 用于本次流程后续判断的digest
 	digest := sha256.Sum256([]byte(key))
-	// block、err 用于本次流程后续判断的block、err
 	block, err := aes.NewCipher(digest[:])
 	if err != nil {
 		return nil, err
 	}
-	// aead、err 用于本次流程后续判断的aead、err
 	aead, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
@@ -67,14 +59,12 @@ func newSecretCodec(key string) (*secretCodec, error) {
 	return codec, nil
 }
 
-// encrypt 封装encrypt业务协调。
 func (c *secretCodec) encrypt(scope, owner, value string) (string, error) {
 	if value == "" {
 		return value, nil
 	}
 	if strings.HasPrefix(value, encryptedValuePrefix) {
-		if // err 用于本次流程后续判断的err
-		_, err := c.decrypt(scope, owner, value); err != nil {
+		if _, err := c.decrypt(scope, owner, value); err != nil {
 			return "", err
 		}
 		return value, nil
@@ -84,20 +74,16 @@ func (c *secretCodec) encrypt(scope, owner, value string) (string, error) {
 	if aead == nil {
 		return value, nil
 	}
-	// nonce 用于本次流程后续判断的nonce
 	nonce := make([]byte, aead.NonceSize())
-	if // err 用于本次流程后续判断的err
-	_, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return "", err
 	}
-	// sealed 用于本次流程后续判断的sealed
 	sealed := aead.Seal(nonce, nonce, []byte(value), []byte(scope+"\x00"+owner))
 	return encryptedValuePrefix + base64.RawStdEncoding.EncodeToString(sealed), nil
 }
 
 // EncryptLegacySecrets 将启用 XIANYU_DATA_KEY 前写入的明文敏感字段原地升级。
 // 已加密行同时用于校验当前密钥，错误密钥会在启动业务 worker 前失败。
-// EncryptLegacySecrets 封装EncryptLegacySecrets业务协调。
 func (s *Store) EncryptLegacySecrets(ctx context.Context) error {
 	// codec、tx、err 是本次迁移使用的加密器、唯一事务边界及其打开错误。
 	codec, tx, err := s.beginSecretMigration(ctx)
@@ -152,7 +138,6 @@ func (s *Store) beginSecretMigration(ctx context.Context) (*secretCodec, *sql.Tx
 	return codec, tx, nil
 }
 
-// decrypt 封装decrypt业务协调。
 func (c *secretCodec) decrypt(scope, owner, value string) (string, error) {
 	if !strings.HasPrefix(value, encryptedValuePrefix) {
 		return value, nil
@@ -162,14 +147,11 @@ func (c *secretCodec) decrypt(scope, owner, value string) (string, error) {
 	if aead == nil {
 		return "", errors.New("数据库包含加密凭证，但 XIANYU_DATA_KEY 未配置")
 	}
-	// raw、err 用于本次流程后续判断的raw、err
 	raw, err := base64.RawStdEncoding.DecodeString(strings.TrimPrefix(value, encryptedValuePrefix))
 	if err != nil || len(raw) < aead.NonceSize() {
 		return "", fmt.Errorf("敏感字段密文格式无效")
 	}
-	// nonce 用于本次流程后续判断的nonce
 	nonce := raw[:aead.NonceSize()]
-	// plain、err 用于本次流程后续判断的plain、err
 	plain, err := aead.Open(nil, nonce, raw[aead.NonceSize():], []byte(scope+"\x00"+owner))
 	if err != nil {
 		return "", errors.New("敏感字段解密失败，请检查 XIANYU_DATA_KEY")
@@ -177,7 +159,6 @@ func (c *secretCodec) decrypt(scope, owner, value string) (string, error) {
 	return string(plain), nil
 }
 
-// isSensitiveSettingKey 封装isSensitive设置Key业务协调。
 func isSensitiveSettingKey(key string) bool {
 	switch strings.ToLower(strings.TrimSpace(key)) {
 	case "ai_api_key", "smtp_password", "qq_reply_secret_key", "captcha.remote_secret_key":

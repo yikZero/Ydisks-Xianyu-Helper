@@ -40,7 +40,6 @@ func TestAPIDeliveryErrorTypes(t *testing.T) {
 
 // TestItemSyncCookieNotificationGuard 验证商品同步 Cookie 通知只转发有效更新。
 func TestItemSyncCookieNotificationGuard(t *testing.T) {
-	// ctx 是本测试 Cookie 通知共用的上下文。
 	ctx := context.Background()
 	// updates 保存有效 Cookie 更新的转发记录。
 	updates := make([]string, 0, 1)

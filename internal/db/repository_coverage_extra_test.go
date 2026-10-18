@@ -11,7 +11,6 @@ func TestKeywordAndItemRepositoryBranches(t *testing.T) {
 	// store、cleanup 保存临时数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 限制本测试所有数据库操作的生命周期。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号的归属信息。
 	userID, cookieID := seedAccount(t, store)
@@ -107,7 +106,6 @@ func TestNotificationChannelUserScopedBranches(t *testing.T) {
 	// store、cleanup 保存临时数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 限制本测试所有数据库操作的生命周期。
 	ctx := context.Background()
 	// userID、cookieID 保存当前用户及账号标识；cookieID 用于完成账号外键准备。
 	userID, cookieID := seedAccount(t, store)
@@ -162,7 +160,6 @@ func TestChatReconciliationAndSoftDeleteBranches(t *testing.T) {
 	// store、cleanup 保存临时数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 限制本测试所有数据库操作的生命周期。
 	ctx := context.Background()
 	// cookieID 保存清理目标账号标识。
 	_, cookieID := seedAccount(t, store)
@@ -231,7 +228,6 @@ func TestOrderWriteUnitOfWorkAdditionalMethods(t *testing.T) {
 	// store、cleanup 保存临时数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 限制本测试所有数据库操作的生命周期。
 	ctx := context.Background()
 	// userID、cookieID 保存订单写入事务所需的账号归属。
 	_, cookieID := seedAccount(t, store)

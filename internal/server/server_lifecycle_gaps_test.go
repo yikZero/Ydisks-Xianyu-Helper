@@ -38,21 +38,17 @@ func (stubDatabaseHealth) Ping(context.Context) error { return nil }
 
 // TestNewRejectsMissingDependencies 覆盖构造期缺失依赖的逐项拒绝。
 func TestNewRejectsMissingDependencies(t *testing.T) {
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := New(Dependencies{}); err == nil {
 		t.Error("missing auth should fail")
 	}
 	// authService 是非空但未接数据库的认证服务，仅用于通过第一项检查。
 	authService := &auth.Service{}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := New(Dependencies{Auth: authService}); err == nil {
 		t.Error("missing health should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := New(Dependencies{Auth: authService, DatabaseHealth: stubDatabaseHealth{}}); err == nil {
 		t.Error("missing applications should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := New(Dependencies{Auth: authService, DatabaseHealth: stubDatabaseHealth{}, Applications: &ApplicationPorts{}}); err == nil {
 		t.Error("incomplete applications should fail")
 	}
@@ -100,29 +96,24 @@ func TestMountSPAVariants(t *testing.T) {
 
 	// webDir 是仅含 index.html 的临时前端目录。
 	webDir := t.TempDir()
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := os.WriteFile(filepath.Join(webDir, "index.html"), []byte("<html>ok</html>"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	// dirRouter 挂载了目录 SPA。
 	dirRouter := chi.NewRouter()
 	(&Server{WebDir: webDir}).mountDirSPA(dirRouter)
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serve(dirRouter, "/static/index.html"); rec.Header().Get("Cache-Control") == "" {
 		t.Error("static index should be no-store")
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serve(dirRouter, "/cookies-api-missing"); rec.Code != http.StatusNotFound {
 		t.Errorf("api path status = %d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serve(dirRouter, "/dashboard"); rec.Code != http.StatusOK {
 		t.Errorf("spa status = %d", rec.Code)
 	}
 	// emptyRouter 挂载了不含 index.html 的目录 SPA。
 	emptyRouter := chi.NewRouter()
 	(&Server{WebDir: t.TempDir()}).mountDirSPA(emptyRouter)
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serve(emptyRouter, "/dashboard"); rec.Code != http.StatusNotFound {
 		t.Errorf("unbuilt status = %d", rec.Code)
 	}
@@ -130,22 +121,18 @@ func TestMountSPAVariants(t *testing.T) {
 	// fsRouter 挂载了含 index.html 的内存文件系统 SPA。
 	fsRouter := chi.NewRouter()
 	(&Server{}).mountFSSPA(fsRouter, fstest.MapFS{"index.html": {Data: []byte("<html>fs</html>")}})
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serve(fsRouter, "/static/"); rec.Header().Get("Cache-Control") == "" {
 		t.Error("static root should be no-store")
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serve(fsRouter, "/static/index.html"); rec.Header().Get("Cache-Control") == "" {
 		t.Error("static index should be no-store")
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serve(fsRouter, "/orders-x"); rec.Code != http.StatusNotFound {
 		t.Errorf("fs api path status = %d", rec.Code)
 	}
 	// noIndexRouter 挂载了缺少 index.html 的文件系统。
 	noIndexRouter := chi.NewRouter()
 	(&Server{}).mountFSSPA(noIndexRouter, fstest.MapFS{})
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serve(noIndexRouter, "/page"); rec.Code != http.StatusNotFound {
 		t.Errorf("fs unbuilt status = %d", rec.Code)
 	}
@@ -193,7 +180,6 @@ func TestServerLifecycleGuards(t *testing.T) {
 	}
 	// alreadyStarted 持有监听器且已启动，Start 幂等返回 nil。
 	alreadyStarted := &Server{listener: failingListener{}, started: true}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := alreadyStarted.Start(context.Background()); err != nil {
 		t.Errorf("Start twice: %v", err)
 	}
@@ -215,7 +201,6 @@ func TestServerLifecycleGuards(t *testing.T) {
 	}
 	// closing 持有关闭会失败的监听器，Stop 应返回该错误。
 	closing := &Server{listener: failingListener{}, httpDone: make(chan struct{})}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := closing.Stop(context.Background()); err == nil || err.Error() != "close failed" {
 		t.Errorf("listener close err = %v", err)
 	}
@@ -241,34 +226,26 @@ func TestServerBindStartStopRealListener(t *testing.T) {
 	defer cleanup()
 	srv.Addr = "127.0.0.1:0"
 	srv.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := srv.Bind(); err != nil {
 		t.Fatal(err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := srv.Bind(); err != nil {
 		t.Fatalf("second Bind should be idempotent: %v", err)
 	}
-	// ctx 控制 HTTP 服务生命周期。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := srv.Start(ctx); err != nil {
 		t.Fatal(err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := srv.Start(nilContext); err != nil {
 		t.Fatalf("second Start: %v", err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := srv.Stop(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := srv.Stop(context.Background()); err != nil {
 		t.Fatalf("second Stop: %v", err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := srv.Wait(); err != nil {
 		t.Fatal(err)
 	}
@@ -277,11 +254,9 @@ func TestServerBindStartStopRealListener(t *testing.T) {
 	rollback, _, rollbackCleanup := newTestServer(t)
 	defer rollbackCleanup()
 	rollback.Addr = "127.0.0.1:0"
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := rollback.Bind(); err != nil {
 		t.Fatal(err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := rollback.Stop(context.Background()); err != nil {
 		t.Fatal(err)
 	}

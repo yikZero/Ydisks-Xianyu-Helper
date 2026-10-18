@@ -45,9 +45,7 @@ func TestVersionedReplyRoutesPreserveLegacyContracts(t *testing.T) {
 	// srv 是用于验证关键词和默认回复路由的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// cases 是覆盖版本化与旧路径状态码兼容性的测试样例集合。
 	cases := []replyRouteCase{
@@ -86,9 +84,7 @@ func TestVersionedReplyTypedListExposesItemIDs(t *testing.T) {
 	// srv、store 与 cleanup 保存带类型列表契约测试使用的服务、数据库聚合和资源清理函数。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// err 表示测试用账号写入失败；测试夹具可能已预置该账号。
 	if _, err := store.DB.ExecContext(context.Background(),
@@ -123,9 +119,7 @@ func TestVersionedReplyKeywordExpressionsContract(t *testing.T) {
 	// srv、cleanup 保存版本化关键词契约测试使用的服务与资源清理函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// body 是包含两个 OR 表达式和正则模式的版本化创建请求。
 	body := `{"keyword":"^hello","expressions":[" ^hello ","price[0-9]+"],"match_type":"regexp","reply":"已命中","item_id":"","item_ids":[],"type":"text","image_url":""}`

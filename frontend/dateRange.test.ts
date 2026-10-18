@@ -2,7 +2,7 @@ import { describe,expect,test } from 'vitest';
 import { getDateRange,getPreviousDateRange } from './dateRange';
 
 describe('date ranges', () => {
-  const now = new Date('2026-07-10T12:00:00'); /* now 表示now。 */
+  const now = new Date('2026-07-10T12:00:00');
 
   test.each([
     ['3days', '2026-07-08'],
@@ -13,7 +13,7 @@ describe('date ranges', () => {
   } /* 参数化测试回调断言预设范围包含正确的起始日期。 */);
 
   test('previous range has the same length without overlap', () => {
-    const current = getDateRange('7days', now); /* current 表示current。 */
+    const current = getDateRange('7days', now);
     expect(getPreviousDateRange(current)).toEqual({ startDate: '2026-06-27', endDate: '2026-07-03' });
   } /* 测试回调断言上一周期等长且不与当前周期重叠。 */);
 

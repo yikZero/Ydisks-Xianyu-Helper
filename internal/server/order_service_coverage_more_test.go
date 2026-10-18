@@ -131,8 +131,7 @@ func TestOrderHTTPAdapterCoversErrorMappingBranches(t *testing.T) {
 		// name 是分支用例名称。
 		name string
 		// run 执行当前错误映射调用。
-		run func(*orderHTTPAdapter) error
-		// want 是期望返回的错误。
+		run  func(*orderHTTPAdapter) error
 		want error
 		// wantKind 是期望返回的订单错误分类，零值表示不检查分类。
 		wantKind orderErrorKind
@@ -272,7 +271,6 @@ func TestOrderHTTPAdapterCoversErrorMappingBranches(t *testing.T) {
 					return orderapp.ManualShipResult{}, sentinel
 				},
 			}}
-			// err 保存当前适配器调用返回的错误。
 			err := testCase.run(adapter)
 			// kind、kindOK 保存校验错误的业务分类结果。
 			kind, kindOK := orderErrorKindOf(err)

@@ -128,7 +128,6 @@ func TestServiceNormalizesAndCreatesKeyword(t *testing.T) {
 func TestServiceRejectsInvalidInput(t *testing.T) {
 	// cases 是覆盖关键参数边界的服务调用集合。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// call 是待验证的服务调用。
 		call func(*Service) error
@@ -171,7 +170,6 @@ func TestServiceRejectsInvalidInput(t *testing.T) {
 	// testCase 表示当前待验证的参数边界。
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			// err 是当前参数调用返回的错误。
 			err := testCase.call(NewService(&keywordRepositoryFake{}))
 			if err == nil {
 				t.Fatal("无效参数应返回错误")
@@ -186,7 +184,6 @@ func TestServicePreservesOwnershipAndInfrastructureErrors(t *testing.T) {
 	backendErr := errors.New("database unavailable")
 	// cases 是不同底层错误阶段的服务调用集合。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// repository 是返回当前错误的仓储。
 		repository *keywordRepositoryFake
@@ -199,7 +196,6 @@ func TestServicePreservesOwnershipAndInfrastructureErrors(t *testing.T) {
 	// testCase 表示当前待验证的错误边界。
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			// err 是列表服务返回的错误。
 			_, err := NewService(testCase.repository).List(context.Background(), 1, "account")
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("err=%v want=%v", err, testCase.want)
@@ -228,7 +224,6 @@ func TestServiceItemReplyValidationAndPropagation(t *testing.T) {
 
 // TestServiceDelegatesKeywordAndItemReplyOperations 验证关键词和指定商品回复的成功路径均委托给仓储。
 func TestServiceDelegatesKeywordAndItemReplyOperations(t *testing.T) {
-	// ctx 是本测试所有服务调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是返回固定数据的关键词仓储替身。
 	repository := &keywordRepositoryFake{listRows: []Keyword{{ID: 1, Keyword: "价格"}}, itemRows: []ItemReply{{ItemID: "item-1", CookieID: "account-1", ReplyContent: "欢迎"}}}
@@ -277,13 +272,11 @@ func TestServiceDelegatesKeywordAndItemReplyOperations(t *testing.T) {
 
 // TestServiceRejectsInvalidOperationIdentifiers 验证更新、删除和商品回复入口拒绝非法标识。
 func TestServiceRejectsInvalidOperationIdentifiers(t *testing.T) {
-	// ctx 是本测试所有服务调用共用的非取消上下文。
 	ctx := context.Background()
 	// service 是使用空仓储替身的关键词应用服务。
 	service := NewService(&keywordRepositoryFake{})
 	// cases 描述每个非法标识入口及预期错误。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// call 执行当前非法参数场景。
 		call func() error
@@ -313,11 +306,9 @@ func TestServiceRejectsInvalidOperationIdentifiers(t *testing.T) {
 
 // TestServiceRejectsInvalidUsersAcrossOperations 验证所有公开入口都拒绝非法用户或未初始化服务。
 func TestServiceRejectsInvalidUsersAcrossOperations(t *testing.T) {
-	// ctx 是本测试所有服务调用共用的非取消上下文。
 	ctx := context.Background()
 	// cases 描述需要执行用户身份校验的入口。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// call 执行当前入口。
 		call func(*Service) error
@@ -382,7 +373,6 @@ func TestValidationErrorText(t *testing.T) {
 func TestSplitItemIDs(t *testing.T) {
 	// cases 覆盖单值、多值、重复与空白商品范围的拆分边界。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// raw 是持久化的商品范围字段。
 		raw string
@@ -416,7 +406,6 @@ func TestSplitItemIDs(t *testing.T) {
 func TestJoinItemIDs(t *testing.T) {
 	// cases 覆盖空集合、单元素、多元素与重复元素的合并边界。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// itemIDs 是待合并的商品标识集合。
 		itemIDs []string
@@ -514,7 +503,6 @@ func TestServiceRejectsInvalidItemScopeInput(t *testing.T) {
 	service := NewService(&keywordRepositoryFake{})
 	// cases 覆盖多选输入下的关键校验边界。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// draft 是当前待校验的规则输入。
 		draft Draft
@@ -564,7 +552,6 @@ func TestServiceNormalizesKeywordExpressions(t *testing.T) {
 func TestServiceNormalizesLegacyMatchTypes(t *testing.T) {
 	// cases 覆盖应用输入端支持的历史匹配模式及其规范值。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// raw 是调用方提交的原始匹配模式。
 		raw string

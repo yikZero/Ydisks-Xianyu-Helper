@@ -1,6 +1,7 @@
+// normalizeSMTPSettings 兼容旧版 smtp_from 字段，拆分出发件人名称和地址，并补齐 TLS/SSL 默认值。
 export const normalizeSMTPSettings = (settings: Record<string, any>): Record<string, any> => {
-  const legacyFrom = String(settings.smtp_from || '').trim(); /* legacyFrom 表示legacyFrom。 */
-  const legacyIsAddress = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(legacyFrom); /* legacyIsAddress 表示legacyIsAddress。 */
+  const legacyFrom = String(settings.smtp_from || '').trim();
+  const legacyIsAddress = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(legacyFrom);
 	return {
     ...settings,
     smtp_from_name: settings.smtp_from_name || (legacyIsAddress ? '' : legacyFrom),
@@ -8,7 +9,7 @@ export const normalizeSMTPSettings = (settings: Record<string, any>): Record<str
 		smtp_use_tls: parseSettingBoolean(settings.smtp_use_tls, true),
 		smtp_use_ssl: parseSettingBoolean(settings.smtp_use_ssl, false),
 	};
-}; /* normalizeSMTPSettings 表示normalizeSMTPSettings。 */
+};
 
 const parseSettingBoolean = (value: unknown, fallback: boolean): boolean => {
 	if (typeof value === 'boolean') return value;
@@ -17,4 +18,4 @@ const parseSettingBoolean = (value: unknown, fallback: boolean): boolean => {
 		if (['false', '0', 'no', 'off'].includes(value.toLowerCase())) return false;
 	}
 	return fallback;
-}; /* parseSettingBoolean 表示parseSettingBoolean。 */
+};

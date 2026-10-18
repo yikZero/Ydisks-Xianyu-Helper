@@ -42,7 +42,6 @@ func TestLoginUsesVerifiedRepositoryBranches(t *testing.T) {
 	boom := errors.New("基础设施失败")
 	// cases 描述每个分支的替身配置与期望。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// fake 是该分支的认证替身。
 		fake *verifiedAuthenticationFake
@@ -92,7 +91,6 @@ func TestValidateSessionDelegatesOrRejects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := supported.ValidateSession(context.Background(), "sid", 1); !errors.Is(got, boom) {
 		t.Fatalf("got=%v", got)
 	}
@@ -101,7 +99,6 @@ func TestValidateSessionDelegatesOrRejects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := ok.ValidateSession(context.Background(), "sid", 1); got != nil {
 		t.Fatalf("got=%v", got)
 	}

@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// ErrAutomationRunActive 用于本次流程后续判断的Err自动化运行Active
 var ErrAutomationRunActive = errors.New("规则仍有待处理的自动化运行")
 
 // SafeRetryErrorPrefix 标记当前动作明确没有产生外部副作用，可以从动作游标安全恢复。
@@ -21,7 +20,6 @@ const NoRetryErrorPrefix = "[no_retry]"
 //
 // 自动化中心不区分触发来源：WS 系统事件、计划任务、后台手动触发都通过
 // trigger_type + action 编排表达；真正的防重由 automation_runs.trigger_key 保证。
-// AutomationRules 用于本次流程后续判断的自动化规则列表
 type AutomationRules struct {
 	DB      *sql.DB
 	Dialect Dialect
@@ -70,9 +68,7 @@ func (a *AutomationRules) HasEnabledAdjustPriceRule(ctx context.Context, cookieI
 
 // ExistsPublishRule 判断指定发布自动化规则是否已经存在，避免重复创建同一规则。
 func (a *AutomationRules) ExistsPublishRule(ctx context.Context, input AutomationRuleInput) (bool, error) {
-	// exists 用于本次流程后续判断的exists
 	var exists bool
-	// err 用于本次流程后续判断的err
 	err := a.DB.QueryRowContext(ctx, `SELECT EXISTS(
 		SELECT 1 FROM automation_rules
 		 WHERE user_id=? AND cookie_id=? AND item_id=? AND trigger_type=? AND name=? AND deleted_at IS NULL
@@ -82,7 +78,6 @@ func (a *AutomationRules) ExistsPublishRule(ctx context.Context, input Automatio
 
 // AutomationRule 是一条自动化规则。规则只描述“什么时候、对哪个商品生效”，
 // 具体做什么放在 AutomationAction 中，便于组合付款发货、评价赠品、求评价等流程。
-// AutomationRule 用于本次流程后续判断的自动化规则
 type AutomationRule struct {
 	ID          int64
 	UserID      int64
@@ -131,7 +126,7 @@ type AutomationRun struct {
 // ErrAutomationRunLeaseLost 表示自动化运行已被更高 attempt_count 的 worker 接管。
 var ErrAutomationRunLeaseLost = errors.New("自动化运行租约已失效")
 
-// DeferredAutomationTask 用于本次流程后续判断的Deferred自动化任务
+// DeferredAutomationTask 是等待稍后执行的自动化任务（账号暂停、前置失败或角色待核验），ClaimVersion 用于防止过期 worker 覆盖结果。
 type DeferredAutomationTask struct {
 	ID           int64
 	TaskKey      string
@@ -143,10 +138,9 @@ type DeferredAutomationTask struct {
 	ErrorMessage string
 }
 
-// ErrDeferredTaskLeaseLost 用于本次流程后续判断的ErrDeferred任务LeaseLost
 var ErrDeferredTaskLeaseLost = errors.New("延迟自动化任务租约已失效")
 
-// AutomationRunIssue 用于本次流程后续判断的自动化运行问题
+// AutomationRunIssue 是需要人工处理的自动化运行及其允许的处理方式。
 type AutomationRunIssue struct {
 	ID                 int64    `json:"id"`
 	CookieID           string   `json:"cookie_id"`
@@ -160,7 +154,7 @@ type AutomationRunIssue struct {
 	UpdatedAt          string   `json:"updated_at"`
 }
 
-// DeferredAutomationIssue 用于本次流程后续判断的Deferred自动化问题
+// DeferredAutomationIssue 是多次重试仍失败、进入死信的延期自动化任务。
 type DeferredAutomationIssue struct {
 	ID           int64  `json:"id"`
 	CookieID     string `json:"cookie_id"`
@@ -196,11 +190,8 @@ type AutomationRuleListFilter struct {
 	Offset      int
 }
 
-// automationRuleWhere 封装自动化规则Where业务协调。
 func automationRuleWhere(f AutomationRuleListFilter) (string, []any) {
-	// where 用于本次流程后续判断的where
 	where := []string{"r.user_id=?", "r.deleted_at IS NULL"}
-	// args 用于本次流程后续判断的args
 	args := []any{f.UserID}
 	if f.CookieID != "" {
 		where = append(where, "r.cookie_id=?")
@@ -214,9 +205,7 @@ func automationRuleWhere(f AutomationRuleListFilter) (string, []any) {
 		where = append(where, "r.enabled=?")
 		args = append(args, boolToInt(*f.Enabled))
 	}
-	if // search 用于本次流程后续判断的搜索
-	search := strings.ToLower(strings.TrimSpace(f.Search)); search != "" {
-		// pattern 用于本次流程后续判断的pattern
+	if search := strings.ToLower(strings.TrimSpace(f.Search)); search != "" {
 		pattern := "%" + search + "%"
 		where = append(where, `(LOWER(COALESCE(r.name,'')) LIKE ?
 			OR LOWER(COALESCE(r.item_id,'')) LIKE ?
@@ -228,18 +217,14 @@ func automationRuleWhere(f AutomationRuleListFilter) (string, []any) {
 
 // ListForUser 返回用户下全部自动化规则和动作。
 func (a *AutomationRules) ListForUser(ctx context.Context, userID int64) ([]AutomationRule, error) {
-	// rules、err 用于本次流程后续判断的rules、err
 	rules, _, err := a.ListPageForUser(ctx, AutomationRuleListFilter{UserID: userID})
 	return rules, err
 }
 
 // CountByTriggerForUser 返回同一筛选条件下各触发类型的规则数量。
 // 该统计不受分页影响，确保页面汇总与 total 使用同一数据集。
-// CountByTriggerForUser 封装数量ByTriggerFor用户业务协调。
 func (a *AutomationRules) CountByTriggerForUser(ctx context.Context, f AutomationRuleListFilter) (map[string]int, error) {
-	// whereSQL、args 用于本次流程后续判断的whereSQL、args
 	whereSQL, args := automationRuleWhere(f)
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := a.DB.QueryContext(ctx, `
 SELECT r.trigger_type, COUNT(*)
   FROM automation_rules r
@@ -250,15 +235,11 @@ SELECT r.trigger_type, COUNT(*)
 		return nil, err
 	}
 	defer rows.Close()
-	// counts 用于本次流程后续判断的counts
 	counts := map[string]int{}
 	for rows.Next() {
-		// triggerType 用于本次流程后续判断的trigger类型
 		var triggerType string
-		// count 用于本次流程后续判断的数量
 		var count int
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&triggerType, &count); err != nil {
+		if err := rows.Scan(&triggerType, &count); err != nil {
 			return nil, err
 		}
 		counts[triggerType] = count
@@ -279,7 +260,6 @@ func (a *AutomationRules) Match(ctx context.Context, cookieID, itemID, triggerTy
 	return highestPriorityRule(confirmedDeliveryRules(out, triggerType)), err
 }
 
-// highestPriorityRule 封装highest优先级规则业务协调。
 func highestPriorityRule(rules []AutomationRule) []AutomationRule {
 	if len(rules) <= 1 {
 		return rules
@@ -289,11 +269,8 @@ func highestPriorityRule(rules []AutomationRule) []AutomationRule {
 
 // Get 返回指定规则及其动作。
 func (a *AutomationRules) Get(ctx context.Context, ruleID int64) (*AutomationRule, error) {
-	// rule 用于本次流程后续判断的规则
 	var rule AutomationRule
-	// enabled 用于本次流程后续判断的启用状态
 	var enabled int
-	// err 用于本次流程后续判断的err
 	err := a.DB.QueryRowContext(ctx, `
 SELECT r.id,r.user_id,r.cookie_id,r.item_id,COALESCE(i.item_title,''),r.name,r.trigger_type,r.enabled,
        r.priority,r.config_json,r.sku_migration_status,r.created_at,r.updated_at
@@ -312,9 +289,7 @@ SELECT r.id,r.user_id,r.cookie_id,r.item_id,COALESCE(i.item_title,''),r.name,r.t
 	return &rule, err
 }
 
-// matchScope 封装matchScope业务协调。
 func (a *AutomationRules) matchScope(ctx context.Context, cookieID, itemID, triggerType string) ([]AutomationRule, error) {
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := a.DB.QueryContext(ctx, `
 SELECT r.id,r.user_id,r.cookie_id,r.item_id,COALESCE(i.item_title,''),r.name,r.trigger_type,r.enabled,
        r.priority,r.config_json,r.sku_migration_status,r.created_at,r.updated_at
@@ -333,12 +308,9 @@ SELECT r.id,r.user_id,r.cookie_id,r.item_id,COALESCE(i.item_title,''),r.name,r.t
 	// out 保存游标关闭后再加载动作的规则基础字段。
 	out := []AutomationRule{}
 	for rows.Next() {
-		// r 用于本次流程后续判断的r
 		var r AutomationRule
-		// enabled 用于本次流程后续判断的启用状态
 		var enabled int
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&r.ID, &r.UserID, &r.CookieID, &r.ItemID, &r.ItemTitle, &r.Name, &r.TriggerType,
+		if err := rows.Scan(&r.ID, &r.UserID, &r.CookieID, &r.ItemID, &r.ItemTitle, &r.Name, &r.TriggerType,
 			&enabled, &r.Priority, &r.ConfigJSON, &r.SKUMigrationStatus, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -368,7 +340,6 @@ SELECT r.id,r.user_id,r.cookie_id,r.item_id,COALESCE(i.item_title,''),r.name,r.t
 
 // Create 创建规则和动作。
 func (a *AutomationRules) Create(ctx context.Context, in AutomationRuleInput) (int64, error) {
-	// tx、err 用于本次流程后续判断的tx、err
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -378,13 +349,11 @@ func (a *AutomationRules) Create(ctx context.Context, in AutomationRuleInput) (i
 	if err := validateAutomationTemplateContractsTx(ctx, tx, a.Dialect, in.UserID, in.Actions, nil); err != nil {
 		return 0, err
 	}
-	// id、err 用于本次流程后续判断的id、err
 	id, err := createAutomationRuleTx(ctx, tx, a.Dialect, in)
 	if err != nil {
 		return 0, err
 	}
-	if // err 用于本次流程后续判断的err
-	err := tx.Commit(); err != nil {
+	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 	return id, nil
@@ -392,7 +361,6 @@ func (a *AutomationRules) Create(ctx context.Context, in AutomationRuleInput) (i
 
 // Update 替换规则和动作。动作采用删除重建，避免前端携带展示字段造成局部更新不一致。
 func (a *AutomationRules) Update(ctx context.Context, userID, ruleID int64, in AutomationRuleInput) error {
-	// tx、err 用于本次流程后续判断的tx、err
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -407,7 +375,6 @@ func (a *AutomationRules) Update(ctx context.Context, userID, ruleID int64, in A
 	if err := validateAutomationTemplateContractsTx(ctx, tx, a.Dialect, userID, in.Actions, retainedTemplateIDs); err != nil {
 		return err
 	}
-	// res、err 用于本次流程后续判断的res、err
 	res, err := tx.ExecContext(ctx, `
 UPDATE automation_rules
    SET cookie_id=?,item_id=?,name=?,trigger_type=?,enabled=?,priority=?,config_json=?,sku_migration_status=?,updated_at=CURRENT_TIMESTAMP
@@ -416,18 +383,14 @@ UPDATE automation_rules
 	if err != nil {
 		return err
 	}
-	if // n 用于本次流程后续判断的n
-	n, _ := res.RowsAffected(); n == 0 {
+	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := tx.ExecContext(ctx, `DELETE FROM automation_rule_actions WHERE rule_id=?`, ruleID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM automation_rule_actions WHERE rule_id=?`, ruleID); err != nil {
 		return err
 	}
-	// act 表示当前遍历过程中的act
 	for _, act := range in.Actions {
-		if // err 用于本次流程后续判断的err
-		_, err := insertAutomationActionTx(ctx, tx, a.Dialect, ruleID, act); err != nil {
+		if _, err := insertAutomationActionTx(ctx, tx, a.Dialect, ruleID, act); err != nil {
 			return err
 		}
 	}
@@ -447,12 +410,9 @@ func (a *AutomationRules) Delete(ctx context.Context, userID, ruleID int64) erro
 	if err != nil {
 		return err
 	}
-	if // n 用于本次流程后续判断的n
-	n, _ := res.RowsAffected(); n == 0 {
-		// exists 用于本次流程后续判断的exists
+	if n, _ := res.RowsAffected(); n == 0 {
 		var exists int
-		if // err 用于本次流程后续判断的err
-		err := a.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_rules WHERE id=? AND user_id=?`, ruleID, userID).Scan(&exists); err != nil {
+		if err := a.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_rules WHERE id=? AND user_id=?`, ruleID, userID).Scan(&exists); err != nil {
 			return err
 		}
 		if exists > 0 {
@@ -465,7 +425,6 @@ func (a *AutomationRules) Delete(ctx context.Context, userID, ruleID int64) erro
 
 // Actions 返回规则动作。
 func (a *AutomationRules) Actions(ctx context.Context, ruleID int64) ([]AutomationAction, error) {
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := a.DB.QueryContext(ctx, `
 SELECT a.id,a.rule_id,a.action_type,COALESCE(a.card_id,0),COALESCE(c.name,''),a.delivery_count,
        a.message_template,a.delay_seconds,a.config_json,a.enabled,a.sort_order,
@@ -481,12 +440,9 @@ SELECT a.id,a.rule_id,a.action_type,COALESCE(a.card_id,0),COALESCE(c.name,''),a.
 	// out 保存游标关闭后再加载模板动作详情的动作基础字段。
 	out := []AutomationAction{}
 	for rows.Next() {
-		// act 用于本次流程后续判断的act
 		var act AutomationAction
-		// enabled 用于本次流程后续判断的启用状态
 		var enabled int
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&act.ID, &act.RuleID, &act.ActionType, &act.CardID, &act.CardName,
+		if err := rows.Scan(&act.ID, &act.RuleID, &act.ActionType, &act.CardID, &act.CardName,
 			&act.DeliveryCount, &act.MessageTemplate, &act.DelaySeconds, &act.ConfigJSON, &enabled,
 			&act.SortOrder, &act.DeliveryTemplateID, &act.DeliveryTemplateName); err != nil {
 			return nil, err
@@ -552,8 +508,8 @@ func (a *AutomationRules) tryStartRun(ctx context.Context, execer sqlQueryExecer
 	if err != nil {
 		return 0, false, err
 	}
-	if // n 是插入行数，零行意味着同一触发已有运行。
-	n, _ := res.RowsAffected(); n == 0 {
+	// n 是插入行数，零行意味着同一触发已有运行。
+	if n, _ := res.RowsAffected(); n == 0 {
 		return a.reclaimRun(ctx, execer, run, leaseExpiresAt, now)
 	}
 	// id 是当前事务中新创建运行的主键。
@@ -576,14 +532,14 @@ func (a *AutomationRules) reclaimRun(ctx context.Context, execer sqlQueryExecer,
 	if err != nil {
 		return 0, false, err
 	}
-	if // n、rowsErr 保存重领行数及驱动计数错误，恰好一行才取得执行权。
-	n, rowsErr := res.RowsAffected(); rowsErr != nil || n != 1 {
+	// n、rowsErr 保存重领行数及驱动计数错误，恰好一行才取得执行权。
+	if n, rowsErr := res.RowsAffected(); rowsErr != nil || n != 1 {
 		return 0, false, rowsErr
 	}
 	// id 是同一事务中刚重领的运行主键。
 	var id int64
-	if // err 保存重领主键读取错误，失败时由调用方回滚执行权变更。
-	err := execer.QueryRowContext(ctx,
+	// err 保存重领主键读取错误，失败时由调用方回滚执行权变更。
+	if err := execer.QueryRowContext(ctx,
 		`SELECT id FROM automation_runs WHERE rule_id=? AND trigger_key=?`, run.RuleID, run.TriggerKey).Scan(&id); err != nil {
 		return 0, false, err
 	}
@@ -606,9 +562,8 @@ func (a *AutomationRules) startRunAction(ctx context.Context, execer sqlExecer, 
 	return err == nil && n == 1, err
 }
 
-// AbortRunAction 封装Abort运行动作业务协调。
+// AbortRunAction 在动作确定未执行时清除“动作已开始”标记，使运行可以安全重试。
 func (a *AutomationRules) AbortRunAction(ctx context.Context, runID int64, attempt, cursor int) error {
-	// res、err 用于本次流程后续判断的res、err
 	res, err := a.DB.ExecContext(ctx, `UPDATE automation_runs SET action_started=0,updated_at=CURRENT_TIMESTAMP
 		WHERE id=? AND attempt_count=? AND status='running' AND action_cursor=?`, runID, attempt, cursor)
 	if err != nil {
@@ -617,9 +572,8 @@ func (a *AutomationRules) AbortRunAction(ctx context.Context, runID int64, attem
 	return requireAutomationRunOwner(res)
 }
 
-// RenewRunLease 封装Renew运行Lease业务协调。
+// RenewRunLease 为仍由当前尝试持有的运行续期租约。
 func (a *AutomationRules) RenewRunLease(ctx context.Context, runID int64, attempt int, leaseExpiresAt int64) error {
-	// res、err 用于本次流程后续判断的res、err
 	res, err := a.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=?,updated_at=CURRENT_TIMESTAMP
 		WHERE id=? AND attempt_count=? AND status='running'`, leaseExpiresAt, runID, attempt)
 	if err != nil {
@@ -628,9 +582,8 @@ func (a *AutomationRules) RenewRunLease(ctx context.Context, runID int64, attemp
 	return requireAutomationRunOwner(res)
 }
 
-// QuarantineRun 封装Quarantine运行业务协调。
+// QuarantineRun 将运行转入人工处理状态并停止自动重试。
 func (a *AutomationRules) QuarantineRun(ctx context.Context, runID int64, attempt int, reason string) error {
-	// res、err 用于本次流程后续判断的res、err
 	res, err := a.DB.ExecContext(ctx, `UPDATE automation_runs
 		SET status='needs_review',error_message=?,lease_expires_at=0,next_retry_at=0,updated_at=CURRENT_TIMESTAMP
 		WHERE id=? AND attempt_count=? AND status IN ('running','failed')`, reason, runID, attempt)
@@ -640,7 +593,7 @@ func (a *AutomationRules) QuarantineRun(ctx context.Context, runID int64, attemp
 	return requireAutomationRunOwner(res)
 }
 
-// QuarantineRunResult 封装Quarantine运行结果业务协调。
+// QuarantineRunResult 将结果不确定的运行连同已发送数量转入人工处理状态。
 func (a *AutomationRules) QuarantineRunResult(ctx context.Context, runID int64, attempt, sentCount int, reason string) error {
 	return a.QuarantineRunResultWithProof(ctx, runID, attempt, sentCount, reason, nil)
 }
@@ -672,7 +625,6 @@ func (a *AutomationRules) QuarantineRunResultWithProof(ctx context.Context, runI
 
 // PostponeRecoveryRun 把暂时不能执行的账号移到恢复队列尾部，避免固定的前 100 条饿死后续任务。
 func (a *AutomationRules) PostponeRecoveryRun(ctx context.Context, runID int64, attempt int, retryAt int64) error {
-	// res、err 用于本次流程后续判断的res、err
 	res, err := a.DB.ExecContext(ctx, `UPDATE automation_runs
 		SET lease_expires_at=CASE WHEN status='running' THEN ? ELSE lease_expires_at END,
 		    next_retry_at=CASE WHEN status='failed' THEN ? ELSE next_retry_at END,
@@ -684,11 +636,9 @@ func (a *AutomationRules) PostponeRecoveryRun(ctx context.Context, runID int64, 
 	return requireAutomationRunOwner(res)
 }
 
-// ClaimRecoveryRun 封装ClaimRecovery运行业务协调。
+// ClaimRecoveryRun 领取租约过期或可安全重试的失败运行；已开始执行动作的运行不会被领取。
 func (a *AutomationRules) ClaimRecoveryRun(ctx context.Context, runID, leaseExpiresAt int64) (bool, error) {
-	// now 用于本次流程后续判断的now
 	now := time.Now().UTC().Unix()
-	// res、err 用于本次流程后续判断的res、err
 	res, err := a.DB.ExecContext(ctx, `UPDATE automation_runs
 		SET status='running',error_message='',lease_expires_at=?,next_retry_at=0,attempt_count=attempt_count+1,updated_at=CURRENT_TIMESTAMP
 		 WHERE id=? AND action_started=0 AND ((status='running' AND (lease_expires_at=0 OR lease_expires_at<?))
@@ -697,14 +647,12 @@ func (a *AutomationRules) ClaimRecoveryRun(ctx context.Context, runID, leaseExpi
 	if err != nil {
 		return false, err
 	}
-	// n、err 用于本次流程后续判断的n、err
 	n, err := res.RowsAffected()
 	return err == nil && n == 1, err
 }
 
 // FinishRun 标记执行完成或失败。
 func (a *AutomationRules) FinishRun(ctx context.Context, id int64, attempt int, status string, sentCount int, errMsg string) error {
-	// nextRetryAt 用于本次流程后续判断的next重试At
 	nextRetryAt := int64(0)
 	if status == "failed" && (strings.HasPrefix(errMsg, SafeRetryErrorPrefix) || sentCount == 0 && !strings.HasPrefix(errMsg, NoRetryErrorPrefix)) {
 		nextRetryAt = time.Now().UTC().Add(time.Minute).Unix()
@@ -712,7 +660,6 @@ func (a *AutomationRules) FinishRun(ctx context.Context, id int64, attempt int, 
 	// clearProof 固定为 false：终态运行仍须保留加密发货快照，供订单失败后的原样补发使用。
 	// 已取消的订单会通过专用取消路径清除快照，避免把内容保留为可重放状态。
 	clearProof := false
-	// res、err 用于本次流程后续判断的res、err
 	query := `
 UPDATE automation_runs
 	   SET status=?,sent_count=?,error_message=?,lease_expires_at=0,next_retry_at=?,delivery_proof=CASE WHEN ? THEN '' ELSE delivery_proof END,updated_at=CURRENT_TIMESTAMP
@@ -725,9 +672,7 @@ UPDATE automation_runs
 	return requireAutomationRunOwner(res)
 }
 
-// requireAutomationRunOwner 封装require自动化运行所有者业务协调。
 func requireAutomationRunOwner(res sql.Result) error {
-	// n、err 用于本次流程后续判断的n、err
 	n, err := res.RowsAffected()
 	if err != nil {
 		return err
@@ -740,14 +685,11 @@ func requireAutomationRunOwner(res sql.Result) error {
 
 // DueRecoveryRuns 返回需要主动恢复的失败运行和租约已过期的运行。
 // 真正的领取仍由 TryStartRun 完成，多个 scheduler 并发扫描也不会重复执行。
-// DueRecoveryRuns 封装DueRecovery运行记录业务协调。
 func (a *AutomationRules) DueRecoveryRuns(ctx context.Context, limit int) ([]AutomationRun, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	// now 用于本次流程后续判断的now
 	now := time.Now().UTC().Unix()
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := a.DB.QueryContext(ctx, `
 SELECT id,rule_id,cookie_id,item_id,order_id,buyer_id,chat_id,trigger_type,trigger_key,
 	       status,sent_count,error_message,raw_event_json,lease_expires_at,attempt_count,next_retry_at,action_cursor,action_started
@@ -760,15 +702,11 @@ SELECT id,rule_id,cookie_id,item_id,order_id,buyer_id,chat_id,trigger_type,trigg
 		return nil, err
 	}
 	defer rows.Close()
-	// out 用于本次流程后续判断的out
 	var out []AutomationRun
 	for rows.Next() {
-		// run 用于本次流程后续判断的运行
 		var run AutomationRun
-		// actionStarted 用于本次流程后续判断的动作Started
 		var actionStarted int
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&run.ID, &run.RuleID, &run.CookieID, &run.ItemID, &run.OrderID,
+		if err := rows.Scan(&run.ID, &run.RuleID, &run.CookieID, &run.ItemID, &run.OrderID,
 			&run.BuyerID, &run.ChatID, &run.TriggerType, &run.TriggerKey, &run.Status,
 			&run.SentCount, &run.ErrorMessage, &run.RawEventJSON, &run.LeaseExpiresAt,
 			&run.AttemptCount, &run.NextRetryAt, &run.ActionCursor, &actionStarted); err != nil {
@@ -783,4 +721,3 @@ SELECT id,rule_id,cookie_id,item_id,order_id,buyer_id,chat_id,trigger_type,trigg
 // RecoverDefinitelyUnsentReviewRuns 恢复旧版本把“发送前没有 WS 连接”误判成
 // 结果不确定的求评价运行。这些记录 sent_count=0，且错误明确发生在调用发送
 // 接口之前，可以安全清除 action_started 并进入现有失败重试流程。
-// RecoverDefinitelyUnsentReviewRuns 封装RecoverDefinitelyUnsentReview运行记录业务协调。

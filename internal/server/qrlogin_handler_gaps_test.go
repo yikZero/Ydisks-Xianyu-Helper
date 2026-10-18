@@ -70,7 +70,6 @@ func (p *qrGapPlatform) DeleteSession(id string) { p.deleted = append(p.deleted,
 
 // TestQRLoginHandlerGapBranches 覆盖二维码接口的服务缺失、平台错误、持久化错误与账号不匹配分支。
 func TestQRLoginHandlerGapBranches(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -80,22 +79,18 @@ func TestQRLoginHandlerGapBranches(t *testing.T) {
 	platform := &qrGapPlatform{status: map[string]any{"status": "success", "cookies": "secret"}, unb: "unb1"}
 	srv.applications.accountLogin = login
 	srv.applications.qrLogin = platform
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// generate 失败映射：取消、超时和其他错误均为 502。
 	for _, generateErr := range []error{context.Canceled, context.DeadlineExceeded, errors.New("x")} {
 		platform.generateErr = generateErr
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/generate", ""); rec.Code != http.StatusBadGateway {
 			t.Errorf("generate %v status=%d", generateErr, rec.Code)
 		}
 	}
 	platform.generateErr = nil
 	login.expired = []string{"old-session"}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/generate", ""); rec.Code != http.StatusOK {
 		t.Errorf("generate ok status=%d", rec.Code)
 	}
@@ -103,13 +98,11 @@ func TestQRLoginHandlerGapBranches(t *testing.T) {
 		t.Error("expired session should be deleted from platform")
 	}
 	srv.applications.accountLogin = nil
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/generate", ""); rec.Code != http.StatusInternalServerError {
 		t.Errorf("generate without login service status=%d", rec.Code)
 	}
 	srv.applications.accountLogin = login
 	srv.applications.qrLogin = nil
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/generate", ""); rec.Code != http.StatusInternalServerError {
 		t.Errorf("generate without qr service status=%d", rec.Code)
 	}
@@ -117,7 +110,6 @@ func TestQRLoginHandlerGapBranches(t *testing.T) {
 	for _, route := range []struct{ method, path string }{
 		{"GET", "/qr-login/check/s1"}, {"GET", "/qr-login/status/s1"}, {"POST", "/qr-login/complete-verification/s1"},
 	} {
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, route.method, route.path, ""); rec.Code != http.StatusInternalServerError {
 			t.Errorf("%s without qr service status=%d", route.path, rec.Code)
 		}
@@ -126,13 +118,11 @@ func TestQRLoginHandlerGapBranches(t *testing.T) {
 
 	// 会话所有权失败：会话不存在时同时清理平台会话；账号登录服务缺失时 500。
 	login.authorizeErr = accountapp.ErrQRLoginSessionNotFound
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/qr-login/check/s1", ""); rec.Code != http.StatusNotFound {
 		t.Errorf("unowned status=%d", rec.Code)
 	}
 	login.authorizeErr = nil
 	srv.applications.accountLogin = nil
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/qr-login/check/s1", ""); rec.Code != http.StatusInternalServerError {
 		t.Errorf("owner check without login service status=%d", rec.Code)
 	}
@@ -140,44 +130,36 @@ func TestQRLoginHandlerGapBranches(t *testing.T) {
 
 	// status 持久化：成功状态保存失败返回 500；非成功状态直接返回。
 	login.persistErr = errors.New("db")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/qr-login/status/s1", ""); rec.Code != http.StatusInternalServerError {
 		t.Errorf("status persist failure=%d", rec.Code)
 	}
 	login.persistErr = nil
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/qr-login/status/s1", ""); rec.Code != http.StatusOK {
 		t.Errorf("status persist ok=%d", rec.Code)
 	}
 	platform.status = map[string]any{"status": "waiting"}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/qr-login/status/s1", ""); rec.Code != http.StatusOK {
 		t.Errorf("status waiting=%d", rec.Code)
 	}
 
 	// complete-verification 的各类分支。
 	platform.completeErr = errors.New("risk")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/complete-verification/s1", ""); rec.Code != http.StatusBadGateway {
 		t.Errorf("complete failure=%d", rec.Code)
 	}
 	platform.completeErr = nil
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/complete-verification/s1", "{"); rec.Code != http.StatusBadRequest {
 		t.Errorf("complete bad body=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/complete-verification/s1", `{"target_account_id":"other"}`); rec.Code != http.StatusConflict {
 		t.Errorf("complete mismatch=%d", rec.Code)
 	}
 	login.persistErr = errors.New("db")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/complete-verification/s1", `{}`); rec.Code != http.StatusInternalServerError {
 		t.Errorf("complete persist failure=%d", rec.Code)
 	}
 	login.persistErr = nil
 	platform.status = map[string]any{"cookie_snapshot": "snapshot-placeholder"}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/qr-login/complete-verification/s1", `{"target_account_id":"unb1"}`); rec.Code != http.StatusOK {
 		t.Errorf("complete ok=%d", rec.Code)
 	}

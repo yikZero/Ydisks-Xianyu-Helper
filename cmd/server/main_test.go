@@ -148,20 +148,15 @@ func TestStartupRollbackErrorKeepsWorkerDiagnostic(t *testing.T) {
 	}
 }
 
-// TestEnsureAdminIfMissingCreatesOnlyOnce 封装TestEnsureAdminIfMissingCreatesOnlyOnce业务协调。
 func TestEnsureAdminIfMissingCreatesOnlyOnce(t *testing.T) {
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// database、dialect、err 用于本次流程后续判断的database、dialect、err
 	database, dialect, err := db.Open(ctx, "sqlite://"+filepath.Join(t.TempDir(), "server.db"))
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
 	t.Cleanup(func() { _ = database.Close() })
-	// store 用于本次流程后续判断的store
 	store := db.NewStore(database, dialect)
 
-	// created、err 用于本次流程后续判断的created、err
 	created, err := ensureAdminIfMissing(ctx, store, "admin@example.com", "first-password")
 	if err != nil || !created {
 		t.Fatalf("first ensure: created=%v err=%v", created, err)
@@ -170,12 +165,10 @@ func TestEnsureAdminIfMissingCreatesOnlyOnce(t *testing.T) {
 	if err != nil || created {
 		t.Fatalf("second ensure: created=%v err=%v", created, err)
 	}
-	if // ok、err 用于本次流程后续判断的ok、err
-	_, ok, err := store.Users.VerifyAndUpgrade(ctx, "admin", "first-password"); err != nil || !ok {
+	if _, ok, err := store.Users.VerifyAndUpgrade(ctx, "admin", "first-password"); err != nil || !ok {
 		t.Fatalf("original password should remain valid: ok=%v err=%v", ok, err)
 	}
-	if // ok、err 用于本次流程后续判断的ok、err
-	_, ok, err := store.Users.VerifyAndUpgrade(ctx, "admin", "second-password"); err == nil || ok {
+	if _, ok, err := store.Users.VerifyAndUpgrade(ctx, "admin", "second-password"); err == nil || ok {
 		t.Fatalf("later password must not reset admin: ok=%v err=%v", ok, err)
 	}
 }
@@ -206,11 +199,8 @@ func TestRunServerInitAdminStopsBeforeRuntimeStartup(t *testing.T) {
 	}
 }
 
-// TestLoadOrCreateDataKeyPersists 封装TestLoadOrCreate数据KeyPersists业务协调。
 func TestLoadOrCreateDataKeyPersists(t *testing.T) {
-	// path 用于本次流程后续判断的路径
 	path := filepath.Join(t.TempDir(), "data-key")
-	// first、err 用于本次流程后续判断的first、err
 	first, err := loadOrCreateDataKey(path)
 	if err != nil {
 		t.Fatalf("create data key: %v", err)
@@ -218,7 +208,6 @@ func TestLoadOrCreateDataKeyPersists(t *testing.T) {
 	if first == "" {
 		t.Fatal("created data key is empty")
 	}
-	// second、err 用于本次流程后续判断的second、err
 	second, err := loadOrCreateDataKey(path)
 	if err != nil {
 		t.Fatalf("load data key: %v", err)
@@ -226,8 +215,7 @@ func TestLoadOrCreateDataKeyPersists(t *testing.T) {
 	if first != second {
 		t.Fatalf("data key changed between loads")
 	}
-	if // raw、err 用于本次流程后续判断的raw、err
-	raw, err := os.ReadFile(path); err != nil || string(raw) == "" {
+	if raw, err := os.ReadFile(path); err != nil || string(raw) == "" {
 		t.Fatalf("data key file was not written: err=%v", err)
 	}
 }
@@ -339,24 +327,19 @@ func TestIsNonLoopbackListenAddress(t *testing.T) {
 	}
 }
 
-// TestOpenServerLogWriterUsesConfiguredDirectory 封装TestOpenServerLogWriterUsesConfiguredDirectory业务协调。
 func TestOpenServerLogWriterUsesConfiguredDirectory(t *testing.T) {
-	// logDir 用于本次流程后续判断的logDir
 	logDir := t.TempDir()
 	t.Setenv("XIANYU_LOG_DIR", logDir)
 
-	// writer、closeLog、err 用于本次流程后续判断的writer、closeLog、err
 	writer, closeLog, err := openServerLogWriter("")
 	if err != nil {
 		t.Fatalf("open log writer: %v", err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := io.WriteString(writer, "test log\n"); err != nil {
+	if _, err := io.WriteString(writer, "test log\n"); err != nil {
 		t.Fatalf("write log: %v", err)
 	}
 	closeLog()
 
-	// content、err 用于本次流程后续判断的content、err
 	content, err := os.ReadFile(filepath.Join(logDir, "server.log"))
 	if err != nil {
 		t.Fatalf("read log file: %v", err)
@@ -366,11 +349,8 @@ func TestOpenServerLogWriterUsesConfiguredDirectory(t *testing.T) {
 	}
 }
 
-// TestResolveDataDirKeepsExplicitDirectory 封装TestResolve数据DirKeepsExplicitDirectory业务协调。
 func TestResolveDataDirKeepsExplicitDirectory(t *testing.T) {
-	// explicit 用于本次流程后续判断的explicit
 	explicit := filepath.Join(t.TempDir(), "ydisks-data")
-	// got、err 用于本次流程后续判断的got、err
 	got, err := resolveDataDir(explicit)
 	if err != nil {
 		t.Fatalf("resolve explicit data directory: %v", err)
@@ -380,50 +360,35 @@ func TestResolveDataDirKeepsExplicitDirectory(t *testing.T) {
 	}
 }
 
-// TestUserDataDirName 封装Test用户数据Dir名称业务协调。
 func TestUserDataDirName(t *testing.T) {
-	// base 用于本次流程后续判断的base
 	base := filepath.Join(t.TempDir(), "Application Support")
-	// got 用于本次流程后续判断的got
 	got := filepath.Join(base, userDataDirName)
-	// want 用于本次流程后续判断的want
 	want := filepath.Join(base, "YdisksXianyuHelper")
 	if got != want {
 		t.Fatalf("unexpected user data directory: got %q want %q", got, want)
 	}
 }
 
-// TestResolveDBPathUsesDataDirectoryForDefault 封装TestResolveDB路径Uses数据DirectoryForDefault业务协调。
 func TestResolveDBPathUsesDataDirectoryForDefault(t *testing.T) {
-	// dataDir 用于本次流程后续判断的数据Dir
 	dataDir := filepath.Join(t.TempDir(), "YdisksXianyuHelper")
-	// got 用于本次流程后续判断的got
 	got := resolveDBPath(dataDir, defaultDBPath)
-	// want 用于本次流程后续判断的want
 	want := filepath.Join(dataDir, "data", "xianyu_data.db")
 	if got != want {
 		t.Fatalf("unexpected default database path: got %q want %q", got, want)
 	}
 }
 
-// TestResolveDBPathPreservesCustomPath 封装TestResolveDB路径PreservesCustom路径业务协调。
 func TestResolveDBPathPreservesCustomPath(t *testing.T) {
-	// dataDir 用于本次流程后续判断的数据Dir
 	dataDir := filepath.Join(t.TempDir(), "YdisksXianyuHelper")
-	// custom 用于本次流程后续判断的custom
 	custom := filepath.Join(t.TempDir(), "custom.db")
-	if // got 用于本次流程后续判断的got
-	got := resolveDBPath(dataDir, custom); got != custom {
+	if got := resolveDBPath(dataDir, custom); got != custom {
 		t.Fatalf("custom database path changed: got %q want %q", got, custom)
 	}
 }
 
-// TestPlaywrightRuntimeRootUsesProcessArchitecture 封装TestPlaywrightRuntimeRootUsesProcessArchitecture业务协调。
 func TestPlaywrightRuntimeRootUsesProcessArchitecture(t *testing.T) {
-	// opts 用于本次流程后续判断的opts
 	opts := serverOptions{playwrightRuntimeRoot: filepath.Join(t.TempDir(), "playwright-runtime")}
 	applyPlaywrightRuntimeRoot(&opts)
-	// wantRoot 用于本次流程后续判断的wantRoot
 	wantRoot := filepath.Join(opts.playwrightRuntimeRoot, runtime.GOARCH)
 	if opts.playwrightDriverDir != filepath.Join(wantRoot, "playwright-driver") {
 		t.Fatalf("driver 目录=%q", opts.playwrightDriverDir)

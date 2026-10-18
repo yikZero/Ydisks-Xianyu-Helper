@@ -16,7 +16,6 @@ func TestAccountLoginRepositoryRemainingOperations(t *testing.T) {
 	defer cleanup()
 	// repository 保存绑定当前数据库的账号登录适配器。
 	repository := NewAccountLoginRepository(store)
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// status 验证已有账号默认启用状态。
 	if !repository.GetStatus(ctx, "cid") {
@@ -92,7 +91,6 @@ func TestAccountLoginRepositoryCoversClosedDatabaseOperations(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定已关闭数据库的账号登录适配器。
 	repository := NewAccountLoginRepository(store)
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

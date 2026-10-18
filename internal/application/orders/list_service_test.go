@@ -56,7 +56,6 @@ func TestListServiceNormalizesPagination(t *testing.T) {
 func TestListServiceRejectsUnownedCookie(t *testing.T) {
 	// service 保存不拥有目标账号的列表服务。
 	service := NewListService(&listRepositoryStub{owned: false})
-	// err 保存跨用户账号筛选返回的错误。
 	_, err := service.List(context.Background(), ListQuery{UserID: 7, CookieID: "other"})
 	if !errors.Is(err, ErrForbidden) {
 		t.Fatalf("error=%v, want ErrForbidden", err)
@@ -69,7 +68,6 @@ func TestListServicePropagatesRepositoryError(t *testing.T) {
 	expected := errors.New("数据库不可用")
 	// service 保存返回数据访问错误的列表服务。
 	service := NewListService(&listRepositoryStub{owned: true, listErr: expected})
-	// err 保存列表查询返回的错误。
 	_, err := service.List(context.Background(), ListQuery{UserID: 7})
 	if !errors.Is(err, expected) {
 		t.Fatalf("error=%v, want repository error", err)

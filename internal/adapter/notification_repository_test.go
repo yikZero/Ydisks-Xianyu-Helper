@@ -14,7 +14,6 @@ func TestNotificationChannelRepositoryKeepsConfigOutOfSummaries(t *testing.T) {
 	// store 是使用临时 SQLite 数据库的测试存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作使用的非取消上下文。
 	ctx := context.Background()
 	// owner、ownerErr 保存模板管理员及查询错误。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")
@@ -45,7 +44,6 @@ func TestNotificationChannelRepositoryMapsMissingResources(t *testing.T) {
 	// store 是使用临时 SQLite 数据库的测试存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作使用的非取消上下文。
 	ctx := context.Background()
 	// repository 是待验证的通知渠道应用端口适配器。
 	repository := NewNotificationChannelRepository(store)
@@ -73,7 +71,6 @@ func TestNotificationUncertainRepositoryRejectsClosedStore(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定测试存储的不确定通知适配器。
 	repository := NewNotificationUncertainRepository(store)
-	// closeErr 保存关闭测试数据库时的资源错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

@@ -127,7 +127,6 @@ func (s *Server) recoverExpiredSession(ctx context.Context, cookieID string, err
 
 // Router 构建完整路由树。
 func (s *Server) Router() chi.Router {
-	// r 用于本次流程后续判断的r
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
@@ -217,18 +216,14 @@ func (s *Server) authMiddleware(h http.Handler) http.Handler {
 // requestLogger 记录请求完成状态、耗时和 chi request_id。
 func (s *Server) requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// start 用于本次流程后续判断的开始
 		start := time.Now()
-		// ww 用于本次流程后续判断的ww
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		next.ServeHTTP(ww, r)
-		// status 用于本次流程后续判断的状态
 		status := ww.Status()
 		if status == 0 {
 			status = http.StatusOK
 		}
 
-		// level 用于本次流程后续判断的level
 		level := slog.LevelDebug
 		if status >= 500 {
 			level = slog.LevelError
@@ -317,13 +312,11 @@ func isLegacyAPIPath(path string) bool {
 // 前端 vite base 为 /static/，构建后 index.html 引用 /static/assets/...、/static/favicon.svg。
 // 故静态资源统一从 /static/ 前缀提供；非 API 的 GET 请求（/、/login 等客户端路由）
 // 返回 /static/index.html，交给 React Router 接管。
-// mountSPA 封装mountSPA业务协调。
 func (s *Server) mountSPA(r chi.Router) {
 	if s.WebDir != "" {
 		s.mountDirSPA(r)
 		return
 	}
-	// embedded、err 用于本次流程后续判断的embedded、err
 	embedded, err := webui.Static()
 	if err != nil {
 		return
@@ -331,13 +324,10 @@ func (s *Server) mountSPA(r chi.Router) {
 	s.mountFSSPA(r, embedded)
 }
 
-// mountDirSPA 封装mountDirSPA业务协调。
 func (s *Server) mountDirSPA(r chi.Router) {
-	// indexFile 用于本次流程后续判断的index文件
 	indexFile := filepath.Join(s.WebDir, "index.html")
 	// /static/* 直接作为静态文件服务（assets/、favicon.svg 等）。
 	// StripPrefix("/static/") 后，URL /static/assets/x.js → WebDir/assets/x.js。
-	// staticFiles 用于本次流程后续判断的static文件列表
 	staticFiles := http.StripPrefix("/static/", http.FileServer(http.Dir(s.WebDir)))
 	r.Handle("/static/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/static/" || r.URL.Path == "/static/index.html" {
@@ -352,8 +342,7 @@ func (s *Server) mountDirSPA(r chi.Router) {
 			writeErrRequest(w, r, http.StatusNotFound, "接口不存在")
 			return
 		}
-		if // err 用于本次流程后续判断的err
-		_, err := os.Stat(indexFile); err != nil {
+		if _, err := os.Stat(indexFile); err != nil {
 			writeErrRequest(w, r, http.StatusNotFound, "前端未构建")
 			return
 		}
@@ -362,9 +351,7 @@ func (s *Server) mountDirSPA(r chi.Router) {
 	})
 }
 
-// mountFSSPA 封装mountFSSPA业务协调。
 func (s *Server) mountFSSPA(r chi.Router, staticFS fs.FS) {
-	// staticFiles 用于本次流程后续判断的static文件列表
 	staticFiles := http.StripPrefix("/static/", http.FileServer(http.FS(staticFS)))
 	r.Handle("/static/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/static/" || r.URL.Path == "/static/index.html" {
@@ -378,7 +365,6 @@ func (s *Server) mountFSSPA(r chi.Router, staticFS fs.FS) {
 			writeErrRequest(w, r, http.StatusNotFound, "接口不存在")
 			return
 		}
-		// index、err 用于本次流程后续判断的index、err
 		index, err := fs.ReadFile(staticFS, "index.html")
 		if err != nil {
 			writeErrRequest(w, r, http.StatusNotFound, "前端未构建")
@@ -390,7 +376,6 @@ func (s *Server) mountFSSPA(r chi.Router, staticFS fs.FS) {
 	})
 }
 
-// setNoStore 封装setNoStore业务协调。
 func setNoStore(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
@@ -399,9 +384,7 @@ func setNoStore(w http.ResponseWriter) {
 
 // isAPIPath 判断是否为 API 路径（不应被 SPA 拦截）。
 // 仅保留实际挂载的路由前缀，与 Router() 中的 mount* 一一对应。
-// isAPIPath 封装isAPI路径业务协调。
 func isAPIPath(path string) bool {
-	// apiPrefixes 用于本次流程后续判断的apiPrefixes
 	apiPrefixes := []string{
 		"/api/", "/admin/", "/health", "/login", "/initialize", "/logout", "/verify",
 		"/change-password", "/change-admin-password", "/account/",
@@ -414,7 +397,6 @@ func isAPIPath(path string) bool {
 		"/qr-login", "/password-login",
 		"/static/", // 静态资源（由 /static/* handler 处理，不进 catch-all）
 	}
-	// p 表示当前遍历过程中的p
 	for _, p := range apiPrefixes {
 		if strings.HasPrefix(path, p) {
 			return true
@@ -425,7 +407,6 @@ func isAPIPath(path string) bool {
 
 // health 健康检查。
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
-	// ctx、cancel 用于本次流程后续判断的ctx、cancel
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 	if s.databaseHealth == nil || s.databaseHealth.Ping(ctx) != nil {
@@ -520,11 +501,9 @@ func (s *Server) Start(ctx context.Context) error {
 		<-ctx.Done()
 		// stopCtx 是自动关闭 HTTP 服务时使用的有限时长上下文。
 		// cancel 释放 stopCtx 的定时器资源。
-		// stopCtx、cancel 用于本次流程后续判断的stopCtx、cancel
 		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if // err 用于本次流程后续判断的err
-		err := s.Stop(stopCtx); err != nil && s.Logger != nil {
+		if err := s.Stop(stopCtx); err != nil && s.Logger != nil {
 			s.Logger.Warn("HTTP 服务关闭异常", "err", err)
 		}
 	}()
@@ -644,9 +623,7 @@ func (s *Server) WaitForBackground() {
 	_ = s.waitForBackgroundContext(context.Background())
 }
 
-// closedSignal 封装closedSignal业务协调。
 func closedSignal() chan struct{} {
-	// done 用于本次流程后续判断的done
 	done := make(chan struct{})
 	close(done)
 	return done

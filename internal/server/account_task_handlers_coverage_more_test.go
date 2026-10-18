@@ -55,7 +55,6 @@ func TestAccountTaskHandlersCoverSuccessAndRequestValidation(t *testing.T) {
 	srv.applications.accountTasks = contractAccountTasksPort{}
 	// handler 是注入应用端口后的真实 HTTP 路由。
 	handler := srv.Router()
-	// cookie 是通过真实认证流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// settingsRequest 是读取账号任务设置的成功请求。
@@ -93,7 +92,6 @@ func TestAccountTaskHandlersCoverSuccessAndRequestValidation(t *testing.T) {
 	invalidRequests := []struct {
 		// body 是请求体原文。
 		body string
-		// want 是预期 HTTP 状态码。
 		want int
 	}{
 		{body: "not-json", want: http.StatusBadRequest},
@@ -131,7 +129,6 @@ func TestAccountTaskHandlersCoverApplicationErrors(t *testing.T) {
 	defer cleanup()
 	// handler 是测试服务器的真实 HTTP 路由。
 	handler := srv.Router()
-	// cookie 是通过真实认证流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// errorCases 保存 handler 错误到 HTTP 状态码的映射样本。
@@ -144,7 +141,6 @@ func TestAccountTaskHandlersCoverApplicationErrors(t *testing.T) {
 		body string
 		// port 是注入的应用层错误替身。
 		port accountTaskHandlerErrorPort
-		// want 是预期 HTTP 状态码。
 		want int
 	}{
 		{path: "/api/account-tasks/acc1", method: http.MethodGet, port: accountTaskHandlerErrorPort{getErr: errors.New("get failed")}, want: http.StatusInternalServerError},
@@ -231,7 +227,6 @@ func TestAnalyticsHandlersCoverSuccessPaginationAndErrors(t *testing.T) {
 	srv.applications.analytics = port
 	// handler 是注入分析应用替身后的真实 HTTP 路由。
 	handler := srv.Router()
-	// cookie 是通过真实认证流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// statsRequest 是仪表盘统计成功请求。
@@ -328,7 +323,6 @@ func TestAdminHandlersCoverApplicationSuccessAndErrors(t *testing.T) {
 	srv.applications.admin = port
 	// handler 是注入管理员应用替身后的真实 HTTP 路由。
 	handler := srv.Router()
-	// cookie 是通过真实认证流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// usersRequest 是管理员用户列表成功请求。
@@ -369,7 +363,6 @@ func TestAdminHandlersCoverApplicationSuccessAndErrors(t *testing.T) {
 		method string
 		// port 是当前注入的错误应用替身。
 		port *adminHandlerCoveragePort
-		// want 是预期 HTTP 状态码。
 		want int
 	}{
 		{path: "/admin/users", method: http.MethodGet, port: &adminHandlerCoveragePort{listErr: errors.New("list failed")}, want: http.StatusInternalServerError},

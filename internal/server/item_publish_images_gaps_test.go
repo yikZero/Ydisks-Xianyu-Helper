@@ -45,7 +45,6 @@ func buildImageZipForTest(t *testing.T, entries []zipEntryForTest) []byte {
 			t.Fatal(err)
 		}
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +53,6 @@ func buildImageZipForTest(t *testing.T, entries []zipEntryForTest) []byte {
 
 // TestExtractPublishImagesZipErrorBranches 覆盖解压流程的各类拒绝与跳过分支。
 func TestExtractPublishImagesZipErrorBranches(t *testing.T) {
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := extractPublishImagesZip([]byte("nope"), t.TempDir()); err == nil {
 		t.Error("invalid zip should fail")
 	}
@@ -68,11 +66,9 @@ func TestExtractPublishImagesZipErrorBranches(t *testing.T) {
 	})
 	// dest 是解压目标目录。
 	dest := t.TempDir()
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := extractPublishImagesZip(mixed, dest); err != nil {
 		t.Fatalf("mixed: %v", err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := os.Stat(filepath.Join(dest, "dir", "ok.png")); err != nil {
 		t.Errorf("image should be extracted: %v", err)
 	}
@@ -83,47 +79,39 @@ func TestExtractPublishImagesZipErrorBranches(t *testing.T) {
 	for i := 0; i <= maxItemPublishZipFiles; i++ {
 		manyEntries = append(manyEntries, zipEntryForTest{name: "f" + strings.Repeat("a", i%7) + string(rune('A'+i%26)) + string(rune('a'+i/26%26)) + string(rune('a'+i/676)) + ".txt", data: []byte("x")})
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := extractPublishImagesZip(buildImageZipForTest(t, manyEntries), t.TempDir()); err == nil {
 		t.Error("too many files should fail")
 	}
 
 	// oversize 的单个图片超过 10 MiB。
 	oversize := buildImageZipForTest(t, []zipEntryForTest{{name: "big.png", data: append(append([]byte{}, pngHeaderForTest...), make([]byte, 10<<20)...)}})
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := extractPublishImagesZip(oversize, t.TempDir()); err == nil {
 		t.Error("oversize image should fail")
 	}
 
 	// img 是一个合法的小图片条目内容。
 	img := append(append([]byte{}, pngHeaderForTest...), 9)
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := extractPublishImagesZip(buildImageZipForTest(t, []zipEntryForTest{{name: "../x.png", data: img}}), t.TempDir()); err == nil {
 		t.Error("unsafe path should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := extractPublishImagesZip(buildImageZipForTest(t, []zipEntryForTest{{name: "x.png", data: img}}), filepath.Join(t.TempDir(), "missing")); err == nil {
 		t.Error("missing dest should fail")
 	}
 
 	// blockedDest 中 a 是普通文件，导致创建 a/ 子目录失败。
 	blockedDest := t.TempDir()
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := os.WriteFile(filepath.Join(blockedDest, "a"), []byte("f"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := extractPublishImagesZip(buildImageZipForTest(t, []zipEntryForTest{{name: "a/x.png", data: img}}), blockedDest); err == nil {
 		t.Error("mkdir conflict should fail")
 	}
 
 	// dirDest 中目标文件名已是目录，导致写文件失败。
 	dirDest := t.TempDir()
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := os.Mkdir(filepath.Join(dirDest, "x.png"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := extractPublishImagesZip(buildImageZipForTest(t, []zipEntryForTest{{name: "x.png", data: img}}), dirDest); err == nil {
 		t.Error("write onto directory should fail")
 	}
@@ -150,7 +138,6 @@ func TestReadBatchImageFileBranches(t *testing.T) {
 	dir := t.TempDir()
 	// writeFile 在 dir 中写入一个文件。
 	writeFile := func(name string, data []byte) {
-		// err 本步骤返回的错误，用于断言失败或成功路径
 		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -160,17 +147,14 @@ func TestReadBatchImageFileBranches(t *testing.T) {
 	writeFile("big.png", append(append([]byte{}, pngHeaderForTest...), make([]byte, 10<<20)...))
 	writeFile("ok.png", append(append([]byte{}, pngHeaderForTest...), 1))
 
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, _, _, err := readBatchImageFile(dir, "../x.png"); err == nil {
 		t.Error("unsafe ref should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, _, _, err := readBatchImageFile(filepath.Join(dir, "nope"), "ok.png"); err == nil {
 		t.Error("missing dir should fail")
 	}
 	// ref 表示每个应失败的图片引用。
 	for _, ref := range []string{"missing.png", "empty.png", "text.png", "big.png"} {
-		// err 本步骤返回的错误，用于断言失败或成功路径
 		if _, _, _, err := readBatchImageFile(dir, ref); err == nil {
 			t.Errorf("%s should fail", ref)
 		}
@@ -184,37 +168,29 @@ func TestReadBatchImageFileBranches(t *testing.T) {
 
 // TestWriteFileWithinRootAndValidateRef 覆盖根目录不存在、目标为目录以及图片引用校验。
 func TestWriteFileWithinRootAndValidateRef(t *testing.T) {
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := writeFileWithinRoot(filepath.Join(t.TempDir(), "missing"), "a", []byte("x")); err == nil {
 		t.Error("missing root should fail")
 	}
 	// dir 是上传根目录，其中 sub 为目录。
 	dir := t.TempDir()
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := writeFileWithinRoot(dir, "sub", []byte("x")); err == nil {
 		t.Error("writing onto directory should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := validateBatchImageRef(dir, "https://example.test/a.png"); err != nil {
 		t.Errorf("http ref: %v", err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := validateBatchImageRef(dir, "../a.png"); err == nil {
 		t.Error("unsafe ref should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := validateBatchImageRef(dir, "sub"); err == nil {
 		t.Error("directory ref should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := validateBatchImageRef(dir, "missing.png"); err == nil {
 		t.Error("missing ref should fail")
 	}
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := randomHex(4); len(got) != 8 {
 		t.Errorf("randomHex length = %d", len(got))
 	}
@@ -232,19 +208,16 @@ func TestDownloadImageURLInvalidAndOversize(t *testing.T) {
 		_, _ = w.Write(make([]byte, 10<<20+10))
 	}))
 	t.Cleanup(srv.Close)
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, _, err := downloadImageURL(context.Background(), srv.URL); err == nil {
 		// 出站客户端自身限制响应体大小时同样以错误返回，业务上都必须拒绝超限图片。
 		t.Errorf("oversize should fail, err=%v", err)
 	}
 	// badURL 表示非 http 协议或缺少主机的地址。
 	for _, badURL := range []string{"ftp://x/a.png", "http:///a.png", "://bad"} {
-		// err 本步骤返回的错误，用于断言失败或成功路径
 		if _, _, err := downloadImageURL(context.Background(), badURL); err == nil {
 			t.Errorf("%q should be invalid", badURL)
 		}
 	}
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := pathBaseFromURL("https://x.test/"); got == "" {
 		t.Error("pathBaseFromURL fallback empty")
 	}

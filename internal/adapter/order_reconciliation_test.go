@@ -10,7 +10,6 @@ import (
 
 // TestOrderReconciliationRepositoryRecordsPending 验证补偿应用模型能写入数据库并返回记录标识。
 func TestOrderReconciliationRepositoryRecordsPending(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及资源清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 保存绑定测试数据库的订单补偿适配器。
@@ -40,12 +39,10 @@ func TestOrderReconciliationRepositoryRejectsMissingDependency(t *testing.T) {
 
 // TestOrderReconciliationRepositoryPropagatesPersistenceError 验证数据库关闭后的错误不会被伪装为成功。
 func TestOrderReconciliationRepositoryPropagatesPersistenceError(t *testing.T) {
-	// store、cleanup 保存随后关闭数据库连接的测试存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 保存绑定已关闭数据库的订单补偿适配器。
 	repository := NewOrderReconciliationRepository(store)
-	// closeErr 表示关闭测试数据库连接时产生的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

@@ -36,7 +36,6 @@ func (f *orderRuntimeFetchFake) FetchSoldOrdersPage(_ context.Context, _ string,
 
 // TestOrderRuntimeFetchesDetailAndSoldOrders 验证详情映射、分页聚合、状态归一化和平台错误传播。
 func TestOrderRuntimeFetchesDetailAndSoldOrders(t *testing.T) {
-	// ctx 是本测试订单刷新调用共用的非取消上下文。
 	ctx := context.Background()
 	// detailFake 保存成功返回详情和两页已售订单的平台替身。
 	detailFake := &orderRuntimeFetchFake{

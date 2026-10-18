@@ -47,7 +47,6 @@ func runAccountUntilDone(t *testing.T, acc *Account, ctx context.Context) error 
 	done := make(chan error, 1)
 	go func() { done <- acc.Run(ctx) }()
 	select {
-	// err 保存 该步骤 调用返回的错误，随后断言它是否符合该场景的预期
 	case err := <-done:
 		return err
 	case <-time.After(5 * time.Second):
@@ -59,7 +58,6 @@ func runAccountUntilDone(t *testing.T, acc *Account, ctx context.Context) error 
 // runAccountUntilDials 运行账号直到拨号次数达到 want，随后取消并等待 Run 退出。
 func runAccountUntilDials(t *testing.T, acc *Account, dialer *fakeDialer, want int) {
 	t.Helper()
-	// ctx、cancel 控制 Run 的生命周期；本函数返回前一定取消并 Join。
 	ctx, cancel := context.WithCancel(context.Background())
 	// done 接收 Run 的返回值。
 	done := make(chan error, 1)
@@ -77,7 +75,6 @@ func runAccountUntilDials(t *testing.T, acc *Account, dialer *fakeDialer, want i
 func TestConnectionCoordinatorNilAccountGuards(t *testing.T) {
 	// coordinator 是没有绑定账号的协调器。
 	coordinator := &connectionCoordinator{}
-	// err 保存 run 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := coordinator.run(context.Background()); err == nil {
 		t.Fatal("未初始化协调器 run 应返回错误")
 	}
@@ -92,11 +89,9 @@ func TestRunRejectsSecondStartAndStoppedLifecycle(t *testing.T) {
 	// stopped 先停止账号，使后续启动被不可逆的停止围栏拒绝。
 	stopCtx, stopCancel := context.WithTimeout(context.Background(), time.Second)
 	defer stopCancel()
-	// err 保存 StopContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := acc.StopContext(stopCtx); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 runAccountUntilDone 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := runAccountUntilDone(t, acc, context.Background()); !errors.Is(err, context.Canceled) {
 		t.Fatalf("已停止账号的 Run 应返回 context.Canceled: %v", err)
 	}
@@ -108,7 +103,6 @@ func TestRunConnectLimitStopsWithAuthExpired(t *testing.T) {
 	acc, _, _, cleanup := newRunAccount(t, &fakeRunMtop{token: "tok"})
 	defer cleanup()
 	acc.wsDialer = &fakeDialer{results: []dialResult{{conn: &fakeWSConn{recvErr: &ws.RegError{Kind: ws.RegErrorConnectLimit, Code: 1, Reason: "limit"}}}}}
-	// err 保存 runAccountUntilDone 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := runAccountUntilDone(t, acc, context.Background()); err != nil {
 		t.Fatalf("会话被移除应正常结束循环: %v", err)
 	}
@@ -122,7 +116,6 @@ func TestRunConnectLimitStopsWithAuthExpired(t *testing.T) {
 func TestRunReconnectsAfterKickoutHeartbeatAndUnknownErrors(t *testing.T) {
 	// cases 描述第一条连接的断线方式。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// first 是第一条连接，随后总会再拨号一条阻塞连接。
 		first *fakeWSConn
@@ -215,7 +208,6 @@ func TestRunStopsWhenAccountDisabledBetweenReconnects(t *testing.T) {
 	// first 在接收阶段禁用账号并立即断线。
 	first := &fakeWSConn{onReceive: func(func(map[string]any)) { store.Cookies.SetStatus(context.Background(), "cid", false) }}
 	acc.wsDialer = &fakeDialer{results: []dialResult{{conn: first}}}
-	// err 保存 runAccountUntilDone 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := runAccountUntilDone(t, acc, context.Background()); err != nil {
 		t.Fatalf("账号被禁用后应正常结束: %v", err)
 	}
@@ -237,7 +229,6 @@ func TestRunRegisterOutcomesWithCancellation(t *testing.T) {
 		return nil
 	}
 	acc.wsDialer = newScriptedDialer(replacing)
-	// err 保存 runAccountUntilDone 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := runAccountUntilDone(t, acc, ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("凭证变化后取消应返回 context.Canceled: %v", err)
 	}
@@ -252,7 +243,6 @@ func TestRunRegisterOutcomesWithCancellation(t *testing.T) {
 	failing := &scriptedWSConn{fakeWSConn: &fakeWSConn{recvBlock: true}}
 	failing.onRegister = func() error { cancel2(); return errors.New("register boom") }
 	acc2.wsDialer = newScriptedDialer(failing)
-	// err 保存 runAccountUntilDone 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := runAccountUntilDone(t, acc2, ctx2); !errors.Is(err, context.Canceled) {
 		t.Fatalf("注册失败且已取消应返回 context.Canceled: %v", err)
 	}
@@ -267,7 +257,6 @@ func TestRunDialFailureWithCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	acc.wsDialer = cancelingDialer{cancel: cancel}
-	// err 保存 runAccountUntilDone 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := runAccountUntilDone(t, acc, ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("拨号失败且已取消应返回 context.Canceled: %v", err)
 	}
@@ -295,7 +284,6 @@ func TestRunRenewCancelsContextBeforeConnect(t *testing.T) {
 	defer cancel()
 	// initial 是带登录有效期标记的 Cookie，使接口续期真正发起请求。
 	initial := "unb=123; havana_lgc_exp=" + fmt.Sprint(time.Now().Add(time.Hour).UnixMilli())
-	// err 保存 UpdateValueExisting 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := store.Cookies.UpdateValueExisting(context.Background(), "cid", initial); err != nil {
 		t.Fatal(err)
 	}
@@ -308,7 +296,6 @@ func TestRunRenewCancelsContextBeforeConnect(t *testing.T) {
 	}))
 	defer srv.Close()
 	acc.renewer = renew.Service{HTTPClient: srv.Client(), SilentHasLoginURL: srv.URL, RetryDelay: -1}
-	// err 保存 runAccountUntilDone 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := runAccountUntilDone(t, acc, ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("续期期间取消应返回 context.Canceled: %v", err)
 	}

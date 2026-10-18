@@ -14,10 +14,8 @@ import (
 
 // TestItemSyncNotifiesRuntimeAfterReleasingCredentialLock 验证 Cookie 提交通知不会在账号凭证锁内重入运行时。
 func TestItemSyncNotifiesRuntimeAfterReleasingCredentialLock(t *testing.T) {
-	// store、cleanup 管理隔离数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是凭证读取和同步提交共用的上下文。
 	ctx := context.Background()
 	// callbackDone 表示运行时通知已经成功重入同一账号凭证锁。
 	callbackDone := make(chan struct{})
@@ -68,10 +66,8 @@ func TestItemSyncNotifiesRuntimeAfterReleasingCredentialLock(t *testing.T) {
 
 // TestItemSyncRejectsStaleCookieWrite 验证同步期间的新登录凭证不会被旧平台响应覆盖；t 管理本地 SQLite 生命周期。
 func TestItemSyncRejectsStaleCookieWrite(t *testing.T) {
-	// store、cleanup 管理隔离数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是凭证读取和写入共用的上下文。
 	ctx := context.Background()
 	// owner、ownerErr 保存合成账号的所有者。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")
@@ -112,10 +108,8 @@ func TestItemSyncRejectsStaleCookieWrite(t *testing.T) {
 
 // TestItemSyncNotifiesRuntimeAfterCookieCommit 验证同步阶段写回平台 Cookie 后会通知运行中的账号。
 func TestItemSyncNotifiesRuntimeAfterCookieCommit(t *testing.T) {
-	// store、cleanup 管理隔离数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是凭证和同步提交共用的上下文。
 	ctx := context.Background()
 	// notified 保存运行时 Cookie 更新通知次数。
 	notified := 0
@@ -145,7 +139,6 @@ func TestItemSyncNotifiesRuntimeAfterCookieCommit(t *testing.T) {
 
 // TestIncompleteItemSyncPreservesItemsAndRules 验证分页层报告错误时，部分列表不能删除现有商品或规则；t 管理本地 SQLite 生命周期。
 func TestIncompleteItemSyncPreservesItemsAndRules(t *testing.T) {
-	// store、cleanup 是隔离数据库及关闭函数，不读取用户业务数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// ctx 是仓储夹具与同步用例的共同上下文。
@@ -187,10 +180,8 @@ func TestIncompleteItemSyncPreservesItemsAndRules(t *testing.T) {
 
 // TestItemSyncPageReturnsPersistenceFailure 验证分页商品任一写入失败时不会伪造成功数量。
 func TestItemSyncPageReturnsPersistenceFailure(t *testing.T) {
-	// store、cleanup 保存分页持久化测试使用的隔离数据库及释放函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是分页同步和数据库断言共用的上下文。
 	ctx := context.Background()
 	// triggerSQL 拒绝指定商品写入，模拟数据库约束失败。
 	triggerSQL := `CREATE TRIGGER deny_page_item BEFORE INSERT ON item_info WHEN NEW.item_id='blocked-page-item' BEGIN SELECT RAISE(FAIL,'page item rejected'); END`
@@ -221,7 +212,6 @@ func TestItemSyncPageReturnsPersistenceFailure(t *testing.T) {
 
 // TestItemSyncCredentialLoadFailuresArePersistenceErrors 验证提交阶段读取凭证失败不会被误报为凭证冲突。
 func TestItemSyncCredentialLoadFailuresArePersistenceErrors(t *testing.T) {
-	// ctx 是凭证提交失败测试共用的上下文。
 	ctx := context.Background()
 	// finishStore、finishCleanup 保存第一阶段提交测试数据库。
 	finishStore, finishCleanup := newAdapterTestStore(t)
@@ -234,7 +224,6 @@ func TestItemSyncCredentialLoadFailuresArePersistenceErrors(t *testing.T) {
 		t.Fatal(beginErr)
 	}
 	finishUnlock()
-	// closeErr 保存第一阶段测试数据库关闭错误。
 	if closeErr := finishStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -257,7 +246,6 @@ func TestItemSyncCredentialLoadFailuresArePersistenceErrors(t *testing.T) {
 		t.Fatal(enrichBeginErr)
 	}
 	enrichUnlock()
-	// closeErr 保存第二阶段测试数据库关闭错误。
 	if closeErr := enrichStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

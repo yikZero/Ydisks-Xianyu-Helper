@@ -10,7 +10,6 @@ import (
 
 // TestItemSyncBeginCoversValidationAndCredentialStates 覆盖商品同步开始阶段的依赖、归属和凭证校验分支。
 func TestItemSyncBeginCoversValidationAndCredentialStates(t *testing.T) {
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// nilRepository 表示未装配商品同步依赖的适配器。
 	nilRepository := NewItemSyncRepository(nil, nil, nil, nil, nil)

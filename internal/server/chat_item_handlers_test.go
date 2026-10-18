@@ -126,7 +126,6 @@ func TestChatItemHandlersRequireAuthentication(t *testing.T) {
 	server, _, cleanup := newTestServer(t)
 	defer cleanup()
 	server.applications.chat = &chatItemHandlerPort{}
-	// handler 是不附带登录 Cookie 时使用的真实 Router。
 	handler := server.Router()
 	// requests 是商品查询与发送的未认证请求。
 	requests := []*http.Request{

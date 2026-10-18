@@ -57,7 +57,7 @@ vet:
 lint:
 	$(GOLANGCI_LINT) run ./...
 
-## architecture: 按总计划当前阶段启用完整架构规则目录中的对应门禁
+## architecture: 检查包依赖边界与架构规则（见 docs/architecture/dependency-rules.md）
 architecture:
 	$(GO) run ./tools/architecturecheck
 
@@ -98,7 +98,7 @@ tidy:
 frontend:
 	cd frontend && npm ci && npm run build
 
-## comments: 严格检查 Go 与 TypeScript/TSX 声明的中文语义注释和模板债务
+## comments: 检查导出声明的文档注释，并拒绝机械占位注释（见 docs/architecture/comment-standard.md）
 comments:
 	$(GO) run ./tools/commentlint -mode check -root .
 	node frontend/scripts/check-comments.mjs --mode check --root frontend

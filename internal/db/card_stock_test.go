@@ -10,7 +10,6 @@ func TestAvailableDataStockCountsOnlyEnabledDataCards(t *testing.T) {
 	// store、cleanup 保存临时 SQLite Store 及测试完成时关闭连接池的函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存卡密组写入和库存查询共用的取消上下文。
 	ctx := context.Background()
 	// createUserOK、createUserErr 保存创建卡密所属用户的结果。
 	createUserOK, createUserErr := store.Users.Create(ctx, "card-stock-user", "card-stock@example.com", "password")

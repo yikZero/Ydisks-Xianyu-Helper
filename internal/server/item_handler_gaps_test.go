@@ -21,8 +21,7 @@ import (
 type itemGapPublishPort struct {
 	// outcome 是 PublishSingle 返回的发布结果。
 	outcome itemapp.PublishOutcome
-	// err 是 PublishSingle 返回的错误。
-	err error
+	err     error
 }
 
 // PublishSingle 返回预设结果。
@@ -34,7 +33,6 @@ func (p itemGapPublishPort) PublishSingle(context.Context, itemapp.PublishInput)
 type itemGapCatalog struct {
 	// ItemCatalogPort 提供未覆盖方法的默认（空）实现。
 	ItemCatalogPort
-	// err 是读取方法返回的错误。
 	err error
 }
 
@@ -55,7 +53,6 @@ func (c itemGapCatalog) Get(context.Context, string, string) (itemapp.CatalogIte
 
 // itemGapMutation 是商品目录写入端口桩，所有写入都返回同一个错误。
 type itemGapMutation struct {
-	// err 是写入方法返回的错误。
 	err error
 }
 
@@ -86,8 +83,7 @@ type itemGapCredentials struct {
 	PlatformCredentialPort
 	// value 是 LoadOwnedValue 成功时返回的 Cookie 占位值。
 	value string
-	// err 是 LoadOwnedValue 返回的错误。
-	err error
+	err   error
 }
 
 // LoadOwnedValue 返回预设结果。
@@ -97,7 +93,6 @@ func (c itemGapCredentials) LoadOwnedValue(context.Context, int64, string) (stri
 
 // itemGapSync 是商品同步端口桩，返回预设错误。
 type itemGapSync struct {
-	// err 是同步方法返回的错误。
 	err error
 }
 
@@ -113,12 +108,9 @@ func (s itemGapSync) SyncPage(context.Context, itemapp.SyncQuery) (itemapp.SyncP
 
 // TestItemCatalogHandlersMapStorageErrors 覆盖商品目录读写失败时的 500 与 404 映射。
 func TestItemCatalogHandlersMapStorageErrors(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// boom 是注入的通用存储错误。
 	boom := errors.New("boom")
@@ -129,8 +121,7 @@ func TestItemCatalogHandlersMapStorageErrors(t *testing.T) {
 	cases := []struct {
 		// method、path、body 描述请求。
 		method, path, body string
-		// want 是期望状态码。
-		want int
+		want               int
 	}{
 		{"GET", "/items", ``, 500},
 		{"GET", "/items?cookie_id=acc1", ``, 500},
@@ -166,8 +157,7 @@ func TestWriteItemSyncErrorMapping(t *testing.T) {
 	// cases 描述应用错误与期望状态码。
 	cases := []struct {
 		// err 是注入的同步错误。
-		err error
-		// want 是期望状态码。
+		err  error
 		want int
 	}{
 		{itemapp.ErrSyncNotOwned, 403},
@@ -191,13 +181,10 @@ func TestWriteItemSyncErrorMapping(t *testing.T) {
 
 // TestItemSyncHandlersPropagateErrors 覆盖同步接口的参数缺失与应用错误映射。
 func TestItemSyncHandlersPropagateErrors(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.applications.itemSync = itemGapSync{err: itemapp.ErrSyncNotOwned}
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// path 表示全量与分页同步接口。
 	for _, path := range []string{"/items/get-all-from-account", "/items/get-by-page"} {
@@ -214,18 +201,13 @@ func TestItemSyncHandlersPropagateErrors(t *testing.T) {
 
 // TestCookieForCurrentUserErrorBranches 覆盖凭证读取返回空 Cookie 与基础设施错误的响应。
 func TestCookieForCurrentUserErrorBranches(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// cases 描述凭证端口错误与期望状态码。
 	cases := []struct {
-		// err 是凭证端口返回的错误。
-		err error
-		// want 是期望状态码。
+		err  error
 		want int
 	}{
 		{accountapp.ErrCredentialEmpty, 400},
@@ -306,16 +288,13 @@ type publishImagePart struct {
 
 // TestPublishItemValidationAndOutcomeMapping 覆盖单商品发布的字段校验、图片校验与发布结果映射。
 func TestPublishItemValidationAndOutcomeMapping(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	// port 是可切换结果的发布端口桩。
 	port := &itemGapPublishPort{}
 	srv.applications.itemSinglePublish = itemGapPublishDelegate{port}
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// png 是最小 PNG 图片字节。
 	png := []byte("\x89PNG\r\n\x1a\n")
@@ -381,8 +360,7 @@ func TestPublishItemValidationAndOutcomeMapping(t *testing.T) {
 		// outcome、err 是端口返回。
 		outcome itemapp.PublishOutcome
 		err     error
-		// want 是期望状态码。
-		want int
+		want    int
 	}{
 		{"stock permission", itemapp.PublishOutcome{}, &itemapp.PublishError{Code: itemapp.PublishErrorStockPermissionMissing}, 403},
 		{"publish error", itemapp.PublishOutcome{}, &itemapp.PublishError{Code: itemapp.PublishErrorUnknown, Ret: []string{"x"}}, 502},
@@ -433,31 +411,24 @@ func (d itemGapPublishDelegate) PublishSingle(ctx context.Context, input itemapp
 
 // TestItemImageFromDetailFallback 覆盖详情中 item_image 兜底字段和无图详情。
 func TestItemImageFromDetailFallback(t *testing.T) {
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := itemImageFromDetail(`{"item_image":"https://x/a.png"}`); got != "https://x/a.png" {
 		t.Errorf("fallback image = %q", got)
 	}
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := itemImageFromDetail(`{"pic_info":{"picUrl":"https://x/b.png"}}`); got != "https://x/b.png" {
 		t.Errorf("pic image = %q", got)
 	}
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := itemImageFromDetail(`{"other":1}`); got != "" {
 		t.Errorf("no image = %q", got)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseMoneyCents("1.234"); err == nil {
 		t.Error("three decimals should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseMoneyCents("1.x"); err == nil {
 		t.Error("non numeric fraction should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseMoneyCents("1.2.3"); err == nil {
 		t.Error("two dots should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseMoneyCents("x"); err == nil {
 		t.Error("non numeric should fail")
 	}

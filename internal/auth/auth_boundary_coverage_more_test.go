@@ -11,7 +11,6 @@ func TestAuthCoversSessionCreationAndAdminFlagPersistenceFailures(t *testing.T) 
 	// service、cleanup 保存登录会话写入失败测试服务及清理责任。
 	service, cleanup := newAuth(t)
 	defer cleanup()
-	// ctx 是认证数据库操作共用的上下文。
 	ctx := context.Background()
 	// triggerErr 保存阻止会话插入的 SQLite 触发器创建错误。
 	if _, triggerErr := service.Store.DB.ExecContext(ctx, `CREATE TRIGGER reject_auth_session_insert

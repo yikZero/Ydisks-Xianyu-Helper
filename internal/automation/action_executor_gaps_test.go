@@ -18,7 +18,6 @@ func (offlineSenders) Sender(string) (MessageSender, bool) { return nil, false }
 // newConsignGapCenter 创建注入指定平台替身与可选恢复器的中心，返回中心、数据库与恢复替身。
 func newConsignGapCenter(t *testing.T, client *fakeMTop, withRecoverer bool, recoverFail bool) (*Center, *db.Store, *fakeCredentialRecoverer) {
 	t.Helper()
-	// store、cleanup 是隔离数据库及关闭函数。
 	store, cleanup := newAutomationTestStore(t)
 	t.Cleanup(cleanup)
 	// deps 是待注入的依赖。
@@ -34,7 +33,6 @@ func newConsignGapCenter(t *testing.T, client *fakeMTop, withRecoverer bool, rec
 
 // TestConfirmShipmentAttemptGapBranches 覆盖确认发货（普通接口）的会话、凭证恢复与能力降级分支；全程不得调用免拼接口。
 func TestConfirmShipmentAttemptGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// task 是账号 cid 的确认发货任务。
 	task := Task{AccountID: "cid", OrderID: "consign-gap", ItemID: "i", BuyerID: "b", ChatID: "c"}
@@ -64,7 +62,6 @@ func TestConfirmShipmentAttemptGapBranches(t *testing.T) {
 	t.Run("旧客户端回退普通确认接口且不调用免拼", func(t *testing.T) {
 		// inner 记录调用次数。
 		inner := &fakeMTop{consignOk: true, consignRet: []string{"SUCCESS::ok"}}
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// center 的客户端只暴露接口方法，不带凭证能力。
@@ -103,7 +100,6 @@ func TestConfirmShipmentAttemptGapBranches(t *testing.T) {
 
 // TestPersistConfirmedShipmentGapBranches 覆盖远端已确认发货后本地事实与补偿记录的写入失败分支。
 func TestPersistConfirmedShipmentGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// task 是已被平台确认发货的订单任务。
 	task := Task{AccountID: "cid", OrderID: "persist-gap", ItemID: "i", BuyerID: "b", ChatID: "c"}
@@ -143,9 +139,7 @@ func TestPersistConfirmedShipmentGapBranches(t *testing.T) {
 
 // TestActionExecutorTextGapBranches 覆盖文本动作渲染为空和账号离线两种前置结果。
 func TestActionExecutorTextGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 的发送器提供方报告账号离线。

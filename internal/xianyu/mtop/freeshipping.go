@@ -18,16 +18,16 @@ import (
 func (c *ClientImpl) FreeShippingContext(ctx context.Context, cookiesStr, orderID, itemID, buyerID string) (ok bool, ret []string, updatedCookies string, err error) {
 	// currentCookies 保存本次免拼请求实际使用的明文凭证，只在请求与响应 Cookie 合并期间存在。
 	currentCookies := cookiesStr
-	if // session 用于优先读取调用方维护的权威 Cookie 会话。
-	session := cookieSessionFromContext(ctx); session != nil {
+	// session 用于优先读取调用方维护的权威 Cookie 会话。
+	if session := cookieSessionFromContext(ctx); session != nil {
 		currentCookies, _, _ = session.State()
 	}
 	// lastRet 保存 Token 重试耗尽时最后一次平台返回，便于上层保持业务错误分类。
 	var lastRet []string
 	// transientSyncFailure 标记最近一次失败是否只是团购实例尚未完成平台侧同步。
 	transientSyncFailure := false
-	for // attempt 是包含首次请求在内的免拼发货尝试序号。
-	attempt := 0; attempt < 4; attempt++ {
+	// attempt 是包含首次请求在内的免拼发货尝试序号。
+	for attempt := 0; attempt < 4; attempt++ {
 		// transientSyncFailure 只描述当前这一轮响应，不能把上一轮的同步错误带入 Token 分支。
 		transientSyncFailure = false
 		// previousCookies 保存本次请求前签名 Cookie，用于判断响应是否已轮换 Token。

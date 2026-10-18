@@ -24,7 +24,6 @@ func TestCodeForStatusCoversHTTPContract(t *testing.T) {
 	}
 	// testCase 表示当前待验证的 HTTP 状态码映射样例。
 	for _, testCase := range cases {
-		// got 是当前 HTTP 状态码对应的统一错误码。
 		got := CodeForStatus(testCase.status)
 		if got != testCase.want {
 			t.Fatalf("status=%d code=%q want=%q", testCase.status, got, testCase.want)

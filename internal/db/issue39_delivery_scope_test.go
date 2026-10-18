@@ -30,7 +30,6 @@ func TestMultiDB_Issue39RelistingAndDeliveryScope(t *testing.T) {
 	for _, target := range allTestTargets(t) {
 		t.Run(target.name, func(t *testing.T) {
 			defer target.cleanup()
-			// ctx 限定所有本地仓储操作的请求生命周期。
 			ctx := context.Background()
 			// store 是该方言的仓储实现。
 			store := target.store

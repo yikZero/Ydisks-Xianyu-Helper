@@ -15,7 +15,6 @@ import (
 	"xianyu-go/internal/xianyu/protocol"
 )
 
-// soldOrdersReferer 用于本次流程后续判断的sold订单列表Referer
 const soldOrdersReferer = "https://seller.goofish.com/?site=COMMONPRO#/seller-trade/order-manage"
 
 // SoldOrderFetcher 是订单同步使用的可选能力，不扩展基础 Client 接口，避免影响其他调用方的 mock。
@@ -57,16 +56,16 @@ var _ SoldOrderFetcher = (*ClientImpl)(nil)
 func (c *ClientImpl) FetchSoldOrdersPage(ctx context.Context, cookies string, pageNumber, pageSize int) (*SoldOrdersPage, error) {
 	// currentCookies 保存本轮订单列表请求实际使用的 Cookie，不向日志或错误输出。
 	currentCookies := cookies
-	if // session 用于吸收没有显式会话调用方收到的 Set-Cookie。
-	session := cookieSessionFromContext(ctx); session != nil {
+	// session 用于吸收没有显式会话调用方收到的 Set-Cookie。
+	if session := cookieSessionFromContext(ctx); session != nil {
 		currentCookies, _, _ = session.State()
 	} else {
 		ctx, _ = WithFlatCookieSession(ctx, currentCookies)
 	}
 	// lastFailure 保存 Token 重试耗尽时最后一次平台失败。
 	var lastFailure error
-	for // attempt 表示含首次请求在内的重试序号。
-	attempt := 0; attempt < 4; attempt++ {
+	// attempt 表示含首次请求在内的重试序号。
+	for attempt := 0; attempt < 4; attempt++ {
 		// page、err 保存一次订单列表请求的结果。
 		page, err := c.fetchSoldOrdersPageOnce(ctx, currentCookies, pageNumber, pageSize)
 		if err == nil {
@@ -78,8 +77,8 @@ func (c *ClientImpl) FetchSoldOrdersPage(ctx context.Context, cookies string, pa
 		lastFailure = err
 		// previousCookies 用于判断当前会话是否已经吸收响应下发的新签名 Cookie。
 		previousCookies := currentCookies
-		if // session 用于读取响应刚吸收的最新 Cookie。
-		session := cookieSessionFromContext(ctx); session != nil {
+		// session 用于读取响应刚吸收的最新 Cookie。
+		if session := cookieSessionFromContext(ctx); session != nil {
 			currentCookies, _, _ = session.State()
 		}
 		if !mtopTokenCookieChanged(previousCookies, currentCookies) {
@@ -93,8 +92,8 @@ func (c *ClientImpl) FetchSoldOrdersPage(ctx context.Context, cookies string, pa
 		if attempt == 3 {
 			break
 		}
-		if // sleepErr 表示两次平台请求之间等待期间的取消错误。
-		sleepErr := sleepCtx(ctx, MTopRetryGap); sleepErr != nil {
+		// sleepErr 表示两次平台请求之间等待期间的取消错误。
+		if sleepErr := sleepCtx(ctx, MTopRetryGap); sleepErr != nil {
 			return nil, sleepErr
 		}
 	}
@@ -246,9 +245,7 @@ func soldOrdersNextPage(value any) (bool, bool) {
 	return false, false
 }
 
-// buildSoldOrdersQuery 封装buildSold订单列表查询业务协调。
 func buildSoldOrdersQuery(timestamp, sign string) string {
-	// values 用于本次流程后续判断的values
 	values := url.Values{
 		"jsv":           {"2.7.2"},
 		"appKey":        {protocol.SignAppKey},
@@ -267,46 +264,31 @@ func buildSoldOrdersQuery(timestamp, sign string) string {
 	return values.Encode()
 }
 
-// parseSoldOrder 封装parseSold订单业务协调。
 func parseSoldOrder(raw any) (SoldOrder, bool) {
-	// item、ok 用于本次流程后续判断的item、ok
 	item, ok := raw.(map[string]any)
 	if !ok {
 		return SoldOrder{}, false
 	}
-	// common 用于本次流程后续判断的common
 	common, _ := item["commonData"].(map[string]any)
-	// buyer 用于本次流程后续判断的买家
 	buyer, _ := item["buyerInfoVO"].(map[string]any)
-	// price 用于本次流程后续判断的price
 	price, _ := item["priceVO"].(map[string]any)
-	// rights 用于本次流程后续判断的rights
 	rights, _ := item["rightVO"].(map[string]any)
-	// orderID 用于本次流程后续判断的订单ID
 	orderID := strings.TrimSpace(mtopString(common["orderId"]))
 	if orderID == "" {
 		return SoldOrder{}, false
 	}
-	// rawStatus 用于本次流程后续判断的原始状态
 	rawStatus := strings.TrimSpace(mtopString(common["orderStatus"]))
-	// status 用于本次流程后续判断的状态
 	status := normalizeSoldOrderStatus(rawStatus, mtopBool(common["inRefund"]))
-	// amount 用于本次流程后续判断的amount
 	amount := firstMTopString(price, "totalPrice", "confirmFee", "auctionPrice")
 	// createdAt 保存平台订单创建时间，优先兼容卖家订单响应中常见的时间字段命名。
 	createdAt := soldOrderCreatedAt(item, common)
-	// quantity 用于本次流程后续判断的quantity
 	quantity := firstMTopString(price, "buyNum", "quantity")
 	if quantity == "" || quantity == "0" {
 		quantity = "1"
 	}
-	// isBargain 用于本次流程后续判断的isBargain
 	isBargain := false
-	// buttons 用于本次流程后续判断的buttons
 	buttons, _ := rights["btnList"].([]any)
-	// rawButton 表示当前遍历过程中的原始Button
 	for _, rawButton := range buttons {
-		// button 用于本次流程后续判断的button
 		button, _ := rawButton.(map[string]any)
 		if strings.EqualFold(mtopString(button["tradeAction"]), "SKIP_PIN") {
 			isBargain = true
@@ -402,7 +384,6 @@ func normalizeSoldOrderTime(raw string) string {
 	return ""
 }
 
-// normalizeSoldOrderStatus 封装normalizeSold订单状态业务协调。
 func normalizeSoldOrderStatus(raw string, inRefund bool) string {
 	if inRefund {
 		return "refunding"
@@ -425,22 +406,17 @@ func normalizeSoldOrderStatus(raw string, inRefund bool) string {
 	}
 }
 
-// firstMTopString 封装firstMTopString业务协调。
 func firstMTopString(values map[string]any, keys ...string) string {
-	// key 表示当前遍历过程中的key
 	for _, key := range keys {
-		if // value 用于本次流程后续判断的值
-		value := strings.TrimSpace(mtopString(values[key])); value != "" {
+		if value := strings.TrimSpace(mtopString(values[key])); value != "" {
 			return value
 		}
 	}
 	return ""
 }
 
-// mtopBool 封装mtopBool业务协调。
 func mtopBool(value any) bool {
-	switch // typed 用于本次流程后续判断的typed
-	typed := value.(type) {
+	switch typed := value.(type) {
 	case bool:
 		return typed
 	case float64:
@@ -448,7 +424,6 @@ func mtopBool(value any) bool {
 	case int:
 		return typed != 0
 	case string:
-		// normalized 用于本次流程后续判断的normalized
 		normalized := strings.ToLower(strings.TrimSpace(typed))
 		return normalized == "true" || normalized == "1" || normalized == "yes"
 	default:

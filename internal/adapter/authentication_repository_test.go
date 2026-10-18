@@ -13,12 +13,10 @@ import (
 
 // TestAuthenticationRepositoryMapsLoginAndPasswordOperations 验证认证端口在 SQLite 中映射登录、会话和改密行为。
 func TestAuthenticationRepositoryMapsLoginAndPasswordOperations(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的认证适配器。
 	repository := NewAuthenticationRepository(store)
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// setAdminErr 保存测试管理员标记结果，确保初始化状态与夹具语义一致。
 	if setAdminErr := store.Users.SetAdmin(ctx, "admin"); setAdminErr != nil {
@@ -73,7 +71,6 @@ func TestAuthenticationRepositoryMapsInitializationAndUsernameConflicts(t *testi
 	store := db.NewStore(database, dialect)
 	// repository 是绑定全新数据库的认证适配器。
 	repository := NewAuthenticationRepository(store)
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// created、createErr 保存首次管理员初始化结果。
 	created, createErr := repository.InitializeAdmin(ctx, "admin@example.com", "password")
@@ -109,7 +106,6 @@ func TestAuthenticationRepositoryMapsInitializationAndUsernameConflicts(t *testi
 func TestAuthenticationRepositoryRejectsMissingDependencies(t *testing.T) {
 	// repository 是未装配数据库的认证适配器。
 	repository := NewAuthenticationRepository(nil)
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// initializedErr 保存缺少用户仓储时的初始化状态错误。
 	if _, initializedErr := repository.IsSystemInitialized(ctx); initializedErr == nil {
@@ -147,7 +143,6 @@ func TestAuthenticationRepositoryRejectsMissingDependencies(t *testing.T) {
 
 // TestAuthenticationRepositoryCoversInactiveUserAndClosedDatabase 验证未激活用户和数据库故障的认证语义。
 func TestAuthenticationRepositoryCoversInactiveUserAndClosedDatabase(t *testing.T) {
-	// store、cleanup 保存认证边界测试数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 保存绑定测试数据库的认证适配器。
@@ -192,7 +187,6 @@ func TestAuthenticationRepositoryCoversInactiveUserAndClosedDatabase(t *testing.
 
 // TestAuthenticationRepositoryCoversAdminInitializationFailures 覆盖管理员重置、创建和管理员标记失败分支。
 func TestAuthenticationRepositoryCoversAdminInitializationFailures(t *testing.T) {
-	// ctx 保存管理员初始化边界测试共用的数据库上下文。
 	ctx := context.Background()
 	// updateStore、updateCleanup 保存密码更新 SQL 失败场景的 Store。
 	updateStore, updateCleanup := newAdapterTestStore(t)

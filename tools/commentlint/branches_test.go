@@ -2,9 +2,6 @@ package main
 
 import (
 	"flag"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,7 +18,7 @@ func runMainWith(t *testing.T, args ...string) {
 	main()
 }
 
-// cleanFixtureTree 创建一棵所有声明均带中文注释的夹具树并返回根目录。
+// cleanFixtureTree 创建一棵导出声明均带文档注释的夹具树并返回根目录。
 func cleanFixtureTree(t *testing.T) string {
 	t.Helper()
 	// root 是夹具根目录。
@@ -47,11 +44,9 @@ func TestMainTemplateAuditModeReportsFindings(t *testing.T) {
 func TestCollectFunctionsFailOnMissingRoot(t *testing.T) {
 	// missing 是不存在的根目录。
 	missing := filepath.Join(t.TempDir(), "missing")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := collectFindings(missing); err == nil {
 		t.Fatal("collectFindings 应失败")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := collectTemplateCommentFindings(missing); err == nil {
 		t.Fatal("collectTemplateCommentFindings 应失败")
 	}
@@ -62,19 +57,15 @@ func TestCollectFunctionsFailOnUnparsableGoFile(t *testing.T) {
 	// root 含一个语法错误文件。
 	root := t.TempDir()
 	writeFixture(t, root, "broken.go", "package broken\nfunc (")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := collectFindings(root); err == nil {
 		t.Fatal("collectFindings 应报告解析错误")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := collectTemplateCommentFindings(root); err == nil {
 		t.Fatal("collectTemplateCommentFindings 应报告解析错误")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := templateFindingsInGoFile(root, filepath.Join(root, "broken.go")); err == nil {
 		t.Fatal("templateFindingsInGoFile 应报告解析错误")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := inspectGoFile(root, filepath.Join(root, "broken.go")); err == nil {
 		t.Fatal("inspectGoFile 应报告解析错误")
 	}
@@ -102,79 +93,10 @@ func TestPathHelpersTolerateRelativeRootMismatch(t *testing.T) {
 	if shouldSkipDirectory(file, "relative-root") {
 		t.Fatal("Rel 失败时不应跳过目录")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := inspectGoFile("relative-root", file); err == nil {
 		t.Fatal("Rel 失败应返回错误")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := templateFindingsInGoFile("relative-root", file); err == nil {
 		t.Fatal("Rel 失败应返回错误")
-	}
-}
-
-// TestCheckIdentifiersSkipsBlankAndMissingBindings 验证 `_` 与缺失的 range 键值不会被报告，具名变量才会。
-func TestCheckIdentifiersSkipsBlankAndMissingBindings(t *testing.T) {
-	// root 的函数体含 `for range`、`for _, v` 与 `a, _ :=` 三种绑定。
-	root := t.TempDir()
-	writeFixture(t, root, "pkg/ids.go", `package pkg
-
-// Run 是夹具函数。
-func Run(xs []int) {
-	for range xs {
-	}
-	for _, v := range xs {
-		_ = v
-	}
-	a, _ := 1, 2
-	_ = a
-}
-`)
-	// findings、err 是检查结果；只应出现 v 和 a。
-	findings, err := inspectGoFile(root, filepath.Join(root, "pkg", "ids.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	// names 收集被报告的变量名。
-	names := map[string]bool{}
-	// finding 是当前结果项。
-	for _, finding := range findings {
-		names[finding.Name] = true
-	}
-	if len(findings) != 2 || !names["v"] || !names["a"] {
-		t.Fatalf("findings=%+v", findings)
-	}
-}
-
-// TestCheckFieldDirectly 直接调用 checkField：生产遍历中字段的父节点是 FieldList 而非 StructType，导致该函数实际不可达，这里单独验证其自身逻辑。
-func TestCheckFieldDirectly(t *testing.T) {
-	// source 含无注释具名字段、匿名字段与带注释字段。
-	source := "package p\n\ntype S struct {\n\tA int\n\tB, C string\n\tfmt.Stringer\n\t// 已注释字段。\n\tD int\n}\n"
-	// fileSet、file、err 是解析结果。
-	fileSet := token.NewFileSet()
-	// err、file 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
-	file, err := parser.ParseFile(fileSet, "p.go", source, parser.ParseComments)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// findings 收集 checkField 的输出。
-	var findings []Finding
-	ast.Inspect(file, func(node ast.Node) bool {
-		// ok、structType 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
-		if structType, ok := node.(*ast.StructType); ok {
-			// field 是当前结构体字段。
-			for _, field := range structType.Fields.List {
-				checkField(file, fileSet, "p.go", field, &findings)
-			}
-		}
-		return true
-	})
-	// names 收集被报告的字段名。
-	names := map[string]bool{}
-	// finding 是当前结果项。
-	for _, finding := range findings {
-		names[finding.Name] = true
-	}
-	if len(findings) != 4 || !names["A"] || !names["B"] || !names["C"] || !names["anonymous"] || names["D"] {
-		t.Fatalf("findings=%+v", findings)
 	}
 }

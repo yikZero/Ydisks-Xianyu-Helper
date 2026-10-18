@@ -1,5 +1,6 @@
 import React from 'react';
 
+// xianyuEmojis 闲鱼文本表情目录：[表情名称, 图片地址]。
 export const xianyuEmojis = [
   [
     "尊嘟假嘟",
@@ -505,12 +506,13 @@ export const xianyuEmojis = [
     "爱心",
     "https://img.alicdn.com/imgextra/i1/O1CN015RVSWf23s25eETJqO_!!6000000007310-2-tps-980-980.png_110x10000.jpg_.webp"
   ]
-] as const; /* xianyuEmojis 表示xianyuEmojis。 */
+] as const;
 
 export const emojiURL = (url: string) => url; /* emojiURL 表示emoji请求地址。 */
 // emojiLookup 将闲鱼文本表情名称映射为图片地址，供渲染函数快速查找。
 const emojiLookup = new Map<string, string>(xianyuEmojis.map(([name, url]) => [name, url] /* name 和 url 是表情目录中的名称及静态地址。 */));
 
+// renderXianyuText 把消息文本中的 [表情名] 替换为对应表情图片，未知表情保持原文。
 export const renderXianyuText = (text: string) => text.split(/(\[[^\]]+\])/g).map((part, index) => {
   const url = part.startsWith('[') ? emojiLookup.get(part.slice(1, -1)) : undefined; /* url 表示请求地址。 */
   return url ? <img key={index} src={url} alt={part} title={part} className="mx-0.5 inline-block h-7 w-7 align-middle" /> : <React.Fragment key={index}>{part}</React.Fragment>;

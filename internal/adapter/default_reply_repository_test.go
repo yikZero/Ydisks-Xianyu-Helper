@@ -96,7 +96,6 @@ func TestDefaultReplyRepositoryPropagatesInfrastructureErrors(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定已关闭数据库的默认回复适配器。
 	repository := NewDefaultReplyRepository(store)
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

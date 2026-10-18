@@ -113,7 +113,6 @@ func TestAutomationImageSenderUploadsURLContentBeforeSending(t *testing.T) {
 func TestAutomationImageSenderFailsBeforeWebSocketForPreparationErrors(t *testing.T) {
 	// cases 覆盖图片发送前的确定性准备失败场景。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// downloader 控制远程图片读取结果。
 		downloader automationImageDownloader

@@ -13,22 +13,18 @@ import (
 // setupGapAI 创建启用 AI 且已配置密钥与模型服务地址的账号；mode 是写入的 ai_mode 工作模式。
 func setupGapAI(t *testing.T, mode string) (*AIReplierImpl, *db.Store, string) {
 	t.Helper()
-	// store、cleanup 是隔离数据库及其释放函数。
 	store, cleanup := newAIStore(t)
 	t.Cleanup(cleanup)
 	// ctx 是测试配置阶段使用的上下文。
 	ctx := context.Background()
 	// server 是返回固定回复的本地模型服务。
 	server := mockOpenAIServer(t, 0, "好的")
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(ctx, `INSERT INTO ai_reply_settings (cookie_id, ai_enabled, custom_prompts, ai_mode) VALUES ('cid', 1, '', ?)`, mode); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := store.Settings.Set(ctx, "ai_api_key", "sk-test"); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := store.Settings.Set(ctx, "ai_api_url", server.URL); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +37,6 @@ func TestAIReplyStoreFailures(t *testing.T) {
 	ctx := context.Background()
 	// cases 描述每个故障注入：破坏的 SQL 语句、触发消息、期望的错误片段。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// breakSQL 是在配置完成后破坏某个存储依赖的 SQL。
 		breakSQL string
@@ -60,7 +55,6 @@ func TestAIReplyStoreFailures(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// replier、store 是已配置完成的回复器及其数据库。
 			replier, store, _ := setupGapAI(t, "full_service")
-			// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 			if _, err := store.DB.ExecContext(ctx, tc.breakSQL); err != nil {
 				t.Fatal(err)
 			}
@@ -90,12 +84,10 @@ func TestAIReplyRejectsInvalidEndpoint(t *testing.T) {
 
 // TestGlobalAIConfigDefaultsAndErrors 验证全局配置缺省值回填和密钥读取失败。
 func TestGlobalAIConfigDefaultsAndErrors(t *testing.T) {
-	// store、cleanup 是隔离数据库及其释放函数。
 	store, cleanup := newAIStore(t)
 	defer cleanup()
 	// ctx 是配置读取使用的上下文。
 	ctx := context.Background()
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := store.Settings.Set(ctx, "ai_api_key", " sk "); err != nil {
 		t.Fatal(err)
 	}
@@ -106,11 +98,9 @@ func TestGlobalAIConfigDefaultsAndErrors(t *testing.T) {
 	if err != nil || config.BaseURL != defaultAIBaseURL || config.Model != defaultAIModel || config.APIKey != "sk" {
 		t.Fatalf("缺省值回填异常: %+v err=%v", config, err)
 	}
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(ctx, `DROP TABLE system_settings`); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 globalAIConfig 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := replier.globalAIConfig(ctx); err == nil {
 		t.Fatal("设置表不可读时应返回错误")
 	}
@@ -118,12 +108,10 @@ func TestGlobalAIConfigDefaultsAndErrors(t *testing.T) {
 
 // TestAIItemInfoDefaultDescriptionAndOfferParseOverflow 验证商品描述和详情都为空时的兜底，以及超出范围的报价标记被拒绝执行。
 func TestAIItemInfoDefaultDescriptionAndOfferParseOverflow(t *testing.T) {
-	// store、cleanup 是隔离数据库及其释放函数。
 	store, cleanup := newAIStore(t)
 	defer cleanup()
 	// ctx 是查询使用的上下文。
 	ctx := context.Background()
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(ctx, `INSERT INTO item_info (cookie_id,item_id,item_title,item_price,item_description,item_detail) VALUES ('cid','bare','T','5','','')`); err != nil {
 		t.Fatal(err)
 	}

@@ -179,7 +179,6 @@ func TestServiceListReturnsApplicationSummaries(t *testing.T) {
 
 // TestServiceListAndMutationValidation 验证列表、删除和清理入口共享用户与账号校验。
 func TestServiceListAndMutationValidation(t *testing.T) {
-	// ctx 是本测试所有服务调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是用于触发输入校验的空内存 Port。
 	repository := &fakeRepository{}

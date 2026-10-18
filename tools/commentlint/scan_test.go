@@ -22,71 +22,87 @@ func writeFixture(t *testing.T, root, relative, content string) {
 	}
 }
 
-// TestInspectGoFileReportsEveryDeclarationKind 覆盖函数、变量、类型、结构体/接口字段、匿名字段、短变量与 range 变量的缺注释识别，以及有注释时的放行。
-func TestInspectGoFileReportsEveryDeclarationKind(t *testing.T) {
-	// root 是夹具根目录。
+// TestInspectGoFileReportsExportedAPIOnly 验证只有导出函数、导出类型上的导出方法和导出类型需要文档，
+// 未导出声明、局部变量、字段和标准接口方法不再强制注释。
+func TestInspectGoFileReportsExportedAPIOnly(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "bad.go", `package bad
 
-import "fmt"
-
-var _ = 1
 var plain int
-const grouped = 1
 type Thing struct {
 	Named string
-	fmt.Stringer
 }
-type Iface interface {
-	Method()
-}
-func missing() {
+type hidden struct{}
+func Missing() {
 	local := 1
-	for index, value := range []int{1} {
-		_, _ = index, value
-	}
 	_ = local
 }
+func (Thing) Method() {}
+func (Thing) Error() string { return "" }
+func (hidden) Exported() {}
+func unexported() {}
+type (
+	Grouped int
+	// Documented 有文档。
+	Documented int
+)
 `)
 	writeFixture(t, root, "good.go", `package good
 
-// plain 是带中文说明的变量。
-var plain int
-
-// Thing 是带中文说明的类型。
+// Thing 是带说明的类型。
 type Thing struct {
-	// Named 是带中文说明的字段。
 	Named string
 }
 
-// ok 是带中文说明的函数。
-func ok() {
-	// local 是带中文说明的短变量。
-	local := 1
-	_ = local
-}
+// Run is documented in English, which is also accepted.
+func Run() {}
+
+// Method 是带说明的方法。
+func (Thing) Method() {}
 `)
-	// findings、inspectErr 是缺注释夹具的扫描结果。
 	findings, inspectErr := inspectGoFile(root, filepath.Join(root, "bad.go"))
 	if inspectErr != nil {
 		t.Fatal(inspectErr)
 	}
-	// kinds 统计各声明类别的命中次数。
-	kinds := map[string]int{}
-	// finding 是当前扫描记录。
+	names := map[string]string{}
 	for _, finding := range findings {
-		kinds[finding.Kind]++
+		names[finding.Name] = finding.Kind
 	}
-	// kind 是当前遍历到的元素，用于逐项断言或处理。
-	for _, kind := range []string{"function", "var", "const", "type", "local-variable", "range-variable"} {
-		if kinds[kind] == 0 {
-			t.Fatalf("缺少类别 %s: %+v", kind, findings)
+	want := map[string]string{"Thing": "type", "Missing": "function", "Method": "function", "Grouped": "type"}
+	if len(names) != len(want) {
+		t.Fatalf("findings=%+v", findings)
+	}
+	for name, kind := range want {
+		if names[name] != kind {
+			t.Fatalf("缺少 %s(%s): %+v", name, kind, findings)
 		}
 	}
-	// goodFindings 是完整注释夹具的扫描结果，必须为空。
 	goodFindings, goodErr := inspectGoFile(root, filepath.Join(root, "good.go"))
 	if goodErr != nil || len(goodFindings) != 0 {
 		t.Fatalf("good findings=%+v err=%v", goodFindings, goodErr)
+	}
+}
+
+// TestReceiverTypeNameHandlesGenericReceivers 验证泛型和指针接收者能解析出基础类型名。
+func TestReceiverTypeNameHandlesGenericReceivers(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "generic.go", `package generic
+
+type Box[T any] struct{ v T }
+type Pair[K comparable, V any] struct{}
+
+func (b *Box[T]) Get() T { return b.v }
+func (Pair[K, V]) Keys() {}
+`)
+	findings, err := inspectGoFile(root, filepath.Join(root, "generic.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 4 {
+		t.Fatalf("findings=%+v", findings)
+	}
+	if receiverTypeName(&ast.SelectorExpr{}) != "" {
+		t.Fatal("未知接收者表达式应返回空名称")
 	}
 }
 
@@ -95,7 +111,7 @@ func TestCollectFindingsWalksTreeAndSkipsExcluded(t *testing.T) {
 	// root 是夹具根目录。
 	root := t.TempDir()
 	// missing 是缺少注释的最小源码。
-	const missing = "package p\nvar x int\n"
+	const missing = "package p\nfunc X() {}\n"
 	writeFixture(t, root, "b.go", missing)
 	writeFixture(t, root, "a.go", missing)
 	writeFixture(t, root, "gen.gen.go", missing)
@@ -103,6 +119,7 @@ func TestCollectFindingsWalksTreeAndSkipsExcluded(t *testing.T) {
 	writeFixture(t, root, "node_modules/dep/x.go", missing)
 	writeFixture(t, root, "internal/webui/static/x.go", missing)
 	writeFixture(t, root, "internal/browser/slider.go", missing)
+	writeFixture(t, root, "c_test.go", missing)
 	// findings、collectErr 是整棵树的扫描结果。
 	findings, collectErr := collectFindings(root)
 	if collectErr != nil {
@@ -159,11 +176,8 @@ func TestShouldSkipDirectoryAndFrozenFiles(t *testing.T) {
 	}
 }
 
-// TestHelpersCoverChineseDetectionNamesAndSorting 覆盖汉字检测、匿名函数名、稳定排序的全部比较分支。
-func TestHelpersCoverChineseDetectionNamesAndSorting(t *testing.T) {
-	if !containsChinese("含有中文") || containsChinese("english only") {
-		t.Fatal("containsChinese 判断错误")
-	}
+// TestHelpersCoverNamesAndSorting 覆盖匿名函数名和稳定排序的全部比较分支。
+func TestHelpersCoverNamesAndSorting(t *testing.T) {
 	if funcName(nil) != "anonymous" || funcName(&ast.Ident{Name: ""}) != "anonymous" || funcName(&ast.Ident{Name: "named"}) != "named" {
 		t.Fatal("funcName 判断错误")
 	}

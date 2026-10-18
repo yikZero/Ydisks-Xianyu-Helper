@@ -70,9 +70,7 @@ func TestChatMetadataHandlersCoverSuccessValidationAndApplicationErrors(t *testi
 		buyerNote:   chatapp.BuyerNote{AccountID: "acc1", BuyerID: "buyer1", Content: "备注", UpdatedAt: 11},
 	}
 	srv.applications.chat = port
-	// handler 是注入聊天应用端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// successCases 保存成功请求及其预期 HTTP 状态。

@@ -11,18 +11,14 @@ import (
 )
 
 // Level is the process-wide dynamic slog level.
-// Level 用于本次流程后续判断的Level
 var Level slog.LevelVar
 
-// init 封装init业务协调。
 func init() {
 	Level.Set(slog.LevelInfo)
 }
 
 // NewLogger creates a slog logger wired to the dynamic Level.
-// NewLogger 封装NewLogger业务协调。
 func NewLogger(w io.Writer, format string) *slog.Logger {
-	// opts 用于本次流程后续判断的opts
 	opts := &slog.HandlerOptions{Level: &Level}
 	// handler 保存底层格式化处理器，并在写出前统一清理日志属性中的敏感数据。
 	var handler slog.Handler
@@ -154,7 +150,6 @@ func sensitiveAttrKey(key string) bool {
 // SetLevel updates the process-wide log level.
 // SetLevel 设置Level。
 func SetLevel(raw string) error {
-	// lv、err 用于本次流程后续判断的lv、err
 	lv, err := ParseLevel(raw)
 	if err != nil {
 		return err

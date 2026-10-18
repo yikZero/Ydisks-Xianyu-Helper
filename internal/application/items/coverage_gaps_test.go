@@ -91,32 +91,27 @@ func newFinishGapRepository(status string, configure func(*batchRunBranchReposit
 
 // TestBatchRunnerFinishInterruptedErrorBranches 覆盖中断收口时取消写入失败、取消未生效、中断收口失败与租约丢失。
 func TestBatchRunnerFinishInterruptedErrorBranches(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// boom 是仓储写入失败。
 	boom := errors.New("write failed")
 	// cancelFail 的取消终态写入失败。
 	cancelFail := newFinishGapRepository("canceling", nil)
 	cancelFail.cancelErr = boom
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, cancelFail).finishInterrupted(ctx, 7, "b", "worker"); !errors.Is(err, boom) {
 		t.Fatalf("err=%v", err)
 	}
 	// cancelLost 的取消终态未命中当前租约。
 	cancelLost := newFinishGapRepository("canceling", nil)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, cancelLost).finishInterrupted(ctx, 7, "b", "worker"); !errors.Is(err, ErrBatchLeaseLost) {
 		t.Fatalf("err=%v", err)
 	}
 	// interruptFail 的中断终态写入失败。
 	interruptFail := newFinishGapRepository("running", func(r *batchRunBranchRepository) { r.interruptedErr = boom })
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, interruptFail).finishInterrupted(ctx, 7, "b", "worker"); !errors.Is(err, boom) {
 		t.Fatalf("err=%v", err)
 	}
 	// interruptLost 的中断终态未命中当前租约。
 	interruptLost := newFinishGapRepository("running", nil)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, interruptLost).finishInterrupted(ctx, 7, "b", "worker"); !errors.Is(err, ErrBatchLeaseLost) {
 		t.Fatalf("err=%v", err)
 	}
@@ -124,38 +119,32 @@ func TestBatchRunnerFinishInterruptedErrorBranches(t *testing.T) {
 
 // TestBatchRunnerFinishErrorBranches 覆盖正常收口时读取失败、取消写入失败、取消未生效、终态未命中与上传目录清理失败。
 func TestBatchRunnerFinishErrorBranches(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// boom 是仓储写入失败。
 	boom := errors.New("write failed")
 	// readFail 的批次状态读取失败，错误链应保留原因。
 	readFail := newFinishGapRepository("running", func(r *batchRunBranchRepository) { r.batchErr = boom })
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, readFail).finish(ctx, 7, "b", "worker"); !errors.Is(err, boom) {
 		t.Fatalf("err=%v", err)
 	}
 	// cancelFail 的取消终态写入失败。
 	cancelFail := newFinishGapRepository("canceling", func(r *batchRunBranchRepository) { r.interruptedApplied = true })
 	cancelFail.cancelErr = boom
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, cancelFail).finish(ctx, 7, "b", "worker"); !errors.Is(err, boom) {
 		t.Fatalf("err=%v", err)
 	}
 	// cancelLost 的取消终态未命中当前租约。
 	cancelLost := newFinishGapRepository("canceling", nil)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, cancelLost).finish(ctx, 7, "b", "worker"); !errors.Is(err, ErrBatchLeaseLost) {
 		t.Fatalf("err=%v", err)
 	}
 	// finalizeLost 的正常终态未命中当前租约。
 	finalizeLost := newFinishGapRepository("running", func(r *batchRunBranchRepository) { r.finalizeStatus = "completed" })
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, finalizeLost).finish(ctx, 7, "b", "worker"); !errors.Is(err, ErrBatchLeaseLost) {
 		t.Fatalf("err=%v", err)
 	}
 	// deleteFail 的终态已写入但上传目录清理失败。
 	deleteFail := newFinishGapRepository("running", func(r *batchRunBranchRepository) { r.deleteUploadErr = boom })
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, deleteFail).finish(ctx, 7, "b", "worker"); !errors.Is(err, boom) {
 		t.Fatalf("err=%v", err)
 	}
@@ -174,7 +163,6 @@ func (r *emptyFinalizeManagementRepository) FinalizeBatch(context.Context, strin
 
 // TestBatchManagementEmptyBatchFinalizeFailures 覆盖启动与重试入口在空批次收口失败（含释放租约失败）与租约丢失时的返回。
 func TestBatchManagementEmptyBatchFinalizeFailures(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// finalizeErr、releaseErr 分别是收口与释放租约的失败。
 	finalizeErr, releaseErr := errors.New("finalize failed"), errors.New("release failed")
@@ -184,7 +172,6 @@ func TestBatchManagementEmptyBatchFinalizeFailures(t *testing.T) {
 		repository := &batchManagementRepositoryFake{batch: BatchInfo{ID: "b", Status: "preview"}, claimed: true, finalizeErr: finalizeErr, failClaimErr: releaseErr}
 		// service 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
 		service := newBatchManagementServiceForTest(t, repository, &batchManagementRuntimeFake{})
-		// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 		if _, err := service.StartBatch(ctx, 7, "b", time.Minute); !errors.Is(err, finalizeErr) || !errors.Is(err, releaseErr) {
 			t.Fatalf("err=%v", err)
 		}
@@ -206,7 +193,6 @@ func TestBatchManagementEmptyBatchFinalizeFailures(t *testing.T) {
 		repository := &batchManagementRepositoryFake{batch: BatchInfo{ID: "b", Status: "completed"}, claimed: true, finalizeErr: finalizeErr, failClaimErr: releaseErr}
 		// service 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
 		service := newBatchManagementServiceForTest(t, repository, &batchManagementRuntimeFake{})
-		// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 		if _, err := service.RetryFailedBatch(ctx, 7, "b", time.Minute); err == nil || !strings.Contains(err.Error(), "收口重试空批次") {
 			t.Fatalf("err=%v", err)
 		}
@@ -254,7 +240,6 @@ func TestBatchRecoveryReportsLostLeaseOnEmptyBatch(t *testing.T) {
 func TestBatchRunnerFinishLeavesCanceledBatchUntouched(t *testing.T) {
 	// repository 的批次已经取消。
 	repository := newFinishGapRepository("canceled", nil)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := newFinishGapRunner(t, repository).finish(context.Background(), 7, "b", "worker"); err != nil {
 		t.Fatalf("err=%v", err)
 	}

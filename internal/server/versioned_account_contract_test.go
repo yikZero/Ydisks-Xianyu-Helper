@@ -16,9 +16,7 @@ func TestVersionedAccountRoutesPreserveLegacyContracts(t *testing.T) {
 	// srv 是用于验证版本化账号路由的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// listReq 是读取版本化账号摘要 ID 列表的请求。
@@ -136,9 +134,7 @@ func TestVersionedAccountCredentialRoutesPreserveLegacyContracts(t *testing.T) {
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
 	// HTTP transport 不直接持有账号运行时，新增和更新通过应用服务编排。
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// addReq 是通过版本化入口新增账号凭证的请求。
@@ -223,9 +219,7 @@ func TestVersionedAccountSettingsRoutesPreserveLegacyContracts(t *testing.T) {
 	// srv 是用于验证版本化账号设置路由的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// settingsReq 是提交版本化聚合账号设置的请求。

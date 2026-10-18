@@ -24,7 +24,6 @@ func (r *cancelOnLockRepository) LockCredentials(string) func() {
 func TestRefreshRuntimeAccountGuardsAndOwnerFailure(t *testing.T) {
 	// nilService 是未初始化的订单刷新服务。
 	var nilService *RefreshService
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := nilService.RefreshRuntimeAccount(context.Background(), "cookie-1"); err == nil {
 		t.Fatal("nil 服务应拒绝")
 	}
@@ -32,7 +31,6 @@ func TestRefreshRuntimeAccountGuardsAndOwnerFailure(t *testing.T) {
 	boom := errors.New("owner lookup failed")
 	// service 的仓储归属查询会失败。
 	service := NewRefreshService(&refreshRepositoryFake{ownerIDErr: boom}, &refreshRuntimeFake{}, 100)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := service.RefreshRuntimeAccount(context.Background(), "cookie-1"); !errors.Is(err, boom) {
 		t.Fatalf("err=%v", err)
 	}
@@ -49,7 +47,6 @@ func TestDiscoverAccountStopsWhenContextCanceledAfterLock(t *testing.T) {
 	runtime := &refreshRuntimeFake{soldAvailable: true}
 	// service 是待测订单刷新服务。
 	service := NewRefreshService(repository, runtime, 100)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, _, _, err := service.discoverAccount(ctx, 7, "cookie-1"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err=%v", err)
 	}

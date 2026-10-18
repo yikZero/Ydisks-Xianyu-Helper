@@ -356,19 +356,19 @@ func itemImageFromDetail(detail string) string {
 	}
 	// payload 是商品详情的动态 JSON 对象。
 	var payload map[string]any
-	if // err 是商品详情 JSON 解析错误。
-	err := json.Unmarshal([]byte(detail), &payload); err != nil {
+	// err 是商品详情 JSON 解析错误。
+	if err := json.Unmarshal([]byte(detail), &payload); err != nil {
 		return ""
 	}
 	// picture 是商品详情中的图片信息对象。
 	if picture, ok := payload["pic_info"].(map[string]any); ok {
-		if // url、ok 是图片地址及其类型判断结果。
-		url, ok := picture["picUrl"].(string); ok {
+		// url、ok 是图片地址及其类型判断结果。
+		if url, ok := picture["picUrl"].(string); ok {
 			return url
 		}
 	}
-	if // url、ok 是兼容图片地址及其类型判断结果。
-	url, ok := payload["item_image"].(string); ok {
+	// url、ok 是兼容图片地址及其类型判断结果。
+	if url, ok := payload["item_image"].(string); ok {
 		return url
 	}
 	return ""

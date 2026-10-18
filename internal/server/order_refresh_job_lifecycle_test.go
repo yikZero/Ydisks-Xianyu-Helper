@@ -20,7 +20,6 @@ func newOrderRefreshJobLifecycleFixture() *orderapp.RefreshJob {
 
 // TestRunOrderRefreshJobWithSuccess 验证业务成功后会写入成功终态和序列化结果。
 func TestRunOrderRefreshJobWithSuccess(t *testing.T) {
-	// ctx 是本用例传递给业务和终态写入的生命周期上下文。
 	ctx := context.WithValue(context.Background(), orderRefreshLifecycleContextKey{}, "lifecycle")
 	// job 是待执行的订单刷新任务。
 	job := newOrderRefreshJobLifecycleFixture()
@@ -175,7 +174,6 @@ func TestRunOrderRefreshJobWithCompletionFailure(t *testing.T) {
 
 // TestRunOrderRefreshJobWithCancellation 验证取消后的业务和终态写入都继承同一个已取消 Context。
 func TestRunOrderRefreshJobWithCancellation(t *testing.T) {
-	// ctx、cancel 是 Server 生命周期取消信号及其触发函数。
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	// job 是待执行的订单刷新任务。

@@ -31,12 +31,10 @@ func TestOpenRemoteDialectsFailFastWithoutServer(t *testing.T) {
 
 // TestMigrateRejectsUnknownDialect 验证未知方言时 Migrate 返回错误且不影响后续 SQLite 迁移。
 func TestMigrateRejectsUnknownDialect(t *testing.T) {
-	// store、cleanup 是已迁移的 SQLite 测试存储。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// ctx 是迁移调用上下文。
 	ctx := context.Background()
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := Migrate(ctx, store.DB, Dialect("oracle")); err == nil {
 		t.Fatal("未知方言应报错")
 	}

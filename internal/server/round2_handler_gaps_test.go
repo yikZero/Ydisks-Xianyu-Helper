@@ -65,22 +65,18 @@ func (p *ruleGapPort) Delete(context.Context, int64, int64) error { return p.del
 
 // TestAutomationRuleHandlerRound2 覆盖规则列表的参数校验与更新、删除的错误映射。
 func TestAutomationRuleHandlerRound2(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// port 是可变规则端口桩。
 	port := &ruleGapPort{AutomationRulesPort: srv.applications.automationRules}
 	srv.applications.automationRules = port
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// listCases 描述列表请求与期望状态。
 	listCases := []struct {
 		// path 是列表请求路径与查询串。
 		path string
-		// want 是期望状态码。
 		want int
 	}{
 		{"/automation-rules?page=1&page_size=0", 200},
@@ -109,8 +105,7 @@ func TestAutomationRuleHandlerRound2(t *testing.T) {
 		body string
 		// normalizeErr、updateErr 是注入错误。
 		normalizeErr, updateErr error
-		// want 是期望状态码。
-		want int
+		want                    int
 	}{
 		{"bad body", `{`, nil, nil, 400},
 		{"not found", `{}`, automationapp.ErrRuleNotFound, nil, 404},
@@ -149,7 +144,6 @@ func TestAutomationRuleHandlerRound2(t *testing.T) {
 type notifyGapPort struct {
 	// NotificationChannelsPort 提供未覆盖方法的默认（空）实现。
 	NotificationChannelsPort
-	// err 是各方法返回的错误。
 	err error
 }
 
@@ -182,12 +176,9 @@ func (p notifyGapPort) DeleteAccountBindings(context.Context, int64, string) err
 
 // TestNotificationHandlerRound2 覆盖通知渠道与绑定的无效 ID 和各类错误映射。
 func TestNotificationHandlerRound2(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// recorder 是调用 "GET" "/notification-channels/abc" 得到的响应记录，其状态码用于断言该场景的错误映射
 	if recorder := serveChatCoverageRequest(handler, cookie, "GET", "/notification-channels/abc", ""); recorder.Code != http.StatusBadRequest {
@@ -199,8 +190,7 @@ func TestNotificationHandlerRound2(t *testing.T) {
 		// method、path、body 描述请求。
 		method, path, body string
 		// err 是注入端口错误。
-		err error
-		// want 是期望状态码。
+		err  error
 		want int
 	}{
 		{"GET", "/notification-channels/1", ``, notificationsapp.ErrChannelNotFound, 403},
@@ -229,7 +219,6 @@ func TestNotificationHandlerRound2(t *testing.T) {
 type orderGapPort struct {
 	// OrdersPort 提供未覆盖方法的默认（空）实现。
 	OrdersPort
-	// err 是各方法返回的错误。
 	err error
 }
 
@@ -258,20 +247,16 @@ func (p orderGapPort) ManualShip(context.Context, orderapp.ManualShipRequest) (o
 
 // TestOrderHandlerRound2 覆盖订单接口的 403 映射、默认发货模式和端口失败。
 func TestOrderHandlerRound2(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// routes 描述订单接口、端口错误与期望状态。
 	routes := []struct {
 		// method、path、body 描述请求。
 		method, path, body string
 		// err 是注入端口错误。
-		err error
-		// want 是期望状态码。
+		err  error
 		want int
 	}{
 		{"GET", "/api/orders", ``, orderapp.ErrForbidden, 403},
@@ -296,12 +281,9 @@ func TestOrderHandlerRound2(t *testing.T) {
 
 // TestCardHandlerRound2 覆盖卡券创建、更新、删除的 500/校验映射与 API 配置解码错误。
 func TestCardHandlerRound2(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// real 是真实卡券端口。
 	real := srv.applications.cards
@@ -313,8 +295,7 @@ func TestCardHandlerRound2(t *testing.T) {
 		// method、path、body 描述请求。
 		method, path, body string
 		// err 是注入端口错误。
-		err error
-		// want 是期望状态码。
+		err  error
 		want int
 	}{
 		{"POST", "/cards", body, errors.New("db"), 500},
@@ -352,7 +333,6 @@ func TestCardHandlerRound2(t *testing.T) {
 type cardMutationGapPort struct {
 	// CardsPort 提供其余卡券能力的真实实现。
 	CardsPort
-	// err 是写入方法返回的错误；为空时委托真实实现。
 	err error
 }
 

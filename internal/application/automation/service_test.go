@@ -98,12 +98,12 @@ func TestServiceResolveDeferredValidatesAndMapsResolution(t *testing.T) {
 	repository := &fakeIssueRepository{}
 	// service 是待验证的自动化异常应用服务。
 	service := NewIssueService(repository)
-	if // err 保存重试处理结果。
-	err := service.ResolveDeferredIssue(context.Background(), 42, 8, " retry "); err != nil || !repository.resolvedTask.retry {
+	// err 保存重试处理结果。
+	if err := service.ResolveDeferredIssue(context.Background(), 42, 8, " retry "); err != nil || !repository.resolvedTask.retry {
 		t.Fatalf("retry resolution params=%+v err=%v", repository.resolvedTask, err)
 	}
-	if // err 保存驳回处理结果。
-	err := service.ResolveDeferredIssue(context.Background(), 42, 8, "dismiss"); err != nil || repository.resolvedTask.retry {
+	// err 保存驳回处理结果。
+	if err := service.ResolveDeferredIssue(context.Background(), 42, 8, "dismiss"); err != nil || repository.resolvedTask.retry {
 		t.Fatalf("dismiss resolution params=%+v err=%v", repository.resolvedTask, err)
 	}
 	// invalidErr 保存不支持处理动作的应用层校验错误。

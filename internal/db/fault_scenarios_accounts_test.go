@@ -7,7 +7,6 @@ import (
 
 // faultScenario 描述一个故障注入场景：name 为子测试名，setup 在未布防时准备数据并返回待测调用。
 type faultScenario struct {
-	// name 是子测试名称。
 	name string
 	// setup 准备数据并返回在故障布防后执行的调用。
 	setup func(t *testing.T, store *Store) func(ctx context.Context) error
@@ -47,7 +46,6 @@ func TestFaultInjectionAccountsUsersSessionsChat(t *testing.T) {
 			// channelIDs 是空通知绑定，使事务进入绑定替换分支。
 			channelIDs := []int64{}
 			return func(ctx context.Context) error {
-				// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 				_, err := store.Cookies.UpdateSettings(ctx, cookieID, AccountSettingsUpdate{UserID: userID, Value: &text, Remark: &text, AutoConfirm: &boolTrue, AutoConsign: &boolFalse, AutoBargain: &boolTrue, PauseDuration: &pause, Username: &text, Password: &text, ShowBrowser: &boolTrue, ChannelIDs: &channelIDs})
 				return err
 			}
@@ -78,7 +76,6 @@ func TestFaultInjectionAccountsUsersSessionsChat(t *testing.T) {
 				_, _ = store.Cookies.GetAutoConfirm(ctx, cookieID)
 				_, _ = store.Cookies.GetAutoConsign(ctx, cookieID)
 				_, _ = store.Cookies.GetAutoBargain(ctx, cookieID)
-				// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 				_, _, err := store.Cookies.StatusWithReason(ctx, cookieID)
 				return err
 			}

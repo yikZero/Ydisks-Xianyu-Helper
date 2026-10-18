@@ -108,7 +108,6 @@ func TestPersistProtocolRenewalResponseBoundaries(t *testing.T) {
 	defer cleanup()
 	// adapter 使用真实仓储，ctx 限制所有本地存储操作。
 	adapter := New(store, nil, nil)
-	// ctx 是本组同步操作共享的测试上下文。
 	ctx := context.Background()
 	// detail、err 保存账号当前平台凭证，不包含密码登录秘密。
 	detail, err := store.Cookies.GetCookiePlatformRuntimeData(ctx, "cid")
@@ -189,7 +188,6 @@ func TestPersistProtocolRenewalKeepsCommittedCookieOnCacheError(t *testing.T) {
 
 // TestPersistProtocolRenewalRejectsSameNameConcurrentLogin 验证并发登录后的同名 Cookie 不会被旧续期响应覆盖。
 func TestPersistProtocolRenewalRejectsSameNameConcurrentLogin(t *testing.T) {
-	// store、cleanup 管理隔离数据库及其释放函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// ctx 控制本地凭证读写。

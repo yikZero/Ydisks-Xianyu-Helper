@@ -57,7 +57,6 @@ type adminRuntimeStub struct {
 
 // StopContext 记录账号停止请求，并按账号返回预置错误。
 func (r *adminRuntimeStub) StopContext(ctx context.Context, accountID string) error {
-	// err 表示测试上下文是否已经取消；取消时模拟运行时立即拒绝停止。
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -141,13 +140,11 @@ func TestServiceDeleteUser(t *testing.T) {
 	}
 	// deleteFailure 保存仓储删除失败结果。
 	deleteFailure := errors.New("delete failed")
-	// err 保存删除仓储返回的错误。
 	if err := NewService(&adminRepositoryStub{deleteErr: deleteFailure}).DeleteUser(context.Background(), 1, 2); !errors.Is(err, deleteFailure) {
 		t.Fatal("删除错误未原样返回")
 	}
 	// accountListFailure 保存删除前读取账号标识失败的结果。
 	accountListFailure := errors.New("account list failed")
-	// err 保存删除前账号标识查询返回的错误。
 	if err := NewService(&adminRepositoryStub{accountIDsErr: accountListFailure}).DeleteUser(context.Background(), 1, 2); !errors.Is(err, accountListFailure) {
 		t.Fatal("账号列表错误未原样返回")
 	}

@@ -21,9 +21,7 @@ func TestAPIContractChatAutomationAndItemErrors(t *testing.T) {
 	setTestMTop(srv, &stubPublishMTop{publish: func(context.Context, string, mtop.PublishItemRequest) (*mtop.PublishItemResult, error) {
 		return &mtop.PublishItemResult{Title: "测试商品"}, nil
 	}})
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	assertUnifiedAPIError(t, handler, http.MethodPost, "/api/chat/messages", `{}`, sessionCookie, http.StatusServiceUnavailable, httpapi.CodeServiceUnavailable, "聊天服务未启用", false)
 	assertUnifiedAPIError(t, handler, http.MethodPost, "/api/account-tasks/acc1/run", `{"task_type":"auto_rate"}`, sessionCookie, http.StatusServiceUnavailable, httpapi.CodeServiceUnavailable, "自动化中心未启用", false)

@@ -14,7 +14,6 @@ import (
 
 // TestKeywordsSQLiteExpressionsCRUD 验证 SQLite 关键词表达式的兼容写入、JSON 往返、更新、替换、删除和排序语义。
 func TestKeywordsSQLiteExpressionsCRUD(t *testing.T) {
-	// store、cleanup 保存隔离 SQLite 存储及其释放责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// userID、cookieID 保存测试账号归属信息；表达式仓储不读取账号凭证。
@@ -26,7 +25,6 @@ func TestKeywordsSQLiteExpressionsCRUD(t *testing.T) {
 // 测试同时覆盖旧 Keyword-only 调用、缺省新列、空 JSON 回退、首表达式同步和历史排序。
 func exerciseKeywordExpressionCRUD(t *testing.T, store *Store, userID int64, cookieID string) {
 	t.Helper()
-	// ctx 是本测试所有数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// addErr 保存旧 Add API 写入普通包含规则时的数据库错误。
 	if _, addErr := store.Keywords.Add(ctx, cookieID, "旧接口关键词", "旧回复", "", "", ""); addErr != nil {
@@ -228,7 +226,6 @@ func TestMultiDBKeywordExpressionsCRUD(t *testing.T) {
 		// t 表示当前数据库方言的子测试上下文。
 		t.Run(target.name, func(t *testing.T) {
 			defer target.cleanup()
-			// ctx 是当前方言测试共用的数据库上下文。
 			ctx := context.Background()
 			// suffix 保存当前方言测试使用的唯一后缀。
 			suffix := fmt.Sprintf("%d", nextMultiDBTestID())
@@ -368,13 +365,11 @@ func TestKeywordExpressionCodecRules(t *testing.T) {
 // TestKeywordRowsIsolateAccountsAndReportMissingRules 验证按主键更新、删除和按序号删除只作用于所属账号：
 // 其他账号的同主键请求以 ErrNotFound 失败且不改动数据；无变化的更新不会被误判为不存在。
 func TestKeywordRowsIsolateAccountsAndReportMissingRules(t *testing.T) {
-	// store、cleanup 是隔离 SQLite 存储及其释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// userID、cookieID 是测试账号归属。
 	userID, cookieID := seedAccount(t, store)
 	_ = userID
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// ruleID、addErr 是新增规则的主键与错误。
 	ruleID, addErr := store.Keywords.AddWithExpressions(ctx, cookieID, []string{"甲", "乙"}, "回复", "", "text", "contains", "")
@@ -390,14 +385,12 @@ func TestKeywordRowsIsolateAccountsAndReportMissingRules(t *testing.T) {
 	foreign := rows[0]
 	foreign.CookieID = "another-account"
 	foreign.Reply = "被篡改"
-	// err 保存 UpdateByID 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.UpdateByID(ctx, foreign); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("跨账号更新应 ErrNotFound，got %v", err)
 	}
 	// 不存在的主键同样 ErrNotFound。
 	missing := rows[0]
 	missing.ID = ruleID + 1000
-	// err 保存 UpdateByID 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.UpdateByID(ctx, missing); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("不存在的规则更新应 ErrNotFound，got %v", err)
 	}
@@ -409,15 +402,12 @@ func TestKeywordRowsIsolateAccountsAndReportMissingRules(t *testing.T) {
 	if err := store.Keywords.DeleteByID(ctx, "another-account", ruleID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("跨账号删除应 ErrNotFound，got %v", err)
 	}
-	// err 保存 DeleteByID 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.DeleteByID(ctx, cookieID, ruleID+1000); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("不存在的规则删除应 ErrNotFound，got %v", err)
 	}
-	// err 保存 DeleteByIndex 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.DeleteByIndex(ctx, cookieID, 5); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("越界序号删除应 ErrNotFound，got %v", err)
 	}
-	// err 保存 DeleteByIndex 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.DeleteByIndex(ctx, cookieID, -1); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("负序号删除应 ErrNotFound，got %v", err)
 	}
@@ -438,22 +428,17 @@ func TestKeywordRowsIsolateAccountsAndReportMissingRules(t *testing.T) {
 
 // TestKeywordRowsReportDatabaseErrors 验证数据库不可用时关键词仓储的每个入口都返回错误，不会返回部分结果或伪装成功。
 func TestKeywordRowsReportDatabaseErrors(t *testing.T) {
-	// store、cleanup 是隔离存储；seedAccount 之后主动关闭连接池模拟故障。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// cookieID 保存 seedAccount 调用的返回结果，供随后的断言使用。
 	_, cookieID := seedAccount(t, store)
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
-	// err 保存 Close 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.DB.Close(); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 UpdateByID 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.UpdateByID(ctx, KeywordRow{ID: 1, CookieID: cookieID, Keyword: "甲", Reply: "回复"}); err == nil {
 		t.Error("UpdateByID 数据库故障必须返回错误")
 	}
-	// err 保存 DeleteByID 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.DeleteByID(ctx, cookieID, 1); err == nil {
 		t.Error("DeleteByID 数据库故障必须返回错误")
 	}
@@ -461,11 +446,9 @@ func TestKeywordRowsReportDatabaseErrors(t *testing.T) {
 	if rows, err := store.Keywords.AllRows(ctx, cookieID); err == nil || rows != nil {
 		t.Errorf("AllRows 数据库故障必须返回错误且无结果: rows=%v err=%v", rows, err)
 	}
-	// err 保存 ReplaceForCookie 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.ReplaceForCookie(ctx, cookieID, []KeywordRow{{Keyword: "甲", Reply: "回复"}}); err == nil {
 		t.Error("ReplaceForCookie 数据库故障必须返回错误")
 	}
-	// err 保存 DeleteByIndex 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Keywords.DeleteByIndex(ctx, cookieID, 0); err == nil {
 		t.Error("DeleteByIndex 数据库故障必须返回错误")
 	}

@@ -14,7 +14,6 @@ import (
 
 // TestOrderRuntimeReleasesCredentialLockDuringConsign 验证确认发货的慢平台调用不会阻塞并发登录凭证写入。
 func TestOrderRuntimeReleasesCredentialLockDuringConsign(t *testing.T) {
-	// store、cleanup 保存并发确认发货测试使用的隔离数据库及释放函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// started、release 确定化平台确认发货期间的凭证更新窗口。
@@ -72,7 +71,6 @@ func TestOrderRuntimePersistsCookieSessionBranches(t *testing.T) {
 	// store、cleanup 是带有固定测试账号的本地数据库及资源释放函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本次订单 Cookie 持久化测试共用的上下文。
 	ctx := context.Background()
 	// runtime 是绑定本地 Cookie 仓储的订单运行时。
 	runtime := NewOrderRuntime(store, OrderRuntimeHooks{}, nil, nil)

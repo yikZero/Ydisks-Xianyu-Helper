@@ -47,10 +47,8 @@ func seedRecoverableSchedulerRun(t *testing.T, store *db.Store, ctx context.Cont
 
 // TestSchedulerRecoveryCoversInvalidSnapshotAndAccountPostpone 验证恢复调度器对非法快照和账号阻断的收口分支。
 func TestSchedulerRecoveryCoversInvalidSnapshotAndAccountPostpone(t *testing.T) {
-	// store、cleanup 保存恢复调度器测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是恢复运行数据库操作共用的上下文。
 	ctx := context.Background()
 	// invalidRunID 保存非法 JSON 快照对应的运行主键。
 	invalidRunID := seedRecoverableSchedulerRun(t, store, ctx, "invalid", "not-an-object")
@@ -107,7 +105,6 @@ func TestSchedulerRecoveryCoversInvalidSnapshotAndAccountPostpone(t *testing.T) 
 // newPaidRecoveryFixture 创建一条尚未执行外部动作的付款运行，用于验证恢复调度器的最新订单状态门禁。
 // orderStatus 是本地最新订单状态，source 是运行创建来源；返回运行主键、消息替身、调度器、存储和清理函数。
 func newPaidRecoveryFixture(t *testing.T, orderStatus, source string) (int64, *testSender, *Scheduler, *db.Store, func()) {
-	// store、cleanup 保存隔离测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	// ctx 是测试数据创建使用的上下文。
 	ctx := context.Background()

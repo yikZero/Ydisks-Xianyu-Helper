@@ -70,7 +70,6 @@ func TestRecordIncomingRepositoryFaults(t *testing.T) {
 	defer cleanup()
 	// ctx 是本地仓储调用上下文。
 	ctx := context.Background()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "account-1", ItemID: "item-1", ItemTitle: "商品"}); err != nil {
 		t.Fatal(err)
 	}
@@ -80,20 +79,17 @@ func TestRecordIncomingRepositoryFaults(t *testing.T) {
 	incoming := Incoming{AccountID: "account-1", AccountUserID: "me", ChatID: "c1", BuyerID: "peer", ItemID: "item-1", MessageID: "m1", Text: "hi", ObservedAt: 1}
 	// saveFailure 是保存阶段注入的错误。
 	saveFailure := errors.New("save failed")
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, _, err := NewWithRepository(faultRepository{Repository: base, saveErr: saveFailure}).RecordIncoming(ctx, incoming); !errors.Is(err, saveFailure) {
 		t.Fatalf("err=%v", err)
 	}
 	// roleFailure 是角色写入阶段注入的错误。
 	roleFailure := errors.New("role failed")
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, _, err := NewWithRepository(faultRepository{Repository: base, roleErr: roleFailure}).RecordIncoming(ctx, incoming); !errors.Is(err, roleFailure) {
 		t.Fatalf("err=%v", err)
 	}
 	// second 使用新消息键，角色写入返回 ErrNotFound 时应被视为会话已切换而忽略。
 	second := incoming
 	second.MessageID = "m2"
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, _, err := NewWithRepository(faultRepository{Repository: base, roleErr: db.ErrNotFound}).RecordIncoming(ctx, second); err != nil {
 		t.Fatalf("err=%v", err)
 	}
@@ -106,7 +102,6 @@ func TestRecordConversationPageRepositoryFaults(t *testing.T) {
 	defer cleanup()
 	// ctx 是本地仓储调用上下文。
 	ctx := context.Background()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "account-1", ItemID: "item-1", ItemTitle: "商品"}); err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +123,6 @@ func TestRecordConversationPageRepositoryFaults(t *testing.T) {
 	}
 	// name 和 repo 是当前注入点及其仓储。
 	for name, repo := range cases {
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if _, err := NewWithRepository(repo).RecordConversationPage(ctx, "account-1", "me", body); !errors.Is(err, failure) {
 			t.Fatalf("%s err=%v", name, err)
 		}
@@ -167,11 +161,9 @@ func TestOutgoingObservedAtAndDefaultType(t *testing.T) {
 
 // TestExtractStringAndOfficialTypeEdges 覆盖候选键去重、空键，以及官方类型首个命中即停止。
 func TestExtractStringAndOfficialTypeEdges(t *testing.T) {
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := extractString(map[string]any{"a": "x"}, " ", "A", "a"); got != "x" {
 		t.Fatalf("got=%q", got)
 	}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := findOfficialContentType([]any{map[string]any{"contentType": float64(14)}, map[string]any{"contentType": float64(25)}}); got != "14" {
 		t.Fatalf("got=%q", got)
 	}

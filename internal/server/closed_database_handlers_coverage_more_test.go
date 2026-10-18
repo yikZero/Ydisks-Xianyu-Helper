@@ -11,7 +11,6 @@ func TestClosedDatabaseHandlersCoverReadErrorMappings(t *testing.T) {
 	// server、store、cleanup 保存关闭数据库前后共用的测试服务器及资源清理函数。
 	server, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// closeErr 保存关闭测试数据库连接的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

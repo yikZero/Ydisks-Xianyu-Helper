@@ -28,12 +28,10 @@ type credentialWakeRecorder struct {
 
 // TestAdapterEventHooksHandleNilChatAndLegacyNotifier 验证未装配聊天服务和旧版通知器时的兼容分支。
 func TestAdapterEventHooksHandleNilChatAndLegacyNotifier(t *testing.T) {
-	// store、cleanup 保存隔离的适配器测试数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 保存未装配聊天服务的适配器。
 	adapter := New(store, nil, nil)
-	// ctx 是本测试事件调用共用的非取消上下文。
 	ctx := context.Background()
 	// chatErr 保存未装配聊天服务时入站事件的兼容结果。
 	chatErr := adapter.HandleChatMessage(ctx, engine.ChatMessage{})
@@ -76,10 +74,8 @@ func TestAdapterEventHooksHandleNilChatAndLegacyNotifier(t *testing.T) {
 
 // TestAdapterItemBelongsToAccountReturnsOnlyLocalExistence 验证自动回复使用的商品归属查询只返回本地存在性，不读取敏感凭证。
 func TestAdapterItemBelongsToAccountReturnsOnlyLocalExistence(t *testing.T) {
-	// store、cleanup 提供隔离数据库和关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本地商品归属查询共用的生命周期上下文。
 	ctx := context.Background()
 	// writeErr 保存本地商品夹具写入结果。
 	if writeErr := store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "cid", ItemID: "owned-item", ItemTitle: "本地商品"}); writeErr != nil {
@@ -132,10 +128,8 @@ func (r *credentialWakeRecorder) WakeCredentialBlocked(_ context.Context, accoun
 
 // TestAdapterChatEventHooksPersistNonSelfMessages 验证聊天事件适配器落库真实入站消息并过滤账号自身回显。
 func TestAdapterChatEventHooksPersistNonSelfMessages(t *testing.T) {
-	// store、cleanup 保存隔离的 SQLite 存储和关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试聊天事件处理共用的上下文。
 	ctx := context.Background()
 	// adapter 保存注入聊天服务后的事件适配器。
 	adapter := New(store, nil, nil)
@@ -204,7 +198,6 @@ func TestAdapterCredentialWakeCallbacks(t *testing.T) {
 	// recorder 保存凭证唤醒端口的调用记录。
 	recorder := &credentialWakeRecorder{}
 	adapter.SetCredentialWakeService(recorder)
-	// ctx 是本测试回调调用共用的上下文。
 	ctx := context.Background()
 	adapter.OnCredentialUpdated(ctx, "cid")
 	adapter.OnTransportReady(ctx, "cid")

@@ -35,7 +35,6 @@ type unsupportedItemPublishClient struct{ mtop.Client }
 
 // TestItemPublishPortRecommendsCategoryAndPersistsUpdatedCookie 验证类目推荐和 Cookie 写回。
 func TestItemPublishPortRecommendsCategoryAndPersistsUpdatedCookie(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// client 是返回类目及刷新 Cookie 的平台替身。
@@ -61,7 +60,6 @@ func TestItemPublishPortRecommendsCategoryAndPersistsUpdatedCookie(t *testing.T)
 
 // TestItemPublishPortRejectsUnsupportedCategoryRecommendation 验证未实现平台能力时返回应用错误。
 func TestItemPublishPortRejectsUnsupportedCategoryRecommendation(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// port 是返回不支持能力客户端的商品发布端口。
@@ -75,7 +73,6 @@ func TestItemPublishPortRejectsUnsupportedCategoryRecommendation(t *testing.T) {
 
 // TestItemPublishPortMapsPreferredCategory 验证应用层类目会完整转换为 MTOP 发布请求。
 func TestItemPublishPortMapsPreferredCategory(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// receivedCategory 保存适配器转换后的 MTOP 类目。
@@ -102,7 +99,6 @@ func TestItemPublishPortMapsPreferredCategory(t *testing.T) {
 
 // TestItemPublishPortReleasesCredentialLockDuringRemoteCall 验证单商品发布远端调用期间不占用凭证锁。
 func TestItemPublishPortReleasesCredentialLockDuringRemoteCall(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// started 表示平台发布已进入慢速调用阶段。
@@ -170,7 +166,6 @@ func TestItemPublishPortReleasesCredentialLockDuringRemoteCall(t *testing.T) {
 
 // TestItemPublishPortRetriesAfterSessionRecovery 验证续期成功后发布端口使用重新读取的凭证重试一次。
 func TestItemPublishPortRetriesAfterSessionRecovery(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// calls 保存平台发布调用次数，用于确认最多执行一次恢复后的重试。
@@ -211,7 +206,6 @@ func TestItemPublishPortRetriesAfterSessionRecovery(t *testing.T) {
 
 // TestItemPublishRepositoryUpsertMapsApplicationRecord 验证商品仓储适配器正确转换应用记录。
 func TestItemPublishRepositoryUpsertMapsApplicationRecord(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的商品仓储适配器。

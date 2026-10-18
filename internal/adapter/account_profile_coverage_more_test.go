@@ -36,10 +36,8 @@ func (f *profileSessionMTopFake) FetchUserProfile(ctx context.Context, _ string)
 
 // TestAccountProfileRefreshCoversMissingOwnerAndNilResult 覆盖账号缺失、归属不符和平台空结果兜底。
 func TestAccountProfileRefreshCoversMissingOwnerAndNilResult(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库和平台调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的账号资料适配器。
 	repository := NewAccountLoginRepository(store)
@@ -66,10 +64,8 @@ func TestAccountProfileRefreshCoversMissingOwnerAndNilResult(t *testing.T) {
 
 // TestAccountProfileRefreshCoversPlatformFailureAndRecovery 覆盖平台资料失败、日志记录和账号恢复回调。
 func TestAccountProfileRefreshCoversPlatformFailureAndRecovery(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库和平台调用共用的非取消上下文。
 	ctx := context.Background()
 	// platformErr 是平台资料接口返回的非敏感测试错误。
 	platformErr := errors.New("profile platform unavailable")
@@ -96,10 +92,8 @@ func TestAccountProfileRefreshCoversPlatformFailureAndRecovery(t *testing.T) {
 
 // TestAccountProfileRefreshCoversAuthoritativeSessionAndPersistenceError 覆盖权威 Cookie 写回和锁内读取失败。
 func TestAccountProfileRefreshCoversAuthoritativeSessionAndPersistenceError(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库和平台调用共用的非取消上下文。
 	ctx := context.Background()
 	// metadata 是带完整浏览器 Cookie 快照的凭证元数据。
 	metadata := cookierefresh.MetadataWithSnapshot(`{}`, []cookierefresh.BrowserCookie{{Name: "sid", Value: "old", Domain: ".goofish.com", Path: "/"}})
@@ -138,7 +132,6 @@ func TestAccountProfileRefreshCoversAuthoritativeSessionAndPersistenceError(t *t
 	if closedDetailErr != nil || closedDetail == nil {
 		t.Fatalf("closed detail setup=%+v err=%v", closedDetail, closedDetailErr)
 	}
-	// closeErr 保存关闭测试数据库连接的结果。
 	if closeErr := closedStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

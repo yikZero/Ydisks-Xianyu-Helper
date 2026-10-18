@@ -7,7 +7,6 @@ import (
 
 // TestAIReplierItemInfoUsesFieldFallbacks 验证商品标题、价格和详情为空时的业务兜底规则。
 func TestAIReplierItemInfoUsesFieldFallbacks(t *testing.T) {
-	// store、cleanup 保存隔离的 AI 测试数据库和关闭责任。
 	store, cleanup := newAIStore(t)
 	defer cleanup()
 	// ctx 是商品信息查询使用的非取消上下文。

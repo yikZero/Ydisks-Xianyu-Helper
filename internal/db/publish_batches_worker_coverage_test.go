@@ -12,7 +12,6 @@ func TestPublishBatchWorkerMaintenancePaths(t *testing.T) {
 	// store、cleanup 保存临时数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 限制本测试所有数据库操作的生命周期。
 	ctx := context.Background()
 	// userID 保存批次所属用户标识。
 	userID, _ := seedAccount(t, store)

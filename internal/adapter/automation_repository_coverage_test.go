@@ -11,10 +11,8 @@ import (
 
 // TestAutomationRepositoryCRUDAndQueryPaths 验证自动化规则适配器的创建、查询、更新、归属和模板摘要路径。
 func TestAutomationRepositoryCRUDAndQueryPaths(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试所有数据库调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的自动化规则应用适配器。
 	repository := NewAutomationRepository(store)
@@ -113,10 +111,8 @@ func TestAutomationRepositoryCRUDAndQueryPaths(t *testing.T) {
 
 // TestAutomationRepositoryPricingModeAndSensitiveSummary 验证改价互斥校验、AI 开关读取和卡密脱敏摘要。
 func TestAutomationRepositoryPricingModeAndSensitiveSummary(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的自动化规则应用适配器。
 	repository := NewAutomationRepository(store)
@@ -178,10 +174,8 @@ func TestAutomationRepositoryPricingModeAndSensitiveSummary(t *testing.T) {
 
 // TestAutomationRepositoryIssuesAndErrorMapping 验证异常摘要转换、人工处理和数据库错误边界。
 func TestAutomationRepositoryIssuesAndErrorMapping(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的自动化规则应用适配器。
 	repository := NewAutomationRepository(store)

@@ -59,7 +59,6 @@ func TestFindChatIDsByBuyerAndItem(t *testing.T) {
 	// store、cleanup 保存迁移后的临时 SQLite 数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// _, cookieID 保存测试账号归属；用户标识只用于构造外键关系。
 	_, cookieID := seedAccount(t, store)
@@ -117,7 +116,6 @@ func TestFindLatestPendingByChat(t *testing.T) {
 	// store、cleanup 保存迁移后的临时 SQLite 数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// _, cookieID 保存测试账号归属；用户标识只用于构造有效外键。
 	_, cookieID := seedAccount(t, store)
@@ -144,7 +142,6 @@ func TestFindRecentByChat(t *testing.T) {
 	// store、cleanup 保存迁移后的临时 SQLite 数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// _, cookieID 保存测试账号归属。
 	_, cookieID := seedAccount(t, store)

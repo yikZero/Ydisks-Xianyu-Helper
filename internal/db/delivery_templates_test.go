@@ -8,7 +8,6 @@ import (
 
 // TestDeliveryTemplateStoreRejectsUninitializedStore 验证模板仓储在未绑定数据库时拒绝所有写读操作。
 func TestDeliveryTemplateStoreRejectsUninitializedStore(t *testing.T) {
-	// ctx 是本测试所有仓储调用共用的非取消上下文。
 	ctx := context.Background()
 	// store 是故意未初始化数据库连接的仓储。
 	var store *DeliveryTemplateStore
@@ -34,7 +33,6 @@ func TestDeliveryTemplateStoreCRUD(t *testing.T) {
 	// store, cleanup 保存本测试使用的临时数据库及释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试所有仓储调用共用的非取消上下文。
 	ctx := context.Background()
 	// userID, cookieID 保存外键初始化结果；cookieID 在本测试中用于自动化规则归属。
 	userID, cookieID := seedAccount(t, store)
@@ -103,7 +101,6 @@ func TestDeliveryTemplateStoreReferenceProtection(t *testing.T) {
 	// store, cleanup 保存本测试使用的临时数据库及释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试所有仓储调用共用的非取消上下文。
 	ctx := context.Background()
 	// userID, cookieID 保存自动化规则外键初始化结果。
 	userID, cookieID := seedAccount(t, store)
@@ -169,7 +166,6 @@ func TestDeliveryTemplateStoreKeepsLegacyInvalidMessages(t *testing.T) {
 	// store, cleanup 保存本测试使用的临时数据库及释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试所有仓储调用共用的非取消上下文。
 	ctx := context.Background()
 	// userID 保存模板所有者标识。
 	userID, _ := seedAccount(t, store)
@@ -194,7 +190,6 @@ func TestAutomationLoadsTemplateActionContract(t *testing.T) {
 	// store, cleanup 保存本测试使用的临时数据库及释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试所有仓储调用共用的非取消上下文。
 	ctx := context.Background()
 	// userID, cookieID 保存自动化规则外键初始化结果。
 	userID, cookieID := seedAccount(t, store)
@@ -254,7 +249,6 @@ func TestEncryptLegacyAutomationDeliveryProof(t *testing.T) {
 	// store, cleanup 保存启用数据密钥的临时数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试所有仓储调用共用的非取消上下文。
 	ctx := context.Background()
 	// userID, cookieID 保存自动化运行外键初始化结果。
 	userID, cookieID := seedAccount(t, store)
@@ -298,7 +292,6 @@ func TestEncryptLegacyAutomationDeliveryProof(t *testing.T) {
 func TestSameStringSet(t *testing.T) {
 	// cases 描述变量集合比较的边界场景。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// left 是左侧变量键集合。
 		left []string

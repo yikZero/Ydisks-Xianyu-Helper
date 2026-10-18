@@ -11,10 +11,8 @@ import (
 
 // TestAIPricingModeCoversGuardQuoteAndOverflowBranches 验证 AI 报价模式的门禁、空报价、重复领取及金额边界。
 func TestAIPricingModeCoversGuardQuoteAndOverflowBranches(t *testing.T) {
-	// store、cleanup 保存 AI 报价边界测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是 AI 报价模式测试共用的数据库上下文。
 	ctx := context.Background()
 	// center 保存默认依赖的自动化中心，用于非订单创建事件门禁。
 	center := New(store, nil, nil)

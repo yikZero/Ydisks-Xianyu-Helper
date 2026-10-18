@@ -17,7 +17,7 @@ const accountTaskMaxAttempts = accountTaskMaxRetries + 1
 // ErrAccountTaskRetryLimit 表示账号任务已经达到自动与人工共用的重试上限。
 var ErrAccountTaskRetryLimit = errors.New("账号任务已达到最大重试次数")
 
-// AccountTaskSettings 用于本次流程后续判断的账号任务设置
+// AccountTaskSettings 是单个账号的自动评价和每日擦亮配置及最近执行时间。
 type AccountTaskSettings struct {
 	CookieID          string `json:"account_id"`
 	AutoRateEnabled   bool   `json:"auto_rate_enabled"`
@@ -29,7 +29,7 @@ type AccountTaskSettings struct {
 	LastPolishAt      int64  `json:"last_polish_at"`
 }
 
-// AccountTaskRun 用于本次流程后续判断的账号任务运行
+// AccountTaskRun 是一次账号任务执行记录，run_key 保证同一目标同一天只执行一次。
 type AccountTaskRun struct {
 	ID           int64  `json:"id"`
 	RunKey       string `json:"run_key"`
@@ -48,24 +48,20 @@ type AccountTaskRun struct {
 	FinishedAt   int64 `json:"finished_at"`
 }
 
-// AccountTaskStore 用于本次流程后续判断的账号任务Store
+// AccountTaskStore 读写账号自动任务配置和执行记录。
 type AccountTaskStore struct {
 	DB      *sql.DB
 	Dialect Dialect
 }
 
-// defaultAccountTaskSettings 封装default账号任务设置业务协调。
 func defaultAccountTaskSettings(cookieID string) AccountTaskSettings {
 	return AccountTaskSettings{CookieID: cookieID, RateContent: "不错的买家，交易愉快", PolishTime: "03:00"}
 }
 
 // Get 读取当前值。
 func (s *AccountTaskStore) Get(ctx context.Context, cookieID string) (AccountTaskSettings, error) {
-	// result 用于本次流程后续判断的结果
 	result := defaultAccountTaskSettings(cookieID)
-	// rateEnabled、polishEnabled 用于本次流程后续判断的rateEnabled、polish启用状态
 	var rateEnabled, polishEnabled int
-	// err 用于本次流程后续判断的err
 	err := s.DB.QueryRowContext(ctx, `SELECT auto_rate_enabled,rate_content,auto_polish_enabled,polish_time,
 		last_rate_scan_at,last_polish_date,last_polish_at FROM account_task_settings WHERE cookie_id=?`, cookieID).Scan(
 		&rateEnabled, &result.RateContent, &polishEnabled, &result.PolishTime, &result.LastRateScanAt,
@@ -78,7 +74,7 @@ func (s *AccountTaskStore) Get(ctx context.Context, cookieID string) (AccountTas
 	return result, err
 }
 
-// Upsert 封装Upsert业务协调。
+// Upsert 保存账号任务配置，空评价内容和擦亮时间回落到默认值。
 func (s *AccountTaskStore) Upsert(ctx context.Context, settings AccountTaskSettings) error {
 	settings.RateContent = strings.TrimSpace(settings.RateContent)
 	if settings.RateContent == "" {
@@ -87,9 +83,7 @@ func (s *AccountTaskStore) Upsert(ctx context.Context, settings AccountTaskSetti
 	if settings.PolishTime == "" {
 		settings.PolishTime = "03:00"
 	}
-	// now 用于本次流程后续判断的now
 	now := time.Now().UTC().Unix()
-	// query 用于本次流程后续判断的查询
 	query := `INSERT INTO account_task_settings
 		(cookie_id,auto_rate_enabled,rate_content,auto_polish_enabled,polish_time,last_rate_scan_at,last_polish_date,last_polish_at,created_at,updated_at)
 		VALUES(?,?,?,?,?,?,?,?,?,?)` + dialectUpsert(s.Dialect, []string{"cookie_id"}, map[string]string{
@@ -97,16 +91,14 @@ func (s *AccountTaskStore) Upsert(ctx context.Context, settings AccountTaskSetti
 		"auto_polish_enabled": "EXCLUDED.auto_polish_enabled", "polish_time": "EXCLUDED.polish_time",
 		"updated_at": "EXCLUDED.updated_at",
 	})
-	// err 用于本次流程后续判断的err
 	_, err := s.DB.ExecContext(ctx, query, settings.CookieID, boolInt(settings.AutoRateEnabled), settings.RateContent,
 		boolInt(settings.AutoPolishEnabled), settings.PolishTime, settings.LastRateScanAt, settings.LastPolishDate,
 		settings.LastPolishAt, now, now)
 	return err
 }
 
-// Enabled 封装启用状态业务协调。
+// Enabled 返回至少开启了自动评价或自动擦亮的账号配置。
 func (s *AccountTaskStore) Enabled(ctx context.Context) ([]AccountTaskSettings, error) {
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := s.DB.QueryContext(ctx, `SELECT s.cookie_id,s.auto_rate_enabled,s.rate_content,s.auto_polish_enabled,s.polish_time,
 		s.last_rate_scan_at,s.last_polish_date,s.last_polish_at
 		FROM account_task_settings s JOIN cookies c ON c.id=s.cookie_id
@@ -115,15 +107,11 @@ func (s *AccountTaskStore) Enabled(ctx context.Context) ([]AccountTaskSettings, 
 		return nil, err
 	}
 	defer rows.Close()
-	// result 用于本次流程后续判断的结果
 	var result []AccountTaskSettings
 	for rows.Next() {
-		// row 用于本次流程后续判断的row
 		var row AccountTaskSettings
-		// rate、polish 用于本次流程后续判断的rate、polish
 		var rate, polish int
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&row.CookieID, &rate, &row.RateContent, &polish, &row.PolishTime,
+		if err := rows.Scan(&row.CookieID, &rate, &row.RateContent, &polish, &row.PolishTime,
 			&row.LastRateScanAt, &row.LastPolishDate, &row.LastPolishAt); err != nil {
 			return nil, err
 		}
@@ -162,7 +150,6 @@ func (s *AccountTaskStore) DueAutoRateOrderIDs(ctx context.Context, cookieID str
 }
 
 // ClaimRun creates a run or atomically reclaims a due failed run.
-// ClaimRun 封装Claim运行业务协调。
 func (s *AccountTaskStore) ClaimRun(ctx context.Context, run AccountTaskRun, now int64) (bool, error) {
 	return s.claimRun(ctx, run, now, false)
 }
@@ -170,12 +157,10 @@ func (s *AccountTaskStore) ClaimRun(ctx context.Context, run AccountTaskRun, now
 // ClaimRunImmediately creates a run or immediately reclaims a failed run. It is
 // intended for an explicit user retry; scheduled workers should keep using
 // ClaimRun so repeated platform failures still honor their retry delay.
-// ClaimRunImmediately 封装Claim运行Immediately业务协调。
 func (s *AccountTaskStore) ClaimRunImmediately(ctx context.Context, run AccountTaskRun, now int64) (bool, error) {
 	return s.claimRun(ctx, run, now, true)
 }
 
-// claimRun 封装claim运行业务协调。
 func (s *AccountTaskStore) claimRun(ctx context.Context, run AccountTaskRun, now int64, immediate bool) (bool, error) {
 	// retryCondition 限制累计执行次数、冷却时间，并排除已明确标记为永久失败的运行记录。
 	retryCondition := "attempt_count<? AND next_retry_at<=? AND error_message NOT LIKE ?"
@@ -185,17 +170,14 @@ func (s *AccountTaskStore) claimRun(ctx context.Context, run AccountTaskRun, now
 		retryCondition = "attempt_count<? AND error_message NOT LIKE ?"
 		args = []any{now, run.RunKey, accountTaskMaxAttempts, NoRetryErrorPrefix + "%"}
 	}
-	// res、err 用于本次流程后续判断的res、err
 	res, err := s.DB.ExecContext(ctx, `UPDATE account_task_runs SET status='running',attempt_count=attempt_count+1,started_at=?,finished_at=0,error_message=''
 		WHERE run_key=? AND status='failed' AND `+retryCondition, args...)
 	if err != nil {
 		return false, err
 	}
-	if // n 用于本次流程后续判断的n
-	n, _ := res.RowsAffected(); n > 0 {
+	if n, _ := res.RowsAffected(); n > 0 {
 		return true, nil
 	}
-	// query 用于本次流程后续判断的查询
 	query := dialectInsertIgnorePrefix(s.Dialect) + ` INTO account_task_runs
 		(run_key,cookie_id,task_type,target_id,run_date,status,success_count,failed_count,error_message,attempt_count,next_retry_at,started_at,finished_at)
 		VALUES(?,?,?,?,?,'running',0,0,'',1,0,?,0)` + dialectInsertIgnore(s.Dialect, []string{"run_key"})
@@ -203,7 +185,6 @@ func (s *AccountTaskStore) claimRun(ctx context.Context, run AccountTaskRun, now
 	if err != nil {
 		return false, err
 	}
-	// n 用于本次流程后续判断的n
 	n, _ := res.RowsAffected()
 	if n == 0 && immediate {
 		// attemptCount、status 保存人工重试未抢占时的累计次数和运行状态，用于判断是否达到上限。
@@ -222,47 +203,40 @@ func (s *AccountTaskStore) claimRun(ctx context.Context, run AccountTaskRun, now
 	return n > 0, nil
 }
 
-// FinishRun 封装Finish运行业务协调。
+// FinishRun 写入运行终态；失败次数达到上限后不再安排重试。
 func (s *AccountTaskStore) FinishRun(ctx context.Context, runKey, status string, success, failed int, message string, nextRetryAt int64) error {
-	// err 用于本次流程后续判断的err
 	_, err := s.DB.ExecContext(ctx, `UPDATE account_task_runs SET status=?,success_count=?,failed_count=?,error_message=?,next_retry_at=CASE WHEN ?='failed' AND attempt_count>=? THEN 0 ELSE ? END,finished_at=? WHERE run_key=?`,
 		status, success, failed, message, status, accountTaskMaxAttempts, nextRetryAt, time.Now().UTC().Unix(), runKey)
 	return err
 }
 
-// MarkRateScan 封装MarkRateScan业务协调。
+// MarkRateScan 记录账号最近一次扫描待评价订单的时间。
 func (s *AccountTaskStore) MarkRateScan(ctx context.Context, cookieID string, at int64) error {
-	// err 用于本次流程后续判断的err
 	_, err := s.DB.ExecContext(ctx, `UPDATE account_task_settings SET last_rate_scan_at=?,updated_at=? WHERE cookie_id=?`, at, at, cookieID)
 	return err
 }
 
-// MarkPolished 封装MarkPolished业务协调。
+// MarkPolished 记录账号完成擦亮的日期和时间，避免同日重复执行。
 func (s *AccountTaskStore) MarkPolished(ctx context.Context, cookieID, date string, at int64) error {
-	// err 用于本次流程后续判断的err
 	_, err := s.DB.ExecContext(ctx, `UPDATE account_task_settings SET last_polish_date=?,last_polish_at=?,updated_at=? WHERE cookie_id=?`, date, at, at, cookieID)
 	return err
 }
 
-// RecentRuns 封装Recent运行记录业务协调。
+// RecentRuns 返回账号最近的任务执行记录，limit 超出 1-100 时取 20。
 func (s *AccountTaskStore) RecentRuns(ctx context.Context, cookieID string, limit int) ([]AccountTaskRun, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := s.DB.QueryContext(ctx, `SELECT id,run_key,cookie_id,task_type,target_id,run_date,status,success_count,failed_count,
 		error_message,attempt_count,next_retry_at,started_at,finished_at FROM account_task_runs WHERE cookie_id=? ORDER BY id DESC LIMIT ?`, cookieID, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	// result 用于本次流程后续判断的结果
 	var result []AccountTaskRun
 	for rows.Next() {
-		// row 用于本次流程后续判断的row
 		var row AccountTaskRun
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&row.ID, &row.RunKey, &row.CookieID, &row.TaskType, &row.TargetID, &row.RunDate,
+		if err := rows.Scan(&row.ID, &row.RunKey, &row.CookieID, &row.TaskType, &row.TargetID, &row.RunDate,
 			&row.Status, &row.SuccessCount, &row.FailedCount, &row.ErrorMessage, &row.AttemptCount, &row.NextRetryAt,
 			&row.StartedAt, &row.FinishedAt); err != nil {
 			return nil, err
@@ -272,7 +246,6 @@ func (s *AccountTaskStore) RecentRuns(ctx context.Context, cookieID string, limi
 	return result, rows.Err()
 }
 
-// boolInt 封装boolInt业务协调。
 func boolInt(v bool) int {
 	if v {
 		return 1

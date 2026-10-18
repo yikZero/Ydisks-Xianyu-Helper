@@ -12,7 +12,6 @@ func TestAccountTaskRepositoryAdapterGaps(t *testing.T) {
 	// release 是空存储时返回的空操作解锁函数，调用不得崩溃。
 	release := storeAccountTaskRepository{}.LockAccountCredentials("cid")
 	release()
-	// store、cleanup 保存隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// repo 是委托真实仓储的适配器。
@@ -27,7 +26,6 @@ func TestAccountTaskRepositoryAdapterGaps(t *testing.T) {
 
 // TestDeliveryNotifierWithoutNotifier 验证未注入通知器时终态通知安全跳过。
 func TestDeliveryNotifierWithoutNotifier(t *testing.T) {
-	// store、cleanup 保存隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 未注入通知器，终态通知应只记录日志。
@@ -37,22 +35,17 @@ func TestDeliveryNotifierWithoutNotifier(t *testing.T) {
 
 // TestSendCardGuards 覆盖发卡动作缺少卡组、卡组读取失败与 API 客户端缺失的前置保护。
 func TestSendCardGuards(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
-	// store、cleanup 保存隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 未注入 API 卡取回器。
 	center := New(store, nil, nil)
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := center.actions.sendCardWithProof(ctx, Task{}, db.AutomationAction{ActionType: ActionSendCard, Enabled: true, ConfigJSON: `{}`}); err == nil {
 		t.Fatal("缺少卡组ID应报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := center.actions.sendCardWithProof(ctx, Task{}, db.AutomationAction{ActionType: ActionSendCard, CardID: 424242, Enabled: true, ConfigJSON: `{}`}); err == nil {
 		t.Fatal("卡组不存在应报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := center.actions.sendAPICardWithProof(ctx, Task{}, db.AutomationAction{}, &db.CardFull{}, 1); err == nil {
 		t.Fatal("API 客户端缺失应报错")
 	}

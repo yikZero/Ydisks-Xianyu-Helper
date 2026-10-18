@@ -56,12 +56,10 @@ func TestCatalogItemsFromRowsConvertsAllFields(t *testing.T) {
 
 // TestItemCatalogRepositoryWritesAndDeletesItem 验证商品写适配器覆盖创建、开关更新和逻辑删除。
 func TestItemCatalogRepositoryWritesAndDeletesItem(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的商品读写适配器。
 	repository := NewItemCatalogRepository(store)
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// upsertErr 保存创建商品的写入错误。
 	upsertErr := repository.Upsert(ctx, "cid", itemapp.CatalogWriteInput{ItemID: "item-write", ItemTitle: "商品", IsMultiSpec: true})
@@ -103,10 +101,8 @@ func TestItemCatalogRepositoryWritesAndDeletesItem(t *testing.T) {
 
 // TestItemCatalogRepositoryListsAndMapsErrors 验证商品目录的用户范围、账号范围查询及错误转换。
 func TestItemCatalogRepositoryListsAndMapsErrors(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// owner、ownerErr 保存测试账号所属用户及查询错误。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")

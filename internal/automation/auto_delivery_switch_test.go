@@ -12,10 +12,8 @@ import (
 // TestAutoDeliveryEnabledReadsAutoConfirmMasterSwitch 验证 autoDeliveryEnabled 读取的是自动发货总开关 auto_confirm，
 // 与发货后确认开关 auto_consign 相互独立；账号缺失时返回带“自动发货设置”语义的错误，不失败开放。
 func TestAutoDeliveryEnabledReadsAutoConfirmMasterSwitch(t *testing.T) {
-	// store、cleanup 是带默认账号 cid 的测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是读取与写入账号设置共用的上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存账号归属管理员及读取错误。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

@@ -24,7 +24,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// migrationsFS 用于本次流程后续判断的migrationsFS
 //
 //go:embed migrations/sqlite/*.sql migrations/mysql/*.sql migrations/postgres/*.sql
 var migrationsFS embed.FS
@@ -32,7 +31,6 @@ var migrationsFS embed.FS
 // Dialect 标识数据库方言。
 type Dialect string
 
-// DialectSQLite 用于本次流程后续判断的DialectSQLite
 const (
 	DialectSQLite   Dialect = "sqlite"
 	DialectMySQL    Dialect = "mysql"
@@ -42,7 +40,6 @@ const (
 // driverName 内部 driver 名（传给 sql.Open）。
 type driverName string
 
-// driverSQLite 用于本次流程后续判断的driverSQLite
 const (
 	driverSQLite driverName = "sqlite"
 	driverMySQL  driverName = "mysql"
@@ -59,7 +56,6 @@ const (
 // 为向后兼容，传入的 dbURL 若不含 "://"，则按 SQLite 文件路径处理。
 // Open 打开当前值。
 func Open(ctx context.Context, dbURL string) (*sql.DB, Dialect, error) {
-	// driver、dialect、dsn、err 用于本次流程后续判断的driver、dialect、dsn、err
 	driver, dialect, dsn, err := parseDBURL(dbURL)
 	if err != nil {
 		return nil, "", err
@@ -93,14 +89,12 @@ func Open(ctx context.Context, dbURL string) (*sql.DB, Dialect, error) {
 	}
 	db.SetConnMaxLifetime(time.Hour)
 
-	if // err 用于本次流程后续判断的err
-	err := db.PingContext(ctx); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		_ = db.Close()
 		return nil, "", fmt.Errorf("ping 数据库: %w", err)
 	}
 
-	if // err 用于本次流程后续判断的err
-	err := Migrate(ctx, db, dialect); err != nil {
+	if err := Migrate(ctx, db, dialect); err != nil {
 		_ = db.Close()
 		return nil, "", err
 	}
@@ -115,15 +109,11 @@ func parseDBURL(raw string) (driverName, Dialect, string, error) {
 	}
 	// 向后兼容：不含 scheme 视为 SQLite 文件路径。
 	if !strings.Contains(raw, "://") {
-		// dsn 用于本次流程后续判断的dsn
 		dsn := sqliteDSN(raw)
 		return driverSQLite, DialectSQLite, dsn, nil
 	}
-	// idx 用于本次流程后续判断的idx
 	idx := strings.Index(raw, "://")
-	// scheme 用于本次流程后续判断的scheme
 	scheme := raw[:idx]
-	// rest 用于本次流程后续判断的rest
 	rest := raw[idx+3:]
 	switch scheme {
 	case "sqlite", "sqlite3":
@@ -154,7 +144,6 @@ func sqliteDSN(path string) string {
 //   - clientFoundRows：RowsAffected 返回匹配行数，使“保存未变化内容”的语义与 SQLite/Postgres 一致。
 //
 // 其余参数原样保留。不强制 parseTime——本仓库时间列按 string/int64 扫描。
-// mysqlDSN 封装mysqlDSN业务协调。
 func mysqlDSN(dsn string) string {
 	dsn = forceMySQLBoolParam(dsn, "multiStatements")
 	dsn = forceMySQLBoolParam(dsn, "clientFoundRows")
@@ -162,26 +151,20 @@ func mysqlDSN(dsn string) string {
 	return forceMySQLParam(dsn, "time_zone", "%27%2B00%3A00%27")
 }
 
-// forceMySQLBoolParam 封装forceMySQLBoolParam业务协调。
 func forceMySQLBoolParam(dsn, key string) string {
 	return forceMySQLParam(dsn, key, "true")
 }
 
 // forceMySQLParam 强制设置 MySQL DSN 参数并保留其他连接选项。
 func forceMySQLParam(dsn, key, value string) string {
-	// base、rawQuery、hasQuery 用于本次流程后续判断的base、rawQuery、has查询
 	base, rawQuery, hasQuery := strings.Cut(dsn, "?")
-	// parts 用于本次流程后续判断的parts
 	parts := make([]string, 0, 4)
-	// found 用于本次流程后续判断的found
 	found := false
 	if hasQuery {
-		// part 表示当前遍历过程中的part
 		for _, part := range strings.Split(rawQuery, "&") {
 			if part == "" {
 				continue
 			}
-			// name 用于本次流程后续判断的名称
 			name, _, _ := strings.Cut(part, "=")
 			if name == key {
 				if !found {
@@ -201,9 +184,7 @@ func forceMySQLParam(dsn, key, value string) string {
 
 // Migrate 执行嵌入式 goose 迁移，按方言选择子目录。
 func Migrate(ctx context.Context, db *sql.DB, dialect Dialect) error {
-	// gooseDialect 用于本次流程后续判断的gooseDialect
 	var gooseDialect string
-	// subdir 用于本次流程后续判断的subdir
 	var subdir string
 	switch dialect {
 	case DialectSQLite:
@@ -215,13 +196,11 @@ func Migrate(ctx context.Context, db *sql.DB, dialect Dialect) error {
 	default:
 		return fmt.Errorf("未知方言: %s", dialect)
 	}
-	if // err 用于本次流程后续判断的err
-	err := goose.SetDialect(gooseDialect); err != nil {
+	if err := goose.SetDialect(gooseDialect); err != nil {
 		return fmt.Errorf("设置 goose dialect: %w", err)
 	}
 	goose.SetBaseFS(migrationsFS)
-	if // err 用于本次流程后续判断的err
-	err := goose.Up(db, "migrations/"+subdir); err != nil {
+	if err := goose.Up(db, "migrations/"+subdir); err != nil {
 		return fmt.Errorf("执行迁移: %w", err)
 	}
 	// err 保存自动化规则规格迁移错误。

@@ -56,31 +56,24 @@ func outgoingRequestID(ctx context.Context) string {
 
 // handleSyncExtra 处理服务端增量同步帧并在需要时回传确认，返回解码或发送错误。
 func (c *Conn) handleSyncExtra(ctx context.Context, msg map[string]any) error {
-	// body 用于本次流程后续判断的请求体
 	body, _ := msg["body"].(map[string]any)
-	// extra 用于本次流程后续判断的extra
 	extra, _ := body["syncExtraType"].(map[string]any)
-	// typeCode、ok 用于本次流程后续判断的类型Code、ok
 	typeCode, ok := responseCode(extra["type"])
 	if !ok || (typeCode != 1 && typeCode != 2) {
 		return nil
 	}
-	// state、err 用于本次流程后续判断的state、err
 	state, err := c.request(ctx, "/r/SyncStatus/getState", map[string]any{}, []any{map[string]any{"topic": "sync"}}, regResponseTimeout)
 	if err != nil {
 		return fmt.Errorf("getState: %w", err)
 	}
-	if // code、ok 用于本次流程后续判断的code、ok
-	code, ok := responseCode(state["code"]); !ok || code != http.StatusOK || state["body"] == nil {
+	if code, ok := responseCode(state["code"]); !ok || code != http.StatusOK || state["body"] == nil {
 		return fmt.Errorf("getState 返回异常: code=%v", state["code"])
 	}
-	// response、err 用于本次流程后续判断的response、err
 	response, err := c.request(ctx, "/r/SyncStatus/ackDiff", map[string]any{}, []any{state["body"]}, regResponseTimeout)
 	if err != nil {
 		return fmt.Errorf("ackDiff: %w", err)
 	}
-	if // code、ok 用于本次流程后续判断的code、ok
-	code, ok := responseCode(response["code"]); ok && code != http.StatusOK {
+	if code, ok := responseCode(response["code"]); ok && code != http.StatusOK {
 		return fmt.Errorf("ackDiff 返回异常: code=%d", code)
 	}
 	return nil
@@ -88,15 +81,11 @@ func (c *Conn) handleSyncExtra(ctx context.Context, msg map[string]any) error {
 
 // sendACK 回复 {"code":200, headers:<服务端完整 headers>}。
 func (c *Conn) sendACK(ctx context.Context, msg map[string]any) {
-	// headers 用于本次流程后续判断的headers
 	headers, _ := msg["headers"].(map[string]any)
-	// ackHeaders 用于本次流程后续判断的ackHeaders
 	ackHeaders := make(map[string]any, len(headers))
-	// key、value 表示当前遍历过程中的key、value
 	for key, value := range headers {
 		ackHeaders[key] = value
 	}
-	// ack 用于本次流程后续判断的ack
 	ack := map[string]any{
 		"code":    200,
 		"headers": ackHeaders,
@@ -118,17 +107,14 @@ type syncPayloadEntry struct {
 
 // extractSyncPayloads 取出 body.syncPushPackage.data 中的全部条目，保留无效条目以便调用方留下可观测告警。
 func extractSyncPayloads(msg map[string]any) ([]syncPayloadEntry, bool) {
-	// body 用于本次流程后续判断的请求体
 	body, _ := msg["body"].(map[string]any)
 	if body == nil {
 		return nil, false
 	}
-	// pkg 用于本次流程后续判断的pkg
 	pkg, _ := body["syncPushPackage"].(map[string]any)
 	if pkg == nil {
 		return nil, false
 	}
-	// arr 用于本次流程后续判断的arr
 	arr, ok := pkg["data"].([]any)
 	if !ok || len(arr) == 0 {
 		return nil, false
@@ -158,10 +144,8 @@ func extractSyncPayloads(msg map[string]any) ([]syncPayloadEntry, bool) {
 func decodeSyncData(data string) (map[string]any, error) {
 	// 1) base64 解码后尝试解析 JSON。
 	if dec, err := base64.StdEncoding.DecodeString(data); err == nil {
-		// parsed 用于本次流程后续判断的解析结果
 		var parsed map[string]any
-		if // jsonErr 用于本次流程后续判断的jsonErr
-		jsonErr := json.Unmarshal(dec, &parsed); jsonErr == nil {
+		if jsonErr := json.Unmarshal(dec, &parsed); jsonErr == nil {
 			return parsed, nil
 		}
 	}
@@ -170,10 +154,8 @@ func decodeSyncData(data string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	// parsed 用于本次流程后续判断的解析结果
 	var parsed map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal([]byte(out), &parsed); err != nil {
+	if err := json.Unmarshal([]byte(out), &parsed); err != nil {
 		return nil, fmt.Errorf("解密后非 JSON: %w", err)
 	}
 	return parsed, nil
@@ -181,13 +163,11 @@ func decodeSyncData(data string) (map[string]any, error) {
 
 // sendJSON 发送一条 JSON 文本帧。
 func (c *Conn) sendJSON(ctx context.Context, v any) error {
-	// b、err 用于本次流程后续判断的b、err
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
-	if // recorder 用于本次流程后续判断的recorder
-	recorder := c.recorderSnapshot(); recorder != nil {
+	if recorder := c.recorderSnapshot(); recorder != nil {
 		recorder("out", string(b), string(b), "json", "")
 	}
 	select {
@@ -201,7 +181,6 @@ func (c *Conn) sendJSON(ctx context.Context, v any) error {
 
 // SendText 发送一条闲鱼聊天文本消息。
 func (c *Conn) SendText(ctx context.Context, myID, cid, toID, text string) error {
-	// content 用于本次流程后续判断的内容
 	content := map[string]any{
 		"contentType": 1,
 		"text": map[string]any{
@@ -257,7 +236,6 @@ func (c *Conn) SendImage(ctx context.Context, myID, cid, toID, imageURL string, 
 	if height <= 0 {
 		height = 600
 	}
-	// content 用于本次流程后续判断的内容
 	content := map[string]any{
 		"contentType": 2,
 		"image": map[string]any{
@@ -292,7 +270,6 @@ func (c *Conn) SendItemCard(ctx context.Context, myID, cid, toID, itemID, title,
 	return c.sendChatContent(ctx, myID, cid, toID, content)
 }
 
-// sendChatContent 封装send聊天内容业务协调。
 func (c *Conn) sendChatContent(ctx context.Context, myID, cid, toID string, content any) error {
 	// err 保存发送开始前的取消状态。
 	if err := ctx.Err(); err != nil {
@@ -304,12 +281,10 @@ func (c *Conn) sendChatContent(ctx context.Context, myID, cid, toID string, cont
 	if myID == "" || cid == "" || toID == "" {
 		return &SendError{Kind: SendNotSent, Err: fmt.Errorf("发送消息缺少必要参数")}
 	}
-	// raw、err 用于本次流程后续判断的raw、err
 	raw, err := json.Marshal(content)
 	if err != nil {
 		return &SendError{Kind: SendNotSent, Err: err}
 	}
-	// encoded 用于本次流程后续判断的encoded
 	encoded := base64.StdEncoding.EncodeToString(raw)
 	// mid 保存一次平台发送使用的请求级标识；自动化调用由上层注入，相同请求链路必须复用它。
 	mid := outgoingRequestID(ctx)
@@ -497,8 +472,8 @@ func outgoingEchoContent(sentContent []byte) (messageType, text, content string,
 
 // strictChatSendResponseCode 只接受完整整数形式的聊天发送状态码，避免截断浮点数或接受带尾随字符的字符串。
 func strictChatSendResponseCode(value any) (int, bool) {
-	switch // code 是当前待严格校验的平台状态码具体类型和值。
-	code := value.(type) {
+	// code 是当前待严格校验的平台状态码具体类型和值。
+	switch code := value.(type) {
 	case int:
 		return code, true
 	case float64:
@@ -533,7 +508,6 @@ func strictChatSendResponseCode(value any) (int, bool) {
 	}
 }
 
-// stripGoofish 封装stripGoofish业务协调。
 func stripGoofish(s string) string {
 	s = strings.TrimSpace(s)
 	return strings.TrimSuffix(s, "@goofish")

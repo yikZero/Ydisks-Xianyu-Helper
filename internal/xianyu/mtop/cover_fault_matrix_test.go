@@ -24,82 +24,66 @@ type faultOperation struct {
 func faultOperations() []faultOperation {
 	return []faultOperation{
 		{"adjust", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, _, _, err := c.AdjustOrderPriceContext(ctx, faultCookies, "o1", 100)
 			return err
 		}},
 		{"consign", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, _, _, err := c.ConsignContext(ctx, faultCookies, "o1")
 			return err
 		}},
 		{"freeshipping", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, _, _, err := c.FreeShippingContext(ctx, faultCookies, "o1", "i1", "b1")
 			return err
 		}},
 		{"chat-items", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.SearchChatItems(ctx, faultCookies, "s1", "other", "q", 1)
 			return err
 		}},
 		{"order-detail", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.FetchOrderDetail(ctx, faultCookies, "o1")
 			return err
 		}},
 		{"sold-orders", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.FetchSoldOrdersPage(ctx, faultCookies, 1, 10)
 			return err
 		}},
 		{"items-page", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.FetchItemsPage(ctx, faultCookies, 1, 10)
 			return err
 		}},
 		{"items-all", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.FetchAllItems(ctx, faultCookies, 10, 2)
 			return err
 		}},
 		{"login-status", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.CheckLoginStatusContext(ctx, faultCookies)
 			return err
 		}},
 		{"pending-rate", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.FetchPendingRateOrders(ctx, faultCookies, 1, 10)
 			return err
 		}},
 		{"rate-buyer", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.RateBuyer(ctx, faultCookies, "t1", "好评")
 			return err
 		}},
 		{"polish", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.PolishItem(ctx, faultCookies, "i1")
 			return err
 		}},
 		{"profile", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.FetchUserProfile(ctx, faultCookies)
 			return err
 		}},
 		{"chat-user", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.FetchChatUserInfo(ctx, faultCookies, "chat1")
 			return err
 		}},
 		{"chat-image", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, err := c.UploadChatImage(ctx, faultCookies, "a.png", "image/png", []byte{1, 2, 3})
 			return err
 		}},
 		{"recommend-category", func(ctx context.Context, c *ClientImpl) error {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			_, _, err := c.RecommendPublishCategory(ctx, faultCookies, "耳机")
 			return err
 		}},
@@ -148,7 +132,6 @@ func TestFaultMatrixHTTPAndBodyFailures(t *testing.T) {
 		for _, op := range faultOperations() {
 			// callCtx 限制单次调用总时长，避免内置一秒重试间隔拖慢测试。
 			callCtx, callCancel := context.WithTimeout(context.Background(), 60*time.Millisecond)
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			if err := op.call(callCtx, client); err == nil && mode != "business-500" {
 				t.Errorf("%s/%s 应返回错误", mode, op.name)
 			}
@@ -163,7 +146,6 @@ func TestFaultMatrixHTTPAndBodyFailures(t *testing.T) {
 	closedServer.Close()
 	// op 保存当前被驱动的业务调用。
 	for _, op := range faultOperations() {
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if err := op.call(context.Background(), closedClient); err == nil {
 			t.Errorf("closed/%s 应返回错误", op.name)
 		}
@@ -184,11 +166,9 @@ func TestFaultMatrixCancelledContextUsesDefaultEndpoints(t *testing.T) {
 	client := &ClientImpl{HTTPClient: server.Client()}
 	// op 是当前调用。
 	for _, op := range faultOperations() {
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if err := op.call(ctx, client); err == nil {
 			t.Errorf("cancelled/%s 应返回错误", op.name)
 		}
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if err := op.call(sessionCtx, client); err == nil {
 			t.Errorf("cancelled-session/%s 应返回错误", op.name)
 		}

@@ -35,7 +35,6 @@ func TestServiceUpdateDataMetadataValidation(t *testing.T) {
 	}
 	// draft 是当前不合法草稿。
 	for _, draft := range drafts {
-		// err 是更新返回的错误。
 		err := service.Update(context.Background(), 7, 6, draft)
 		// validationErr 用于确认错误类型。
 		var validationErr *ValidationError

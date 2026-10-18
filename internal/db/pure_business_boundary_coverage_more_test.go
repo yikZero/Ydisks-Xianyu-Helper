@@ -16,7 +16,6 @@ func TestStoreLockPricingModeBoundaries(t *testing.T) {
 	nilUnlock := nilStore.LockPricingMode()
 	nilUnlock()
 
-	// store、cleanup 用于验证真实 Store 的锁获取与释放生命周期。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// unlock 用于释放本次测试持有的进程内互斥锁。
@@ -26,7 +25,6 @@ func TestStoreLockPricingModeBoundaries(t *testing.T) {
 
 // TestCookiesIsPausedMissingAccount 覆盖查询不存在账号时的统一未找到错误。
 func TestCookiesIsPausedMissingAccount(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// err 用于接收不存在账号的查询结果。
@@ -38,10 +36,8 @@ func TestCookiesIsPausedMissingAccount(t *testing.T) {
 
 // TestResolveDeferredIssueDeleteAndMissing 覆盖死信任务删除及不存在任务的错误分支。
 func TestResolveDeferredIssueDeleteAndMissing(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于控制本次数据库操作的生命周期。
 	ctx := context.Background()
 	// userID、cookieID 用于建立任务所属的账号边界。
 	userID, cookieID := seedAccount(t, store)
@@ -82,10 +78,8 @@ func TestResolveDeferredIssueDeleteAndMissing(t *testing.T) {
 
 // TestRequestCancelMissingAndIdle 覆盖取消不存在批次与尚未运行批次的事务路径。
 func TestRequestCancelMissingAndIdle(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于控制本次数据库操作的生命周期。
 	ctx := context.Background()
 	// err 用于接收不存在批次的查询结果。
 	_, _, err := store.PublishBatches.RequestCancel(ctx, "missing-batch")
@@ -139,10 +133,8 @@ func TestAutomationRetryDelayAndBoolIntBoundaries(t *testing.T) {
 
 // TestFirstBatchDataBoundaries 覆盖批量卡券不存在、空库存和无有效行的读取错误。
 func TestFirstBatchDataBoundaries(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于控制本次数据库操作的生命周期。
 	ctx := context.Background()
 	// userID 用于建立卡券所属用户的外键关系。
 	userID, _ := seedAccount(t, store)
@@ -175,7 +167,6 @@ func TestFirstBatchDataBoundaries(t *testing.T) {
 
 // TestGetOrCreateDeviceIDRejectsEmptyCandidate 覆盖设备标识候选为空时的输入校验。
 func TestGetOrCreateDeviceIDRejectsEmptyCandidate(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// err 用于接收空设备标识候选的输入错误。
@@ -187,10 +178,8 @@ func TestGetOrCreateDeviceIDRejectsEmptyCandidate(t *testing.T) {
 
 // TestRepositoryInputAndTerminalBoundaries 覆盖账号创建输入校验、补偿记录不存在和报价终态错误。
 func TestRepositoryInputAndTerminalBoundaries(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于控制本次数据库操作的生命周期。
 	ctx := context.Background()
 	// err 表示空账号标识输入校验错误。
 	if err := store.Cookies.CreateOwned(ctx, "", "cookie", 1); err == nil {
@@ -214,10 +203,8 @@ func TestRepositoryInputAndTerminalBoundaries(t *testing.T) {
 
 // TestInsertReturningIDAcrossDialectBranches 覆盖自增主键辅助函数的 SQLite、RETURNING 和 SQL 错误路径。
 func TestInsertReturningIDAcrossDialectBranches(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于控制本次数据库操作的生命周期。
 	ctx := context.Background()
 	// err 用于接收测试表创建错误。
 	if _, err := store.DB.ExecContext(ctx, `CREATE TABLE coverage_insert_returning (id INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT NOT NULL)`); err != nil {
@@ -243,10 +230,8 @@ func TestInsertReturningIDAcrossDialectBranches(t *testing.T) {
 // TestLegacyTokenAndNotificationMigrationBranches 覆盖历史令牌与通知配置的加密迁移及幂等重跑。
 func TestLegacyTokenAndNotificationMigrationBranches(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "legacy-migration-coverage-key")
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于控制本次迁移事务的生命周期。
 	ctx := context.Background()
 	// userID、cookieID 用于建立令牌与通知渠道的外键关系。
 	userID, cookieID := seedAccount(t, store)
@@ -315,10 +300,8 @@ func TestLegacyTokenAndNotificationMigrationBranches(t *testing.T) {
 
 // TestTryStartRunPostgresReturningAndReclaimBranches 使用 SQLite 的 RETURNING 兼容语法覆盖 PostgreSQL 分支。
 func TestTryStartRunPostgresReturningAndReclaimBranches(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于控制本次运行记录操作的生命周期。
 	ctx := context.Background()
 	// userID、cookieID 用于建立规则所属用户与账号关系。
 	userID, cookieID := seedAccount(t, store)
@@ -349,10 +332,8 @@ func TestTryStartRunPostgresReturningAndReclaimBranches(t *testing.T) {
 
 // TestNotificationUpdateAndCredentialWakeErrorBranches 覆盖通知渠道归属回读和凭证唤醒数据库错误。
 func TestNotificationUpdateAndCredentialWakeErrorBranches(t *testing.T) {
-	// store、cleanup 用于提供隔离数据库及其关闭逻辑。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于控制本次数据库操作的生命周期。
 	ctx := context.Background()
 	// userID 用于建立通知渠道所属用户关系。
 	userID, _ := seedAccount(t, store)
@@ -368,7 +349,6 @@ func TestNotificationUpdateAndCredentialWakeErrorBranches(t *testing.T) {
 	}
 	// closedStore、closedCleanup 提供确定返回数据库错误的自动化仓储。
 	closedStore, closedCleanup := newTestDB(t)
-	// err 表示关闭错误测试数据库连接时的错误。
 	if err := closedStore.DB.Close(); err != nil {
 		t.Fatal(err)
 	}

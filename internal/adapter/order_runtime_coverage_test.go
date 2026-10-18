@@ -10,7 +10,6 @@ import (
 
 // TestOrderRuntimeNilInfrastructurePaths 验证订单运行时在未装配外部基础设施时的确定性保护路径。
 func TestOrderRuntimeNilInfrastructurePaths(t *testing.T) {
-	// ctx 是本测试订单运行时调用共用的上下文。
 	ctx := context.Background()
 	// hooks 保存未装配平台、账号和自动化能力的运行时回调集合。
 	hooks := NewOrderRuntimeHooks(nil, nil, nil, nil, nil, nil)
@@ -76,7 +75,6 @@ func TestOrderRuntimeNilInfrastructurePaths(t *testing.T) {
 
 // TestOrderRuntimeAdapterDelegatesNilRuntimePaths 验证订单应用适配器在空运行时下的统一错误和零值结果。
 func TestOrderRuntimeAdapterDelegatesNilRuntimePaths(t *testing.T) {
-	// ctx 是本测试订单应用适配器共用的上下文。
 	ctx := context.Background()
 	// adapter 保存组合根未提供工厂时构造的订单应用适配器。
 	adapter := NewOrderRuntimeAdapter(nil, nil, nil, nil, nil, nil, nil, nil, nil)

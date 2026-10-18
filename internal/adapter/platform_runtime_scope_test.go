@@ -12,7 +12,6 @@ func TestOnPasswordLoginRefreshUsesPlatformRuntimeData(t *testing.T) {
 	// store 是本测试使用的账号数据库；cleanup 负责关闭数据库连接。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是协议续期测试共用的上下文。
 	ctx := context.Background()
 	// updateErr 表示写入协议续期所需 Cookie 标记失败的原因。
 	if updateErr := store.Cookies.UpdateValueExisting(ctx, "cid", "unb=1; _m_h5_tk=tk; havana_lgc_exp=9999999999999"); updateErr != nil {
@@ -40,7 +39,6 @@ func TestFetchOrderDetailUsesPlatformRuntimeData(t *testing.T) {
 	// store 是本测试使用的账号数据库；cleanup 负责关闭数据库连接。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是订单详情测试共用的上下文。
 	ctx := context.Background()
 	// corruptErr 表示写入故意损坏的登录密码密文失败的原因。
 	if _, corruptErr := store.DB.ExecContext(ctx,
@@ -65,7 +63,6 @@ func TestOnTokenCaptchaVerificationUsesPlatformRuntimeData(t *testing.T) {
 	// store 是本测试使用的账号数据库；cleanup 负责关闭数据库连接。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是 token 风控测试共用的上下文。
 	ctx := context.Background()
 	// corruptErr 表示写入故意损坏的登录密码密文失败的原因。
 	if _, corruptErr := store.DB.ExecContext(ctx,

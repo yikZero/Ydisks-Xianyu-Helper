@@ -11,32 +11,24 @@ import (
 	"xianyu-go/internal/netguard"
 )
 
-// TestSendPublicSMTPRejectsInvalidPortAndLoopback 封装TestSendPublicSMTPRejectsInvalidPortAndLoopback业务协调。
 func TestSendPublicSMTPRejectsInvalidPortAndLoopback(t *testing.T) {
-	// testDialer 用于本次流程后续判断的testDialer
 	testDialer := dialPublicSMTP
 	dialPublicSMTP = netguard.DialPublicContext
 	t.Cleanup(func() { dialPublicSMTP = testDialer })
-	if // err 用于本次流程后续判断的err
-	err := sendPublicSMTP(context.Background(), "smtp.example.com:not-a-port", "smtp.example.com", nil, "a@example.com", "b@example.com", nil); err == nil || !strings.Contains(err.Error(), "端口无效") {
+	if err := sendPublicSMTP(context.Background(), "smtp.example.com:not-a-port", "smtp.example.com", nil, "a@example.com", "b@example.com", nil); err == nil || !strings.Contains(err.Error(), "端口无效") {
 		t.Fatalf("invalid port must be rejected, got %v", err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := sendPublicSMTP(context.Background(), "127.0.0.1:25", "127.0.0.1", nil, "a@example.com", "b@example.com", nil); err == nil || !strings.Contains(err.Error(), "非公网") {
+	if err := sendPublicSMTP(context.Background(), "127.0.0.1:25", "127.0.0.1", nil, "a@example.com", "b@example.com", nil); err == nil || !strings.Contains(err.Error(), "非公网") {
 		t.Fatalf("loopback SMTP must be rejected, got %v", err)
 	}
 }
 
-// TestSendPublicSMTPRequiresAdvertisedSTARTTLS 封装TestSendPublicSMTPRequiresAdvertisedSTARTTLS业务协调。
 func TestSendPublicSMTPRequiresAdvertisedSTARTTLS(t *testing.T) {
-	// original 用于本次流程后续判断的original
 	original := dialPublicSMTP
 	dialPublicSMTP = func(context.Context, string, string, time.Duration) (net.Conn, error) {
-		// client、server 用于本次流程后续判断的client、server
 		client, server := net.Pipe()
 		go func() {
 			defer server.Close()
-			// reader 用于本次流程后续判断的reader
 			reader := bufio.NewReader(server)
 			_, _ = server.Write([]byte("220 smtp.example.test ESMTP\r\n"))
 			_, _ = reader.ReadString('\n')
@@ -45,7 +37,6 @@ func TestSendPublicSMTPRequiresAdvertisedSTARTTLS(t *testing.T) {
 		return client, nil
 	}
 	t.Cleanup(func() { dialPublicSMTP = original })
-	// err 用于本次流程后续判断的err
 	err := sendPublicSMTP(context.Background(), "smtp.example.test:587", "smtp.example.test", nil,
 		"a@example.test", "b@example.test", nil, smtpTransportOptions{UseSTARTTLS: true})
 	if err == nil || !strings.Contains(err.Error(), "STARTTLS") {

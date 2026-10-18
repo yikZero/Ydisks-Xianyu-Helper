@@ -27,17 +27,12 @@ func (c *ClientImpl) fetchItemsPage(ctx context.Context, cookiesStr string, page
 	if pageSize < 1 {
 		pageSize = 20
 	}
-	// currentCookies 用于本次流程后续判断的currentCookies
 	currentCookies := cookiesStr
-	if // session 用于本次流程后续判断的会话
-	session := cookieSessionFromContext(ctx); session != nil {
+	if session := cookieSessionFromContext(ctx); session != nil {
 		currentCookies, _, _ = session.State()
 	}
-	// lastRet 用于本次流程后续判断的lastRet
 	var lastRet []string
-	for // attempt 用于本次流程后续判断的尝试次数
-	attempt := 0; attempt < 4; attempt++ {
-		// res、ret、updatedCookies、err 用于本次流程后续判断的res、ret、updatedCookies、err
+	for attempt := 0; attempt < 4; attempt++ {
 		res, ret, updatedCookies, err := c.fetchItemsPageOnce(ctx, currentCookies, pageNumber, pageSize)
 		if err != nil {
 			if !IsMTopTokenExpiredErr(err) {
@@ -60,18 +55,15 @@ func (c *ClientImpl) fetchItemsPage(ctx context.Context, cookiesStr string, page
 			tokenChanged := mtopTokenCookieChanged(currentCookies, updatedCookies)
 			currentCookies = updatedCookies
 			if tokenChanged {
-				if // err 用于本次流程后续判断的err
-				err := sleepCtx(ctx, MTopRetryGap); err != nil {
+				if err := sleepCtx(ctx, MTopRetryGap); err != nil {
 					return nil, err
 				}
 				continue
 			}
 		}
-		if // err 用于本次流程后续判断的err
-		err := sleepCtx(ctx, MTopRetryGap); err != nil {
+		if err := sleepCtx(ctx, MTopRetryGap); err != nil {
 			return nil, err
 		}
-		// refreshed、err 用于本次流程后续判断的refreshed、err
 		refreshed, err := c.RefreshTokenContext(ctx, currentCookies)
 		if err != nil {
 			return nil, fmt.Errorf("刷新 mtop token 失败: %w", err)
@@ -83,19 +75,14 @@ func (c *ClientImpl) fetchItemsPage(ctx context.Context, cookiesStr string, page
 
 // fetchItemsPageOnce 执行一次商品列表请求并校验响应；SUCCESS 且缺少 cardList 的平台约定表示空商品页。
 func (c *ClientImpl) fetchItemsPageOnce(ctx context.Context, cookiesStr string, pageNumber, pageSize int) (*ItemListResult, []string, string, error) {
-	// hc 用于本次流程后续判断的hc
 	hc := c.httpClient()
-	// signingCookies、requestCookies 用于本次流程后续判断的signingCookies、requestCookies
 	signingCookies, requestCookies := mtopRequestCookies(ctx, cookiesStr, "https://www.goofish.com/", ItemListAPI)
-	// cookies 用于本次流程后续判断的cookies
 	cookies := protocol.TransCookies(signingCookies)
-	// userID 用于本次流程后续判断的用户ID
 	userID := cookies["unb"]
 	if userID == "" {
 		return nil, nil, cookiesStr, fmt.Errorf("cookie 缺少 unb 字段，无法获取商品列表")
 	}
 
-	// data 用于本次流程后续判断的数据
 	data := map[string]any{
 		"needGroupInfo": false,
 		"pageNumber":    pageNumber,
@@ -105,46 +92,34 @@ func (c *ClientImpl) fetchItemsPageOnce(ctx context.Context, cookiesStr string, 
 		"defaultGroup":  true,
 		"userId":        userID,
 	}
-	// rawData 用于本次流程后续判断的原始数据
 	rawData, _ := json.Marshal(data)
-	// dataVal 用于本次流程后续判断的数据Val
 	dataVal := string(rawData)
-	// t 用于本次流程后续判断的t
 	t := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	// sign 用于本次流程后续判断的sign
 	sign := protocol.GenerateSign(t, protocol.SignToken(signingCookies), dataVal)
-	// query 用于本次流程后续判断的查询
 	query := buildItemListQuery(t, sign)
-	// body 用于本次流程后续判断的请求体
 	body := "data=" + url.QueryEscape(dataVal)
 
-	// req、err 用于本次流程后续判断的req、err
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ItemListAPI+"?"+query, strings.NewReader(body))
 	if err != nil {
 		return nil, nil, cookiesStr, err
 	}
 	setCommonHeaders(req, requestCookies)
-	// resp、err 用于本次流程后续判断的resp、err
 	resp, err := hc.Do(req)
 	if err != nil {
 		return nil, nil, cookiesStr, fmt.Errorf("商品列表请求失败: %w", err)
 	}
 	defer resp.Body.Close()
-	// updated 用于本次流程后续判断的updated
 	updated := absorbMTopResponseCookies(ctx, cookiesStr, resp)
-	// raw、err 用于本次流程后续判断的raw、err
 	raw, err := readMTopBody(resp)
 	if err != nil {
 		return nil, nil, updated, c.mtopResponseFailureWithCause("商品列表接口", resp.StatusCode, nil, "读取响应失败", err)
 	}
 
-	// decoded 用于本次流程后续判断的decoded
 	var decoded struct {
 		Ret  []string       `json:"ret"`
 		Data map[string]any `json:"data"`
 	}
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal(raw, &decoded); err != nil {
+	if err := json.Unmarshal(raw, &decoded); err != nil {
 		return nil, nil, updated, c.mtopResponseFailureWithCause("商品列表接口", resp.StatusCode, nil, "JSON 解析失败", err)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
@@ -165,12 +140,10 @@ func (c *ClientImpl) fetchItemsPageOnce(ctx context.Context, cookiesStr string, 
 	if !cardsOK {
 		return nil, decoded.Ret, updated, fmt.Errorf("商品列表 cardList 类型无效或与平台总数不一致，未执行同步")
 	}
-	// items 用于本次流程后续判断的商品列表
 	items := parseItemList(decoded.Data)
 	if !validItemListCards(cards) {
 		return nil, decoded.Ret, updated, fmt.Errorf("商品列表包含无法识别的商品，未执行同步")
 	}
-	// totalCount、totalPages 用于本次流程后续判断的总数Count、totalPages
 	totalCount, totalPages := itemListPagination(decoded.Data, pageNumber, pageSize)
 	// reportedTotal 保留显式数组的完整性依据；成功省略数组时以空列表协议为准。
 	reportedTotal := itemListReportedTotal(decoded.Data)
@@ -201,24 +174,18 @@ func (c *ClientImpl) fetchAllItems(ctx context.Context, cookiesStr string, pageS
 	if pageSize <= 0 {
 		pageSize = 20
 	}
-	// currentCookies 用于本次流程后续判断的currentCookies
 	currentCookies := cookiesStr
-	if // session 用于本次流程后续判断的会话
-	session := cookieSessionFromContext(ctx); session != nil {
+	if session := cookieSessionFromContext(ctx); session != nil {
 		currentCookies, _, _ = session.State()
 	}
-	// page 用于本次流程后续判断的页码
 	page := 1
-	// fetchedPages 用于本次流程后续判断的fetchedPages
 	fetchedPages := 0
-	// all 用于本次流程后续判断的all
 	var all []ItemListItem
 	// seenIDs 检测重复页或跨页重复商品，无法证明全集完整时禁止本地 reconcile。
 	seenIDs := make(map[string]struct{})
 	// fetchedCount 是含平台占位卡的已取条数；expectedCount 仅使用平台明确给出的总量。
 	fetchedCount, expectedCount := 0, 0
 	for maxPages <= 0 || page <= maxPages {
-		// res、err 用于本次流程后续判断的res、err
 		res, err := c.fetchItemsPage(ctx, currentCookies, page, pageSize)
 		if err != nil {
 			return nil, err
@@ -254,8 +221,7 @@ func (c *ClientImpl) fetchAllItems(ctx context.Context, cookiesStr string, pageS
 			return nil, fmt.Errorf("商品同步达到页数上限但尚未完成，请提高 max_pages 后重试")
 		}
 		page++
-		if // err 用于本次流程后续判断的err
-		err := sleepCtx(ctx, ItemPageGap); err != nil {
+		if err := sleepCtx(ctx, ItemPageGap); err != nil {
 			return nil, err
 		}
 	}
@@ -306,20 +272,15 @@ func validItemListCards(cards []any) bool {
 	return true
 }
 
-// itemListPagination 封装商品ListPagination业务协调。
 func itemListPagination(data map[string]any, pageNumber, pageSize int) (totalCount, totalPages int) {
-	// key 表示当前遍历过程中的key
 	for _, key := range []string{"totalCount", "total_count", "total"} {
-		if // value 用于本次流程后续判断的值
-		value := mtopInt(data[key]); value > 0 {
+		if value := mtopInt(data[key]); value > 0 {
 			totalCount = value
 			break
 		}
 	}
-	// key 表示当前遍历过程中的key
 	for _, key := range []string{"pageCount", "page_count", "totalPages", "total_pages"} {
-		if // value 用于本次流程后续判断的值
-		value := mtopInt(data[key]); value > 0 {
+		if value := mtopInt(data[key]); value > 0 {
 			totalPages = value
 			break
 		}
@@ -336,9 +297,7 @@ func itemListPagination(data map[string]any, pageNumber, pageSize int) (totalCou
 	return totalCount, totalPages
 }
 
-// buildItemListQuery 封装build商品List查询业务协调。
 func buildItemListQuery(t, sign string) string {
-	// parts 用于本次流程后续判断的parts
 	parts := [][2]string{
 		{"jsv", "2.7.2"},
 		{"appKey", protocol.SignAppKey},
@@ -354,9 +313,7 @@ func buildItemListQuery(t, sign string) string {
 		{"spm_cnt", "a21ybx.im.0.0"},
 		{"spm_pre", "a21ybx.collection.menu.1.272b5141NafCNK"},
 	}
-	// b 用于本次流程后续判断的b
 	var b strings.Builder
-	// i、p 表示当前遍历过程中的i、p
 	for i, p := range parts {
 		if i > 0 {
 			b.WriteByte('&')
@@ -368,27 +325,19 @@ func buildItemListQuery(t, sign string) string {
 	return b.String()
 }
 
-// parseItemList 封装parse商品List业务协调。
 func parseItemList(data map[string]any) []ItemListItem {
-	// cardList 用于本次流程后续判断的卡密List
 	cardList, _ := data["cardList"].([]any)
-	// items 用于本次流程后续判断的商品列表
 	items := make([]ItemListItem, 0, len(cardList))
-	// rawCard 表示当前遍历过程中的原始卡密
 	for _, rawCard := range cardList {
-		// card、ok 用于本次流程后续判断的card、ok
 		card, ok := rawCard.(map[string]any)
 		if !ok {
 			continue
 		}
-		// cardData 用于本次流程后续判断的卡密数据
 		cardData, _ := card["cardData"].(map[string]any)
 		if cardData == nil {
 			continue
 		}
-		// detailParams 用于本次流程后续判断的detailParams
 		detailParams, _ := cardData["detailParams"].(map[string]any)
-		// itemID 用于本次流程后续判断的商品ID
 		itemID := mtopString(detailParams["itemId"])
 		if itemID == "" {
 			itemID = mtopString(cardData["id"])
@@ -396,19 +345,12 @@ func parseItemList(data map[string]any) []ItemListItem {
 		if itemID == "" || strings.HasPrefix(itemID, "auto_") {
 			continue
 		}
-		// priceInfo 用于本次流程后续判断的priceInfo
 		priceInfo, _ := cardData["priceInfo"].(map[string]any)
-		// price 用于本次流程后续判断的price
 		price := mtopString(priceInfo["price"])
-		// priceText 用于本次流程后续判断的price文本
 		priceText := mtopString(priceInfo["preText"]) + price
-		// picInfo 用于本次流程后续判断的picInfo
 		picInfo, _ := cardData["picInfo"].(map[string]any)
-		// picURL 用于本次流程后续判断的picURL
 		picURL := mtopString(picInfo["picUrl"])
-		// detailURL 用于本次流程后续判断的detailURL
 		detailURL := mtopString(cardData["detailUrl"])
-		// detail 用于本次流程后续判断的detail
 		detail := map[string]any{
 			"title":           mtopString(cardData["title"]),
 			"price":           price,
@@ -424,7 +366,6 @@ func parseItemList(data map[string]any) []ItemListItem {
 			"item_label_data": cardData["itemLabelDataVO"],
 			"card_type":       mtopInt(card["cardType"]),
 		}
-		// detailJSON 用于本次流程后续判断的detailJSON
 		detailJSON, _ := json.Marshal(detail)
 		items = append(items, ItemListItem{
 			ID:          itemID,

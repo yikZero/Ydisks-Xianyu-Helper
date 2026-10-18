@@ -250,7 +250,6 @@ func TestBatchPreviewXLSXPartReaderCoversOpenAndReadErrors(t *testing.T) {
 
 // batchPreviewReadErrorCloser 是始终返回错误的 XLSX 流替身。
 type batchPreviewReadErrorCloser struct {
-	// err 保存流读取时返回的错误。
 	err error
 }
 

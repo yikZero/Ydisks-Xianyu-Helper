@@ -16,7 +16,6 @@ func TestOutgoingServiceOperations(t *testing.T) {
 	defer cleanup()
 	// service 保存绑定真实数据库的聊天服务。
 	service := New(store)
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// session 保存出站消息所属的非敏感会话摘要。
 	session := db.ChatSession{CookieID: "account-1", ChatID: "outgoing", BuyerID: "buyer", BuyerName: "买家"}

@@ -62,7 +62,6 @@ func TestTaskCookieUnlocksBeforeRuntimeNotification(t *testing.T) {
 	// store、cleanup 提供真实账号锁与隔离存储。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 控制测试数据库操作。
 	ctx := context.Background()
 	// sender 复现 engine.UpdateCookie 内部的同账号锁重取。
 	sender := &testSender{onCookieUpdate: func(string) {

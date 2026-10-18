@@ -37,7 +37,6 @@ func buildImportZip(t *testing.T, names []string, contents map[string]string) []
 			t.Fatal(err)
 		}
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +66,6 @@ func TestParseImportedOrdersMultipartFailures(t *testing.T) {
 	// noBoundary 缺少 boundary，表单解析必须报“表单损坏”。
 	noBoundary := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader("abc"))
 	noBoundary.Header.Set("Content-Type", "multipart/form-data")
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseImportedOrders(httptest.NewRecorder(), noBoundary); err == nil || !strings.Contains(err.Error(), "损坏") {
 		t.Fatalf("corrupt form err=%v", err)
 	}
@@ -90,24 +88,20 @@ func TestParseImportedOrdersMultipartFailures(t *testing.T) {
 		req.Header.Set("Content-Type", mw.FormDataContentType())
 		return req
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseImportedOrders(httptest.NewRecorder(), uploadWith(maxOrderImportMultipartBytes+1024)); err == nil || !strings.Contains(err.Error(), "33 MiB") {
 		t.Fatalf("multipart too large err=%v", err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseImportedOrders(httptest.NewRecorder(), uploadWith(maxOrderImportBytes+1)); err == nil || !strings.Contains(err.Error(), "32 MiB") {
 		t.Fatalf("file too large err=%v", err)
 	}
 
 	// brokenRaw 的请求体读取即失败。
 	brokenRaw := httptest.NewRequest(http.MethodPost, "/x", failingImportReader{})
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseImportedOrders(httptest.NewRecorder(), brokenRaw); err == nil || !strings.Contains(err.Error(), "读取请求失败") {
 		t.Fatalf("read err=%v", err)
 	}
 	// hugeRaw 的原始请求体超过 32 MiB。
 	hugeRaw := httptest.NewRequest(http.MethodPost, "/x", bytes.NewReader(bytes.Repeat([]byte("a"), maxOrderImportBytes+1)))
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseImportedOrders(httptest.NewRecorder(), hugeRaw); err == nil || !strings.Contains(err.Error(), "32 MiB") {
 		t.Fatalf("raw too large err=%v", err)
 	}
@@ -115,15 +109,12 @@ func TestParseImportedOrdersMultipartFailures(t *testing.T) {
 
 // TestParseImportedOrderBytesAndJSONEdges 覆盖 .xls、空 JSON、非法单对象和 JSON 数组的各类坏输入。
 func TestParseImportedOrderBytesAndJSONEdges(t *testing.T) {
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseImportedOrderBytes([]byte("x"), "a.XLS"); err == nil || !strings.Contains(err.Error(), ".xls") {
 		t.Fatalf("xls err=%v", err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseJSONOrders([]byte("  ")); err == nil {
 		t.Fatal("empty json should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseJSONOrders([]byte("{bad")); err == nil {
 		t.Fatal("bad single json should fail")
 	}
@@ -131,18 +122,15 @@ func TestParseImportedOrderBytesAndJSONEdges(t *testing.T) {
 	badArrays := []string{`[1]`, `[{"a":1}`, `[{"a":1}] 5`, `[{"a":1}] {`, `[{"a":1},`}
 	// raw 表示当前非法数组样本。
 	for _, raw := range badArrays {
-		// err 本步骤返回的错误，用于断言失败或成功路径
 		if _, err := parseJSONOrderArray([]byte(raw)); err == nil {
 			t.Errorf("array %q should fail", raw)
 		}
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseJSONOrderArray([]byte(`]`)); err == nil {
 		t.Error("leading closer should fail")
 	}
 	// tooMany 超过行数上限的 JSON 数组。
 	tooMany := "[" + strings.Repeat("{},", maxOrderImportRows) + "{}]"
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseJSONOrderArray([]byte(tooMany)); err == nil {
 		t.Error("too many json rows should fail")
 	}
@@ -150,16 +138,13 @@ func TestParseImportedOrderBytesAndJSONEdges(t *testing.T) {
 
 // TestParseDelimitedOrdersFailures 覆盖 CSV 表头读取失败、行解析失败、超行数和仅表头场景。
 func TestParseDelimitedOrdersFailures(t *testing.T) {
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseDelimitedOrders(nil, ','); err == nil {
 		t.Error("empty csv should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseDelimitedOrders([]byte("订单号\n\"a\x00b\"c\n"), ','); err == nil {
 		// 宽松引号模式下该样本可能合法；仅要求不会 panic。
 		t.Log("lazy quotes accepted sample")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseDelimitedOrders([]byte("订单号\n"), ','); err == nil {
 		t.Error("header only should fail")
 	}
@@ -170,7 +155,6 @@ func TestParseDelimitedOrdersFailures(t *testing.T) {
 	for i := 0; i <= maxOrderImportRows; i++ {
 		sb.WriteString("x\n")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseDelimitedOrders([]byte(sb.String()), ','); err == nil {
 		t.Error("too many csv rows should fail")
 	}
@@ -183,25 +167,20 @@ func TestParseXLSXOrdersBranches(t *testing.T) {
 	// sheetName 是第一个工作表在包内的路径。
 	const sheetName = "xl/worksheets/sheet1.xml"
 
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXOrders([]byte("not zip")); err == nil {
 		t.Error("invalid zip should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXOrders(buildImportZip(t, []string{"other.xml"}, map[string]string{"other.xml": "x"})); err == nil {
 		t.Error("missing sheet should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXOrders(buildImportZip(t, []string{sheetName}, map[string]string{sheetName: "<worksheet"})); err == nil {
 		t.Error("bad sheet xml should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXOrders(buildImportZip(t, []string{"xl/sharedStrings.xml", sheetName}, map[string]string{"xl/sharedStrings.xml": "<sst", sheetName: okSheet})); err == nil {
 		t.Error("bad shared strings should fail")
 	}
 	// oneRow 只有表头，应提示至少需要两行。
 	oneRow := importSheetXML([][]string{{"订单号"}})
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXOrders(buildImportZip(t, []string{sheetName}, map[string]string{sheetName: oneRow})); err == nil {
 		t.Error("one row should fail")
 	}
@@ -279,12 +258,10 @@ func TestImportHeaderAliasesAndStringFromAny(t *testing.T) {
 	}
 	// in、want 表示原始表头与期望字段。
 	for in, want := range cases {
-		// got 被测函数的实际返回值，用于与期望值比较
 		if got := normalizeImportHeader(in); got != want {
 			t.Errorf("%q => %q want %q", in, got, want)
 		}
 	}
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := stringFromAny([]int{1, 2}); got != "[1 2]" {
 		t.Errorf("default branch got %q", got)
 	}

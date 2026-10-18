@@ -15,7 +15,6 @@ func TestRequireCookieOwnershipPreservesHTTPCompatibility(t *testing.T) {
 	// srv、store、cleanup 保存当前测试使用的 HTTP 服务和数据库。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// _, createErr 保存第二个用户创建错误；用户主键随后从查询得到。
 	_, createErr := store.Users.Create(ctx, "summary-other", "summary-other@example.com", "pw")

@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe,expect,test } from 'vitest';
 
-const source = (path: string) => readFileSync(resolve(__dirname, path), 'utf8'); /* source 表示source。 */
+const source = (path: string) => readFileSync(resolve(__dirname, path), 'utf8');
 
 describe('online chat UI contract', () => {
 	test('uses account tabs above a two-column buyer/chat layout', () => {
-		const chat = source('app/features/chat/pages/Chat.tsx'); /* chat 表示chat。 */
+		const chat = source('app/features/chat/pages/Chat.tsx');
 		expect(chat).toContain('role="tablist"');
 		expect(chat).toContain('grid-cols-[320px_minmax(0,1fr)]');
 		expect(chat).toContain('min-h-0 min-w-0 flex-col overflow-hidden');
@@ -16,7 +16,7 @@ describe('online chat UI contract', () => {
 	} /* 测试回调断言聊天页的账号标签和双栏布局契约。 */);
 
 	test('uses neutral user labels instead of assuming buyer role', () => {
-		const chat = source('app/features/chat/pages/Chat.tsx'); /* chat 表示chat。 */
+		const chat = source('app/features/chat/pages/Chat.tsx');
 		expect(chat).toContain('用户 ID：');
 		expect(chat).not.toContain('买家 ID：');
 		expect(chat).not.toContain('选择一个买家');
@@ -32,9 +32,9 @@ describe('online chat UI contract', () => {
 	} /* 测试回调断言前端唯一连接归属应用壳，Chat 页面不会重复建连。 */);
 
 	test('renders peer/self identity and verified media capabilities', () => {
-		const chat = source('app/features/chat/pages/Chat.tsx'); /* chat 表示chat。 */
+		const chat = source('app/features/chat/pages/Chat.tsx');
 		const conversation = source('app/features/chat/components/ConversationListItem.tsx'); /* conversation 保存从聊天页拆出的会话行展示源码。 */
-		const chatHook = source('app/features/chat/hooks.ts'); /* chatHook 表示chatHook。 */
+		const chatHook = source('app/features/chat/hooks.ts');
 	expect(chat).toContain('selectedSession.peer_avatar_url');
 		expect(chat).toContain('activeAccount?.avatar_url');
 		expect(chat).toContain("message.message_type === 'image'");
@@ -48,7 +48,7 @@ describe('online chat UI contract', () => {
 	} /* 测试回调断言头像、图片、视频、语音及发送 API 的渲染能力。 */);
 
 	test('renders official notices as neutral system messages', () => {
-		const chat = source('app/features/chat/pages/Chat.tsx'); /* chat 表示chat。 */
+		const chat = source('app/features/chat/pages/Chat.tsx');
 		expect(chat).toContain("message.message_type === 'system'");
 		expect(chat).toContain('justify-center py-1');
 		expect(chat).toContain('whitespace-pre-wrap break-words rounded-xl border border-slate-200');
@@ -60,8 +60,8 @@ describe('online chat UI contract', () => {
 	} /* 测试回调断言普通消息保留服务端换行并避免超长文本撑破气泡。 */);
 
 	test('keeps the active chat at the bottom when new messages arrive', () => {
-		const chat = source('app/features/chat/pages/Chat.tsx'); /* chat 表示chat。 */
-		const chatHook = source('app/features/chat/hooks.ts'); /* chatHook 表示chatHook。 */
+		const chat = source('app/features/chat/pages/Chat.tsx');
+		const chatHook = source('app/features/chat/hooks.ts');
 		expect(chatHook).toContain('shouldScrollToBottomRef');
 		expect(chatHook).toContain('skipNextMessageScrollRef');
 		expect(chat).toContain('onScroll={handleMessageScroll}');
@@ -70,7 +70,7 @@ describe('online chat UI contract', () => {
 	} /* 测试回调断言新消息到达时当前会话保持滚动到底部。 */);
 
 	test('sidebar exposes collapse control and chat primary navigation', () => {
-		const sidebar = source('shared/ui/Sidebar.tsx'); /* sidebar 表示sidebar。 */
+		const sidebar = source('shared/ui/Sidebar.tsx');
 		expect(sidebar).toContain("id: 'chat'");
 		expect(sidebar).toContain('onToggleCollapsed');
 		expect(sidebar).toContain('collapsed ? \'w-16\' : \'w-64\'');

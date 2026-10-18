@@ -10,7 +10,6 @@ import (
 
 // TestAuthorizeSellerTaskEarlyRejections 覆盖未知角色卖家核验在证据不足、存储缺失与读取失败时的拒绝分支。
 func TestAuthorizeSellerTaskEarlyRejections(t *testing.T) {
-	// ctx 是核验调用共用的上下文。
 	ctx := context.Background()
 	// bare 是没有任何仓库的中心，用于覆盖存储不可用分支。
 	bare := &Center{store: &db.Store{}}
@@ -60,7 +59,6 @@ func TestAuthorizeSellerTaskEarlyRejections(t *testing.T) {
 		}
 	})
 	t.Run("数据库存储读取失败", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// center 是使用真实仓库的中心。
@@ -85,7 +83,6 @@ func TestAuthorizeSellerTaskEarlyRejections(t *testing.T) {
 		}
 	})
 	t.Run("订单事实不满足条件", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// center 是使用真实仓库的中心。
@@ -123,36 +120,30 @@ func TestRoleGateHelpersEdgeCases(t *testing.T) {
 	}
 	// bare 是没有延期存储的中心。
 	bare := &Center{}
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if err := bare.deferUnknownRoleTask(context.Background(), Task{}, "x"); err == nil {
 		t.Fatal("缺少存储应报错")
 	}
 	// task 是带不可序列化原始字段的任务，用于覆盖序列化失败。
 	task := Task{AccountID: "cid", TriggerType: TriggerOrderPaid, Raw: map[string]any{"bad": make(chan int)}}
-	// store、cleanup 保存隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 是使用真实延期队列的中心。
 	center := New(store, nil, nil)
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if err := center.deferUnknownRoleTask(context.Background(), task, "x"); err == nil || !strings.Contains(err.Error(), "序列化") {
 		t.Fatalf("应返回序列化错误: %v", err)
 	}
 	// failing 是延期表被隐藏后的写入场景。
 	execGapSQL(t, store, `DROP TABLE automation_pending_tasks`)
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if err := center.deferUnknownRoleTask(context.Background(), Task{AccountID: "cid", TriggerType: TriggerOrderPaid, OrderID: "o"}, "x"); err == nil {
 		t.Fatal("延期表缺失应报错")
 	}
 	// fixed 表示历史任务已固化的待核验键。
 	fixed := Task{Raw: map[string]any{roleVerificationTaskKeyField: " fixed-key "}}
-	// got 保存被测函数的实际返回值，供断言比较。
 	if got := roleVerificationTaskKey(fixed); got != "fixed-key" {
 		t.Fatalf("应复用固化键: %q", got)
 	}
 	// unmarshalable 的原始报文无法 JSON 编码，键应回退到字段拼接哈希。
 	bad := Task{TriggerType: TriggerOrderPaid, AccountID: "cid", Raw: map[string]any{"bad": make(chan int)}}
-	// got 保存被测函数的实际返回值，供断言比较。
 	if got := roleVerificationTaskKey(bad); !strings.HasPrefix(got, "role_verification:") {
 		t.Fatalf("回退键异常: %q", got)
 	}
@@ -165,9 +156,7 @@ func TestRoleGateHelpersEdgeCases(t *testing.T) {
 
 // TestResolvePaidTaskOrderFailures 覆盖订单事实回填的未命中与读取失败分支。
 func TestResolvePaidTaskOrderFailures(t *testing.T) {
-	// ctx 是回填调用共用的上下文。
 	ctx := context.Background()
-	// store、cleanup 保存隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 是使用真实订单仓库的中心。

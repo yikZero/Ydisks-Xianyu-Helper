@@ -10,11 +10,9 @@ func TestAccountLoginLogsCoversClosedDatabaseOperations(t *testing.T) {
 	// store 是随后主动关闭数据库连接的测试存储。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	// ctx 是本测试数据库操作使用的非取消上下文。
 	ctx := context.Background()
 	// addErr 表示关闭数据库后写入登录审计记录的基础设施错误。
 	if addErr := store.LoginLogs.Add(ctx, AccountLoginLog{CookieID: "cid", UserID: 1, Method: "qr", Status: "failed"}); addErr == nil {
@@ -31,11 +29,9 @@ func TestAccountTaskStoreCoversClosedDatabaseOperations(t *testing.T) {
 	// store 是随后主动关闭数据库连接的测试存储。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	// ctx 是本测试数据库操作使用的非取消上下文。
 	ctx := context.Background()
 	// run 是覆盖账号任务运行端点所需的最小运行记录。
 	run := AccountTaskRun{RunKey: "closed-run", CookieID: "cid", TaskType: "rate", RunDate: "2026-08-26"}
@@ -89,11 +85,9 @@ func TestCookieRepositoryCoversClosedDatabaseOperations(t *testing.T) {
 	// store 是随后主动关闭数据库连接的测试存储。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	// ctx 是本测试数据库操作使用的非取消上下文。
 	ctx := context.Background()
 	// operations 保存关闭数据库后各 Cookie 仓储端点的错误结果。
 	operations := []error{

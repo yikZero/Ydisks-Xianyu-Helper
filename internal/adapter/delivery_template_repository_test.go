@@ -29,7 +29,6 @@ func newDeliveryTemplateAdapterStore(t *testing.T) (*db.Store, func()) {
 
 // TestDeliveryTemplateRepositoryValidation 验证适配器在依赖缺失时返回初始化错误。
 func TestDeliveryTemplateRepositoryValidation(t *testing.T) {
-	// ctx 是本测试所有调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是故意未初始化的适配器。
 	var repository *DeliveryTemplateRepository
@@ -53,7 +52,6 @@ func TestDeliveryTemplateRepositoryMapsModelsAndErrors(t *testing.T) {
 	// store, cleanup 保存适配器测试使用的数据库及清理函数。
 	store, cleanup := newDeliveryTemplateAdapterStore(t)
 	defer cleanup()
-	// ctx 是本测试所有调用共用的非取消上下文。
 	ctx := context.Background()
 	// createOK、createErr 保存测试用户创建结果。
 	createOK, createErr := store.Users.Create(ctx, "admin", "admin@example.com", "pw")
@@ -126,14 +124,11 @@ func TestDeliveryTemplateRepositoryMapsModelsAndErrors(t *testing.T) {
 
 // TestDeliveryTemplateRepositoryPropagatesClosedDatabaseErrors 验证模板适配器不会吞掉底层数据库故障。
 func TestDeliveryTemplateRepositoryPropagatesClosedDatabaseErrors(t *testing.T) {
-	// store、cleanup 保存即将关闭的模板测试数据库。
 	store, cleanup := newDeliveryTemplateAdapterStore(t)
 	defer cleanup()
 	// repository 保存绑定数据库的模板适配器。
 	repository := NewDeliveryTemplateRepository(store)
-	// ctx 保存数据库故障测试上下文。
 	ctx := context.Background()
-	// closeErr 保存关闭测试数据库连接的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

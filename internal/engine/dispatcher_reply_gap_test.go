@@ -116,7 +116,6 @@ func TestMessageDispatcherSystemEventBackpressureCancel(t *testing.T) {
 
 // TestMessageDispatcherHandlerErrors 验证系统事件、已读回执、出站回显与聊天处理失败都只记录错误。
 func TestMessageDispatcherHandlerErrors(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
 	// system 的系统事件处理失败。
 	system := &systemErrHandler{recordingHandler: &recordingHandler{}}
@@ -186,7 +185,6 @@ func TestMessageDispatcherDedupBackupKeyAndDebounceFailures(t *testing.T) {
 
 // TestCanAutoReplyGuards 验证自动回复门禁在缺商品、角色读取失败、归属能力缺失、写标记失败与账号切换下拒绝。
 func TestCanAutoReplyGuards(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
 	// message 是携带商品的买家消息。
 	message := chatMsg("hi", "item-1", "chat-1")
@@ -257,7 +255,6 @@ func replyOnceService(t *testing.T, delivery ReplyDelivery, image string) (*Repl
 	// cleanup 是释放测试数据库的清理函数 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 	store, cleanup := newReplyStore(t)
 	t.Cleanup(cleanup)
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(context.Background(), `INSERT INTO default_replies (cookie_id,enabled,reply_content,reply_image_url,reply_once) VALUES ('cid',1,'默认回复',?,1)`, image); err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +264,6 @@ func replyOnceService(t *testing.T, delivery ReplyDelivery, image string) (*Repl
 // blockReplyRecordUpdates 阻断默认回复记录的更新，使分段状态写入失败。
 func blockReplyRecordUpdates(t *testing.T, store *db.Store) {
 	t.Helper()
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(context.Background(), `CREATE TRIGGER block_reply_update BEFORE UPDATE ON default_reply_records BEGIN SELECT RAISE(ABORT, 'blocked'); END`); err != nil {
 		t.Fatal(err)
 	}
@@ -275,18 +271,15 @@ func blockReplyRecordUpdates(t *testing.T, store *db.Store) {
 
 // TestReplyHandleStateFailures 验证一次性回复在领取、分段确认、发送失败与收口失败时的返回。
 func TestReplyHandleStateFailures(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
 	// message 是需要默认回复的买家消息。
 	message := chatMsg("你好", "", "chat-1")
 	t.Run("领取失败", func(t *testing.T) {
 		// service 是本用例构造的回复服务，绑定隔离测试存储与固定投递端口 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		service, store := replyOnceService(t, &fixedDelivery{}, "")
-		// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, err := store.DB.ExecContext(ctx, `DROP TABLE default_reply_records`); err != nil {
 			t.Fatal(err)
 		}
-		// err 保存 Handle 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := service.Handle(ctx, message); err == nil || !strings.Contains(err.Error(), "领取默认回复发送任务") {
 			t.Fatalf("应报领取失败: %v", err)
 		}
@@ -295,7 +288,6 @@ func TestReplyHandleStateFailures(t *testing.T) {
 		// service 是本用例构造的回复服务，绑定隔离测试存储与固定投递端口 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		service, store := replyOnceService(t, &fixedDelivery{result: ReplySendResult{ImageSent: true, TextSent: true}}, "https://img.example/a.png")
 		blockReplyRecordUpdates(t, store)
-		// err 保存 Handle 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := service.Handle(ctx, message); err == nil {
 			t.Fatal("图片分段写入失败应返回错误")
 		}
@@ -304,7 +296,6 @@ func TestReplyHandleStateFailures(t *testing.T) {
 		// service 是本用例构造的回复服务，绑定隔离测试存储与固定投递端口 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		service, store := replyOnceService(t, &fixedDelivery{result: ReplySendResult{TextSent: true}}, "")
 		blockReplyRecordUpdates(t, store)
-		// err 保存 Handle 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := service.Handle(ctx, message); err == nil {
 			t.Fatal("文字分段写入失败应返回错误")
 		}
@@ -315,7 +306,6 @@ func TestReplyHandleStateFailures(t *testing.T) {
 		// service 是本用例构造的回复服务，绑定隔离测试存储与固定投递端口 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		service, store := replyOnceService(t, &fixedDelivery{err: sendErr}, "")
 		blockReplyRecordUpdates(t, store)
-		// err 保存 Handle 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := service.Handle(ctx, message); !errors.Is(err, sendErr) || !strings.Contains(err.Error(), "保存默认回复失败状态") {
 			t.Fatalf("应同时返回发送与状态写入错误: %v", err)
 		}
@@ -325,7 +315,6 @@ func TestReplyHandleStateFailures(t *testing.T) {
 		sendErr := &ws.SendError{Kind: ws.SendUncertain, Err: errors.New("timeout")}
 		// service 是本用例构造的回复服务，绑定隔离测试存储与固定投递端口
 		service, _ := replyOnceService(t, &fixedDelivery{err: sendErr}, "")
-		// err 保存 Handle 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := service.Handle(ctx, message); !errors.Is(err, sendErr) {
 			t.Fatalf("应返回原发送错误: %v", err)
 		}
@@ -334,7 +323,6 @@ func TestReplyHandleStateFailures(t *testing.T) {
 		// service 是本用例构造的回复服务，绑定隔离测试存储与固定投递端口 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		service, store := replyOnceService(t, &fixedDelivery{}, "")
 		blockReplyRecordUpdates(t, store)
-		// err 保存 Handle 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := service.Handle(ctx, message); err == nil {
 			t.Fatal("收口失败应返回错误")
 		}
@@ -343,7 +331,6 @@ func TestReplyHandleStateFailures(t *testing.T) {
 
 // TestReplyHandleWithDeliveryDirectBranches 验证已发分段的剔除、全部已发的跳过，以及 AI 报价保存失败。
 func TestReplyHandleWithDeliveryDirectBranches(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
 	// delivery 记录实际发送的消息。
 	delivery := &fixedDelivery{result: ReplySendResult{ImageSent: true}}
@@ -353,7 +340,6 @@ func TestReplyHandleWithDeliveryDirectBranches(t *testing.T) {
 	message := chatMsg("hi", "item-1", "chat-1")
 	// res 同时包含文字与图片。
 	res := &ReplyResult{Text: "文字", ImageURL: "https://img.example/a.png"}
-	// err 保存 handleWithDelivery 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := service.handleWithDelivery(ctx, message, res, db.DefaultReplyRecord{TextSent: true}); err != nil {
 		t.Fatal(err)
 	}
@@ -361,18 +347,15 @@ func TestReplyHandleWithDeliveryDirectBranches(t *testing.T) {
 		t.Fatalf("已发文字应被剔除: %+v", delivery.sent)
 	}
 	delivery.sent = ReplyMessage{}
-	// err 保存 handleWithDelivery 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := service.handleWithDelivery(ctx, message, res, db.DefaultReplyRecord{TextSent: true, ImageSent: true}); err != nil || delivery.sent.ChatID != "" {
 		t.Fatalf("全部已发应直接跳过: %v %+v", err, delivery.sent)
 	}
 	// quoteRes 是已确认文字后需要保存的 AI 报价。
 	quoteRes := &ReplyResult{Text: "可以", Source: "AI", AutoPriceQuote: &AIPriceQuoteProposal{PriceCents: 100}}
 	delivery.result = ReplySendResult{TextSent: true}
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(ctx, `DROP TABLE ai_bargain_quotes`); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 handleWithDelivery 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := service.handleWithDelivery(ctx, message, quoteRes, db.DefaultReplyRecord{}); err == nil || !strings.Contains(err.Error(), "保存已发送的 AI 自动改价报价") {
 		t.Fatalf("报价保存失败应报错: %v", err)
 	}

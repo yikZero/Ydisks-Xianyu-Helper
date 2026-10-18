@@ -208,7 +208,6 @@ func TestChatRepositoryMapsSessionMaintenance(t *testing.T) {
 	// store 是使用临时 SQLite 数据库的测试存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作使用的非取消上下文。
 	ctx := context.Background()
 	// repository 是聊天应用层会话端口的数据库实现。
 	repository := NewChatRepository(store)
@@ -302,7 +301,6 @@ func TestChatIdentityResolverPersistsResponseCookie(t *testing.T) {
 
 // TestChatIdentityResolverDoesNotFailWhenSiblingRefreshWins 验证并发联系人查询先后换签时，旧响应不会覆盖新凭证或让展示请求失败。
 func TestChatIdentityResolverDoesNotFailWhenSiblingRefreshWins(t *testing.T) {
-	// store、cleanup 保存测试数据库及其资源释放责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// winningCookie 是已由并发请求写入的较新扁平 Cookie，旧请求不得回写覆盖它。
@@ -387,10 +385,8 @@ func TestChatImageUploaderPreservesPlatformDimensions(t *testing.T) {
 
 // TestChatImageUploaderPersistsRefreshedCookieAndMapsPlatformErrors 验证刷新凭证写回、平台错误和持久化失败分支。
 func TestChatImageUploaderPersistsRefreshedCookieAndMapsPlatformErrors(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试上传调用共用的非取消上下文。
 	ctx := context.Background()
 	// refreshedCookie 保存平台上传后返回的新 Cookie，不能向应用层泄露。
 	refreshedCookie := "unb=1; _m_h5_tk=refreshed;"
@@ -434,7 +430,6 @@ func TestChatImageUploaderPersistsRefreshedCookieAndMapsPlatformErrors(t *testin
 
 // TestChatImageUploaderRejectsStaleCookieWriteback 验证图片上传期间的新登录凭证不会被旧响应覆盖。
 func TestChatImageUploaderRejectsStaleCookieWriteback(t *testing.T) {
-	// store、cleanup 保存并发凭证测试使用的隔离数据库及释放函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// latestCookie 表示平台请求期间新登录流程写入的权威凭证。

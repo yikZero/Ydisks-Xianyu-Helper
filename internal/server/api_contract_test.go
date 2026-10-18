@@ -91,9 +91,7 @@ func TestAPIContractAccountList(t *testing.T) {
 	// srv 是带模板账号数据的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// req 是读取账号非敏感详情的认证请求。
 	req := httptest.NewRequest(http.MethodGet, "/cookies/details", nil)
@@ -154,9 +152,7 @@ func TestAPIContractRemainingAuthenticationErrors(t *testing.T) {
 	// srv 是用于验证剩余认证错误边界的 HTTP 测试服务。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// created 表示用于验证用户名冲突的占位用户是否成功创建。
 	created, createErr := store.Users.Create(context.Background(), "taken-user", "taken@example.com", "pw")
@@ -175,9 +171,7 @@ func TestAPIContractPublicAndSPAErrors(t *testing.T) {
 	// srv 和 store 是用于模拟公开 API 数据库故障的测试服务及其存储。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// closeErr 表示主动关闭测试数据库连接的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatalf("close test database: %v", closeErr)
 	}
@@ -190,9 +184,7 @@ func TestAPIContractOrderAndAccountErrors(t *testing.T) {
 	// srv 是用于验证订单和账号业务错误的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	assertUnifiedAPIError(t, handler, http.MethodGet, "/api/orders/not-found", "", sessionCookie, http.StatusNotFound, httpapi.CodeNotFound, "订单不存在", false)
 	assertUnifiedAPIError(t, handler, http.MethodPost, "/api/orders/manual-ship", `{"order_ids":["order-1"],"ship_mode":"invalid"}`, sessionCookie, http.StatusBadRequest, httpapi.CodeBadRequest, "发货模式必须是 status_only 或 full_delivery", false)
@@ -205,9 +197,7 @@ func TestAPIContractOrderBatchPartialFailure(t *testing.T) {
 	// srv 是用于验证订单批量失败响应的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// req 是包含不存在订单的手动发货请求。
 	req := httptest.NewRequest(http.MethodPost, "/api/orders/manual-ship", strings.NewReader(`{"order_ids":["not-found"],"ship_mode":"status_only"}`))

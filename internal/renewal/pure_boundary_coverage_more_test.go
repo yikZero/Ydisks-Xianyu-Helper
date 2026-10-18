@@ -11,7 +11,6 @@ import (
 func TestSchedulerSettingsNilStoreDefaults(t *testing.T) {
 	// scheduler 用于验证无数据库依赖时的配置读取边界。
 	scheduler := NewScheduler(nil, nil, nil, nil)
-	// ctx 用于控制本次设置读取的生命周期。
 	ctx := context.Background()
 	if scheduler.settingConfigured(ctx, "missing") {
 		t.Fatal("nil store must not report a configured setting")

@@ -12,7 +12,6 @@ func TestAdjustOrderPriceRetryCoversCancellationAndExhaustion(t *testing.T) {
 	// previousGap 保存生产重试间隔，测试结束后恢复全局调度参数。
 	previousGap := adjustPriceTransientRetryGap
 	t.Cleanup(func() { adjustPriceTransientRetryGap = previousGap })
-	// store、cleanup 保存改价重试测试数据库及其关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// canceledContext 是会在首次平台尝试后超时的上下文，用于验证重试等待不会阻塞任务关闭。

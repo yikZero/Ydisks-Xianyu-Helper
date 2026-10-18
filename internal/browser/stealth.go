@@ -3,7 +3,6 @@ package browser
 // Keep Chromium's native fingerprint intact. The launch arguments already
 // disable AutomationControlled; this only removes well-known automation
 // globals and never patches input events or hardware properties.
-// stealthTemplate 用于本次流程后续判断的stealthTemplate
 const stealthTemplate = `
 (() => {
     try {

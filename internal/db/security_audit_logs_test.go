@@ -8,10 +8,8 @@ import (
 
 // TestSecurityAuditLogsNeverStoreSecretValues 验证敏感访问审计只保存键名和操作元数据。
 func TestSecurityAuditLogsNeverStoreSecretValues(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存审计测试上下文。
 	ctx := context.Background()
 	// err 保存审计记录写入错误。
 	if err := store.SecurityAudit.Add(ctx, SecurityAuditLog{UserID: 1, Action: "settings.write", Resource: "system_settings", Keys: []string{"smtp_password", "ai_api_key"}, Outcome: "accepted", CreatedAt: 123}); err != nil {

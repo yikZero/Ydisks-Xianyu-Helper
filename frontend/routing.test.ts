@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe,expect,test } from 'vitest';
 
-const repoRoot = resolve(__dirname); /* repoRoot 表示repoRoot。 */
+const repoRoot = resolve(__dirname);
 
 const readFrontendFile = (relativePath: string) =>
-  readFileSync(resolve(repoRoot, relativePath), 'utf8'); /* readFrontendFile 表示readFrontendFile。 */
+  readFileSync(resolve(repoRoot, relativePath), 'utf8');
 
 const extractSingleQuotedValues = (source: string, pattern: RegExp) => {
   const values = new Set<string>(); /* values 表示值集合。 */
@@ -17,17 +17,17 @@ const extractSingleQuotedValues = (source: string, pattern: RegExp) => {
 
 describe('frontend navigation routing', () => {
   test('sidebar entries and App activeTab routes stay in sync', () => {
-    const sidebar = readFrontendFile('shared/ui/Sidebar.tsx'); /* sidebar 表示sidebar。 */
+    const sidebar = readFrontendFile('shared/ui/Sidebar.tsx');
     const app = readFrontendFile('app/shell/AuthenticatedShell.tsx'); /* app 表示认证后页面组合器源码。 */
 
-    const sidebarIDs = extractSingleQuotedValues(sidebar, /id:\s*'([^']+)'/g); /* sidebarIDs 表示sidebarIDs。 */
-    const appRouteIDs = extractSingleQuotedValues(app, /case\s+'([^']+)'/g); /* appRouteIDs 表示appRouteIDs。 */
+    const sidebarIDs = extractSingleQuotedValues(sidebar, /id:\s*'([^']+)'/g);
+    const appRouteIDs = extractSingleQuotedValues(app, /case\s+'([^']+)'/g);
 
     expect([...sidebarIDs].sort()).toEqual([...appRouteIDs].sort());
   } /* 测试回调断言已登录应用的路由、访问控制或延迟加载契约。 */);
 
   test('active navigation uses the primary action blue', () => {
-    const sidebar = readFrontendFile('shared/ui/Sidebar.tsx'); /* sidebar 表示sidebar。 */
+    const sidebar = readFrontendFile('shared/ui/Sidebar.tsx');
 
     expect(sidebar).toContain("'bg-brand text-white shadow-brand-active'");
     expect(sidebar).not.toContain("'bg-sky-500 text-white'");
@@ -66,8 +66,8 @@ describe('frontend navigation routing', () => {
   } /* 测试回调断言已登录应用的路由、访问控制或延迟加载契约。 */);
 
   test('settings page does not expose backend-inactive system controls', () => {
-    const settings = readFrontendFile('app/features/settings/pages/Settings.tsx'); /* settings 表示settings。 */
-    const settingsConstants = readFrontendFile('app/features/settings/constants.ts'); /* settingsConstants 表示settingsConstants。 */
+    const settings = readFrontendFile('app/features/settings/pages/Settings.tsx');
+    const settingsConstants = readFrontendFile('app/features/settings/constants.ts');
 
     expect(settings).not.toContain('允许用户注册');
     expect(settings).not.toContain('显示默认登录信息');
@@ -95,8 +95,8 @@ describe('frontend navigation routing', () => {
     const app = readFrontendFile('app/router/AppRouter.tsx'); /* app 表示认证后路由组合器源码。 */
     const sessionProvider = readFrontendFile('app/providers/SessionProvider.tsx'); /* sessionProvider 表示认证 Provider 源码。 */
     const shell = readFrontendFile('app/shell/AuthenticatedShell.tsx'); /* shell 表示认证后应用壳源码。 */
-    const sidebar = readFrontendFile('shared/ui/Sidebar.tsx'); /* sidebar 表示sidebar。 */
-    const settingsHook = readFrontendFile('app/features/settings/hooks.ts'); /* settingsHook 表示settingsHook。 */
+    const sidebar = readFrontendFile('shared/ui/Sidebar.tsx');
+    const settingsHook = readFrontendFile('app/features/settings/hooks.ts');
 
     expect(app).toContain('const { isLoggedIn, isAdmin, signOut } = useSession();');
     expect(sessionProvider).toContain('setIsAdmin(response.is_admin === true)');
@@ -108,7 +108,7 @@ describe('frontend navigation routing', () => {
   } /* 测试回调断言已登录应用的路由、访问控制或延迟加载契约。 */);
 
   test('captcha remote settings expose the reference privacy and fallback semantics', () => {
-    const settings = readFrontendFile('app/features/settings/pages/Settings.tsx'); /* settings 表示settings。 */
+    const settings = readFrontendFile('app/features/settings/pages/Settings.tsx');
 
     expect(settings).toContain('远程过滑块配置');
     expect(settings).toContain("'captcha.remote_service_url'");
@@ -119,9 +119,9 @@ describe('frontend navigation routing', () => {
   } /* 测试回调断言已登录应用的路由、访问控制或延迟加载契约。 */);
 
   test('email notification config separates system and custom SMTP modes', () => {
-    const notifications = readFrontendFile('app/features/notifications/pages/Notifications.tsx'); /* notifications 表示notifications。 */
-    const notificationState = readFrontendFile('app/features/notifications/state.ts'); /* notificationState 表示notificationState。 */
-    const notificationModal = readFrontendFile('app/features/notifications/components/NotificationChannelModal.tsx'); /* notificationModal 表示notificationModal。 */
+    const notifications = readFrontendFile('app/features/notifications/pages/Notifications.tsx');
+    const notificationState = readFrontendFile('app/features/notifications/state.ts');
+    const notificationModal = readFrontendFile('app/features/notifications/components/NotificationChannelModal.tsx');
 
     expect(notifications).toContain('interface NotificationsProps');
     expect(notifications).toContain('{isAdmin && <NotificationSmtpSettings');
@@ -142,9 +142,9 @@ describe('frontend navigation routing', () => {
   } /* 测试回调断言已登录应用的路由、访问控制或延迟加载契约。 */);
 
   test('vite proxy does not advertise removed backend routes', () => {
-    const vite = readFrontendFile('vite.config.ts'); /* vite 表示vite。 */
+    const vite = readFrontendFile('vite.config.ts');
 
-    for (const staleRoute /* staleRoute 表示staleRoute。 */ of [
+    for (const staleRoute of [
       '/backup',
       '/logs',
       '/register',
@@ -202,7 +202,7 @@ describe('frontend navigation routing', () => {
   test('QR verification removes the external link and clearly requires in-app risk verification', () => {
     const accounts = readFrontendFile('app/features/accounts/pages/AccountList.tsx'); /* accounts 表示账号集合。 */
     const qrModal = readFrontendFile('app/features/accounts/components/AccountQRCodeModal.tsx'); /* qrModal 表示二维码登录弹窗。 */
-	const riskPanel = readFrontendFile('app/features/accounts/components/RiskVerificationPanel.tsx'); /* riskPanel 表示riskPanel。 */
+	const riskPanel = readFrontendFile('app/features/accounts/components/RiskVerificationPanel.tsx');
     expect(accounts).not.toContain('href={verificationUrl}');
     expect(accounts).not.toContain('setVerificationUrl');
 	expect(qrModal).toContain('RiskVerificationPanel');

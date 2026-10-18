@@ -7,14 +7,11 @@ import (
 
 // TestClosedDatabaseCoversCoreRepositoryErrors 覆盖核心数据库仓储在连接关闭后的错误传播。
 func TestClosedDatabaseCoversCoreRepositoryErrors(t *testing.T) {
-	// store、cleanup 保存随后主动关闭数据库连接的测试存储。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// closeErr 保存关闭测试数据库连接的资源释放结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// operations 保存关闭连接后各仓储入口的错误结果。
 	operations := []error{

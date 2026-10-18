@@ -87,7 +87,6 @@ func TestServiceDelegatesValidOperations(t *testing.T) {
 	repository := &templateRepositoryStub{listResult: []Template{{ID: 9}}, getResult: Template{ID: 8}}
 	// service 是待验证的模板应用服务。
 	service := NewService(repository)
-	// ctx 是本测试所有用例共用的非取消上下文。
 	ctx := context.Background()
 
 	// list、listErr 保存列表委托结果。
@@ -119,13 +118,11 @@ func TestServiceDelegatesValidOperations(t *testing.T) {
 
 // TestServiceRejectsInvalidInput 验证服务拒绝未初始化、非法标识和非法模板草稿。
 func TestServiceRejectsInvalidInput(t *testing.T) {
-	// ctx 是本测试所有调用共用的非取消上下文。
 	ctx := context.Background()
 	// validDraft 是能够通过名称和模板语法校验的最小草稿。
 	validDraft := Draft{Name: "模板", Messages: []string{"{{order_id}}"}}
 	// cases 描述不同入口的无效参数及预期错误。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// service 是待调用的模板服务。
 		service *Service
@@ -205,7 +202,6 @@ func TestServiceRejectsInvalidInput(t *testing.T) {
 
 // TestServicePropagatesRepositoryErrors 验证服务不吞掉仓储层的业务错误和基础设施错误。
 func TestServicePropagatesRepositoryErrors(t *testing.T) {
-	// ctx 是本测试所有调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 保存可注入错误的仓储替身。
 	repository := &templateRepositoryStub{listErr: errors.New("list"), getErr: errors.New("get"), createErr: errors.New("create"), updateErr: errors.New("update"), deleteErr: errors.New("delete")}

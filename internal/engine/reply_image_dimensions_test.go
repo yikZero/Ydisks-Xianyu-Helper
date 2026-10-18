@@ -7,7 +7,6 @@ import (
 
 // TestReplyImageURLIsPassedToCompleteDelivery 验证引擎只传递图片 URL，不再自行读取或拼装像素尺寸。
 func TestReplyImageURLIsPassedToCompleteDelivery(t *testing.T) {
-	// store、cleanup 保存图片关键词回复使用的隔离数据库。
 	store, cleanup := newReplyStore(t)
 	defer cleanup()
 	// setupErr 保存图片关键词规则的配置写入结果。
@@ -31,7 +30,6 @@ func TestReplyImageURLIsPassedToCompleteDelivery(t *testing.T) {
 
 // TestReplyWithoutDeliveryDoesNotInvokeProtocolSender 验证未装配聊天应用端口时引擎不会旁路调用 WebSocket。
 func TestReplyWithoutDeliveryDoesNotInvokeProtocolSender(t *testing.T) {
-	// store、cleanup 保存默认回复规则使用的隔离数据库。
 	store, cleanup := newReplyStore(t)
 	defer cleanup()
 	// setupErr 保存默认回复规则的配置写入结果。

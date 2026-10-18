@@ -26,9 +26,7 @@ func TestNamedSuccessResponseContracts(t *testing.T) {
 	// srv 是用于验证成功响应 DTO 的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := contractRecordingHandler(t, srv.Router())
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// verifyReq 是读取当前会话状态的请求。
@@ -94,9 +92,7 @@ func TestRemainingSuccessResponseContracts(t *testing.T) {
 	// srv 是用于验证剩余成功响应 DTO 的 HTTP 测试服务。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := contractRecordingHandler(t, srv.Router())
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// seedErr 是测试商品写入模板数据库失败的原因。
 	if _, seedErr := store.DB.ExecContext(context.Background(), `INSERT INTO item_info (cookie_id, item_id, item_title) VALUES ('acc1','contract-item','契约商品')`); seedErr != nil {
@@ -190,11 +186,9 @@ func TestSettingsCardsNotificationsBatchContracts(t *testing.T) {
 	// srv 是用于验证设置、卡券、通知和商品批量响应的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := contractRecordingHandler(t, srv.Router())
 	// apiRequestTester 使用确定性替身验证 HTTP DTO 和 OpenAPI 响应契约。
 	srv.applications.apiRequestTester = apiRequestTesterStub{}
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// settingReq 是更新单个系统设置的请求。
@@ -393,9 +387,7 @@ func TestDynamicCompatibilitySuccessContracts(t *testing.T) {
 	// srv 是用于验证动态成功响应的 HTTP 测试服务。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := contractRecordingHandler(t, srv.Router())
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// publicSettingsReq 是读取公开系统设置的请求。
@@ -529,9 +521,7 @@ func TestReplyAndAccountTaskSuccessResponseContracts(t *testing.T) {
 	// srv 是用于验证回复和账号任务响应的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := contractRecordingHandler(t, srv.Router())
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// keywordReq 是创建带商品范围关键词的请求。
@@ -676,9 +666,7 @@ func TestAnalyticsAdminAndPublicSuccessResponseContracts(t *testing.T) {
 	// srv 是用于验证统计、管理员和公共响应的 HTTP 测试服务。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := contractRecordingHandler(t, srv.Router())
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// seedErr 是统计测试订单写入失败的原因。
 	if _, seedErr := store.DB.ExecContext(context.Background(), `INSERT INTO orders (order_id,item_id,buyer_id,quantity,amount,order_status,cookie_id,created_at) VALUES ('contract-analytics','contract-item','buyer', '2','12.50','completed','acc1','2026-08-14 10:00:00')`); seedErr != nil {
@@ -823,7 +811,6 @@ func TestAnalyticsAdminAndPublicSuccessResponseContracts(t *testing.T) {
 
 // TestOpenAPILocalResourceMutationResponses 验证会话、账号和管理员本地资源变更均有真实版本化成功响应。
 func TestOpenAPILocalResourceMutationResponses(t *testing.T) {
-	// srv、store、cleanup 分别提供独立 HTTP 服务、测试数据库和资源释放责任。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
 	// handler 是全量 chi Router，所有请求均通过正式版本化路由执行。
@@ -833,7 +820,6 @@ func TestOpenAPILocalResourceMutationResponses(t *testing.T) {
 	if healthRecorder.Code != http.StatusOK {
 		t.Fatalf("health status=%d body=%s", healthRecorder.Code, healthRecorder.Body.String())
 	}
-	// sessionCookie 是初始管理员会话，用于验证当前密码并执行账号管理操作。
 	sessionCookie := loginHelper(t, handler)
 	// passwordRecorder 保存当前用户修改密码后的成功响应；该操作会废弃旧会话。
 	passwordRecorder := serveOpenAPISuccess(t, handler, sessionCookie, http.MethodPost, "/api/v1/session/password", `{"current_password":"pw","new_password":"new-password"}`)

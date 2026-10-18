@@ -12,12 +12,10 @@ import (
 // freeAddr 获取一个空闲 TCP 端口（立即释放，供测试绑定）。
 func freeAddr(t *testing.T) string {
 	t.Helper()
-	// l、err 用于本次流程后续判断的l、err
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	// addr 用于本次流程后续判断的addr
 	addr := l.Addr().String()
 	l.Close()
 	return addr
@@ -25,25 +23,19 @@ func freeAddr(t *testing.T) string {
 
 // TestRun_ServesHealthAndShutdowns 启动 HTTP 服务，/health 可访问，ctx 取消后优雅退出。
 func TestRun_ServesHealthAndShutdowns(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.Addr = freeAddr(t)
 
-	// ctx、cancel 用于本次流程后续判断的ctx、cancel
 	ctx, cancel := context.WithCancel(context.Background())
-	// runDone 用于本次流程后续判断的运行Done
 	runDone := make(chan error, 1)
 	go func() { runDone <- srv.Run(ctx) }()
 
 	// 轮询 /health 直到可用（最多 3s）。
 	url := "http://" + srv.Addr + "/health"
-	// ok 用于本次流程后续判断的ok
 	var ok bool
-	// deadline 用于本次流程后续判断的deadline
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		// resp、err 用于本次流程后续判断的resp、err
 		resp, err := http.Get(url)
 		if err == nil {
 			resp.Body.Close()
@@ -62,8 +54,7 @@ func TestRun_ServesHealthAndShutdowns(t *testing.T) {
 	// 取消 ctx → Run 应优雅退出。
 	cancel()
 	select {
-	case // err 用于本次流程后续判断的err
-	err := <-runDone:
+	case err := <-runDone:
 		if err != nil {
 			t.Fatalf("Run 应返回 nil，got %v", err)
 		}
@@ -72,19 +63,15 @@ func TestRun_ServesHealthAndShutdowns(t *testing.T) {
 	}
 }
 
-// TestPublishRecoveryLifecycleStopsBeforeWorkerWait 封装Test发布RecoveryLifecycleStopsBefore工作器Wait业务协调。
 func TestPublishRecoveryLifecycleStopsBeforeWorkerWait(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// ctx、cancel 用于本次流程后续判断的ctx、cancel
 	ctx, cancel := context.WithCancel(context.Background())
 	// err 表示测试批量恢复组件启动失败的原因。
 	if err := startTestBatchRecovery(srv, ctx); err != nil {
 		t.Fatalf("启动批量发布恢复扫描器: %v", err)
 	}
 	cancel()
-	// done 用于本次流程后续判断的done
 	done := make(chan struct{})
 	go func() {
 		_ = closeTestBatchRecovery(srv, context.Background())
@@ -153,12 +140,10 @@ func TestServerStartStopIsIdempotentAndWaitsForWorkers(t *testing.T) {
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.Addr = freeAddr(t)
-	if // err 用于本次流程后续判断的err
-	err := srv.Start(context.Background()); err != nil {
+	if err := srv.Start(context.Background()); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := srv.Start(context.Background()); err != nil {
+	if err := srv.Start(context.Background()); err != nil {
 		t.Fatalf("重复 Start: %v", err)
 	}
 	// workerDone 是模拟批量发布 worker 完成时调用的释放函数。
@@ -248,7 +233,6 @@ func TestServerStopContextBoundsWorkerWait(t *testing.T) {
 	defer cancel()
 	// started 记录停止开始时间，用于验证上下文确实限制等待时长。
 	started := time.Now()
-	// err 表示 worker 未完成时停止上下文到期返回的错误。
 	err := srv.Stop(stopCtx)
 	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Stop error=%v, want deadline exceeded", err)

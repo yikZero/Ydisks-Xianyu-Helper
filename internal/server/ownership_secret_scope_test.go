@@ -15,7 +15,6 @@ func TestRequireCookieOwnerSkipsLoginSecret(t *testing.T) {
 	// srv、store 和 cleanup 分别保存测试服务器、数据库和资源清理函数。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// _, updateErr 表示将登录密码替换为损坏密文的数据库操作结果；所有权摘要不应读取该字段。
 	if _, updateErr := store.DB.ExecContext(ctx,

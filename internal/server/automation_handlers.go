@@ -18,7 +18,6 @@ type automationIssueResolutionRequest struct {
 	Resolution string `json:"resolution"`
 }
 
-// mountAutomation 封装mount自动化业务协调。
 func (s *Server) mountAutomation(r chi.Router) {
 	r.Get("/automation-rules", s.listAutomationRules)
 	r.Post("/automation-rules", s.createAutomationRule)
@@ -34,11 +33,8 @@ func (s *Server) mountAutomation(r chi.Router) {
 	r.Post("/automation-pending-tasks/{task_id}/resolve", s.resolveDeferredAutomationTask)
 }
 
-// listAutomationIssues 封装list自动化问题列表业务协调。
 func (s *Server) listAutomationIssues(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	// runs、tasks、err 用于本次流程后续判断的runs、tasks、err
 	runs, tasks, err := s.automationIssuesApplication().ListIssues(r.Context(), sess.UserID)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "查询自动化异常任务失败")
@@ -80,9 +76,7 @@ func deferredAutomationIssueDTOs(issues []automationapp.DeferredIssue) []deferre
 	return result
 }
 
-// resolveAutomationRun 封装resolve自动化运行业务协调。
 func (s *Server) resolveAutomationRun(w http.ResponseWriter, r *http.Request) {
-	// runID、err 用于本次流程后续判断的运行ID、err
 	runID, err := strconv.ParseInt(chi.URLParam(r, "run_id"), 10, 64)
 	if err != nil || runID <= 0 {
 		writeErr(w, http.StatusBadRequest, "无效运行ID")
@@ -90,15 +84,12 @@ func (s *Server) resolveAutomationRun(w http.ResponseWriter, r *http.Request) {
 	}
 	// req 是自动化运行异常处理请求的具名传输 DTO。
 	var req automationIssueResolutionRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	if // err 用于本次流程后续判断的err
-	err := s.automationIssuesApplication().ResolveRunIssue(r.Context(), sess.UserID, runID, strings.TrimSpace(req.Resolution)); err != nil {
+	if err := s.automationIssuesApplication().ResolveRunIssue(r.Context(), sess.UserID, runID, strings.TrimSpace(req.Resolution)); err != nil {
 		if errors.Is(err, automationapp.ErrNotFound) {
 			writeErr(w, http.StatusNotFound, "异常运行不存在或已处理")
 			return
@@ -109,9 +100,7 @@ func (s *Server) resolveAutomationRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, operationResponse{Success: true})
 }
 
-// resolveDeferredAutomationTask 封装resolveDeferred自动化任务业务协调。
 func (s *Server) resolveDeferredAutomationTask(w http.ResponseWriter, r *http.Request) {
-	// taskID、err 用于本次流程后续判断的任务ID、err
 	taskID, err := strconv.ParseInt(chi.URLParam(r, "task_id"), 10, 64)
 	if err != nil || taskID <= 0 {
 		writeErr(w, http.StatusBadRequest, "无效任务ID")
@@ -119,15 +108,12 @@ func (s *Server) resolveDeferredAutomationTask(w http.ResponseWriter, r *http.Re
 	}
 	// req 是延期自动化任务处理请求的具名传输 DTO。
 	var req automationIssueResolutionRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "处理方式必须是 retry 或 dismiss")
 		return
 	}
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	if // err 用于本次流程后续判断的err
-	err := s.automationIssuesApplication().ResolveDeferredIssue(r.Context(), sess.UserID, taskID, req.Resolution); err != nil {
+	if err := s.automationIssuesApplication().ResolveDeferredIssue(r.Context(), sess.UserID, taskID, req.Resolution); err != nil {
 		if errors.Is(err, automationapp.ErrInvalidDeferredResolution) {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return

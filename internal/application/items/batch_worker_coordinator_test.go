@@ -59,9 +59,7 @@ func TestBatchWorkerCoordinatorCancelClose(t *testing.T) {
 	publisher := &batchCoordinatorBlockingPublisher{started: make(chan struct{}, 1)}
 	// coordinator、repository 保存生命周期测试对象。
 	coordinator, repository := newBatchWorkerCoordinatorFixture(t, publisher)
-	// ctx 是协调器 worker 的应用生命周期 Context。
 	ctx := context.Background()
-	// err 保存 worker 启动阶段的生命周期校验错误。
 	if err := coordinator.Start(ctx, 7, "batch-1", "token-1"); err != nil {
 		t.Fatalf("启动批次 worker: %v", err)
 	}

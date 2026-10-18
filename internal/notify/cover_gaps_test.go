@@ -49,7 +49,6 @@ func TestAutomationEventTypeMapsEveryTrigger(t *testing.T) {
 	}
 	// trigger 和 want 是当前触发编码及期望类别。
 	for trigger, want := range cases {
-		// got 保存被测函数的实际返回值，用于与期望值比较。
 		if got := automationEventType(trigger); got != want {
 			t.Fatalf("trigger=%q got=%s want=%s", trigger, got, want)
 		}
@@ -100,7 +99,6 @@ func TestNotifyEventNilContextAndEnqueueFailure(t *testing.T) {
 func TestWaitContextBeforeStartReturnsImmediately(t *testing.T) {
 	// notifier 尚未调用 Start。
 	notifier := NewWithRepository("cid", &scriptedOutboxRepository{}, nilLogger())
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := notifier.WaitContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +152,6 @@ func TestDrainOutboxCompletionBranches(t *testing.T) {
 func TestSettingsRepositoryWithoutSettingsStore(t *testing.T) {
 	// repository 使用没有设置仓储的空 Store。
 	repository := Repository(storeRepository{store: &db.Store{}, cookieID: "cid"})
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := repository.GetSetting(context.Background(), "k"); err == nil {
 		t.Fatal("缺少设置仓储必须报错")
 	}
@@ -163,7 +160,6 @@ func TestSettingsRepositoryWithoutSettingsStore(t *testing.T) {
 	if !ok {
 		t.Fatal("仓储应支持用户作用域读取")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := scoped.GetSettingForUser(context.Background(), 1, "k"); err == nil {
 		t.Fatal("缺少设置仓储必须报错")
 	}
@@ -173,11 +169,9 @@ func TestSettingsRepositoryWithoutSettingsStore(t *testing.T) {
 func TestDingTalkAndPostJSONRequestConstructionErrors(t *testing.T) {
 	// notifier 是未绑定仓储的通知器。
 	notifier := New("cid", nil, nilLogger())
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := notifier.sendDingTalk(map[string]any{"webhook_url": "http://[::1", "secret": "s"}, "m"); err == nil {
 		t.Fatal("非法地址必须报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := notifier.postJSON("http://[::1", map[string]string{}); err == nil {
 		t.Fatal("非法地址必须报错")
 	}
@@ -185,31 +179,25 @@ func TestDingTalkAndPostJSONRequestConstructionErrors(t *testing.T) {
 
 // TestSettingValueAndSMTPConfigModes 覆盖设置读取的空仓储、自定义模式取值与回退。
 func TestSettingValueAndSMTPConfigModes(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := (&Notifier{}).settingValue(ctx, "k"); got != "" {
 		t.Fatalf("got=%q", got)
 	}
 	// notifier 使用返回空设置的仓储。
 	notifier := NewWithRepository("cid", &scriptedOutboxRepository{}, nilLogger())
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := notifier.configOrSetting(ctx, map[string]any{}, "k", "fallback"); got != "fallback" {
 		t.Fatalf("got=%q", got)
 	}
 	// custom 是显式开启渠道自定义 SMTP 的配置。
 	custom := map[string]any{"use_custom_smtp": true, "smtp_server": " host "}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := notifier.smtpConfigValue(ctx, custom, "smtp_server", "d"); got != "host" {
 		t.Fatalf("got=%q", got)
 	}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := notifier.smtpConfigValue(ctx, custom, "smtp_user", "d"); got != "d" {
 		t.Fatalf("got=%q", got)
 	}
 	// system 是显式使用系统 SMTP 的配置，系统设置为空时回退默认值。
 	system := map[string]any{"use_custom_smtp": false}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := notifier.smtpConfigValue(ctx, system, "smtp_user", "d"); got != "d" {
 		t.Fatalf("got=%q", got)
 	}
@@ -319,7 +307,6 @@ func serveScriptedSMTP(t *testing.T, script smtpScript) string {
 
 // TestSendPublicSMTPProtocolFailures 逐阶段覆盖 SMTP 会话失败：问候、STARTTLS、认证、发件人、收件人、DATA、正文提交与退出。
 func TestSendPublicSMTPProtocolFailures(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
 	// auth 是允许在回环地址上明文使用的标准认证器。
 	auth := smtp.PlainAuth("", "u", "p", "127.0.0.1")
@@ -343,14 +330,12 @@ func TestSendPublicSMTPProtocolFailures(t *testing.T) {
 	for _, tc := range cases {
 		// addr 是本阶段脚本服务地址。
 		addr := serveScriptedSMTP(t, tc.script)
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if err := sendPublicSMTP(ctx, addr, "127.0.0.1", tc.auth, "a@e.com", "b@e.com", []byte("hi"), tc.options); err == nil {
 			t.Fatalf("%s 阶段必须失败", tc.name)
 		}
 	}
 	// 隐式 TLS：服务器返回明文问候导致握手失败。
 	addr := serveScriptedSMTP(t, smtpScript{})
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := sendPublicSMTP(ctx, addr, "127.0.0.1", nil, "a@e.com", "b@e.com", []byte("hi"), smtpTransportOptions{UseImplicitTLS: true}); err == nil || !strings.Contains(err.Error(), "SSL 握手失败") {
 		t.Fatalf("err=%v", err)
 	}
@@ -372,7 +357,6 @@ func TestSendEmailAddressHandling(t *testing.T) {
 	base := func(legacy, to string) map[string]any {
 		return map[string]any{"smtp_server": host, "smtp_port": port, "smtp_user": "u@e.com", "smtp_password": "pw", "smtp_use_tls": false, "smtp_from": legacy, "to_email": to}
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := notifier.sendEmail(base("通知中心 <from@e.com>", "收件人 <to@e.com>"), "x"); err != nil {
 		t.Fatal(err)
 	}
@@ -380,11 +364,9 @@ func TestSendEmailAddressHandling(t *testing.T) {
 	if body := received.String(); !strings.Contains(body, "from@e.com") || !strings.Contains(body, "To: ") {
 		t.Fatalf("body=%s", body)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := notifier.sendEmail(base("仅名称", "to@e.com"), "x"); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := notifier.sendEmail(base("", "not-an-address"), "x"); err == nil || !strings.Contains(err.Error(), "收件邮箱") {
 		t.Fatalf("err=%v", err)
 	}
@@ -404,7 +386,6 @@ func (settingErrorRepository) GetSetting(context.Context, string) (string, error
 func TestSettingValueIgnoresReadFailure(t *testing.T) {
 	// notifier 使用设置读取失败的仓储。
 	notifier := NewWithRepository("cid", settingErrorRepository{&scriptedOutboxRepository{}}, nilLogger())
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := notifier.settingValue(context.Background(), "k"); got != "" {
 		t.Fatalf("got=%q", got)
 	}

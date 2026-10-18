@@ -39,8 +39,8 @@ func (r *AnalyticsRepository) DashboardStats(ctx context.Context, userID int64) 
 	for _, item := range queries {
 		// count 是当前统计项的数据库结果。
 		var count int64
-		if // err 是当前统计项查询错误。
-		err := r.store.Analytics.QueryRowContext(ctx, item.query, userID).Scan(&count); err != nil {
+		// err 是当前统计项查询错误。
+		if err := r.store.Analytics.QueryRowContext(ctx, item.query, userID).Scan(&count); err != nil {
 			return analyticsapp.DashboardStats{}, err
 		}
 		switch item.target {
@@ -56,8 +56,8 @@ func (r *AnalyticsRepository) DashboardStats(ctx context.Context, userID int64) 
 	}
 	// activeCookies 是没有明确禁用记录的账号数量。
 	var activeCookies int64
-	if // err 是活跃账号统计查询错误。
-	err := r.store.Analytics.QueryRowContext(ctx, `
+	// err 是活跃账号统计查询错误。
+	if err := r.store.Analytics.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM cookies c WHERE c.user_id=?
 		  AND NOT EXISTS (SELECT 1 FROM cookie_status cs WHERE cs.cookie_id=c.id AND cs.enabled=0)
 	`, userID).Scan(&activeCookies); err != nil {
@@ -110,8 +110,8 @@ func (r *AnalyticsRepository) QueryDaily(ctx context.Context, filter analyticsap
 	for rows.Next() {
 		// record 是当前订单的原始统计字段。
 		var record analyticsapp.DailyRecord
-		if // err 是当前日期记录读取错误。
-		err := rows.Scan(&record.OrderID, &record.Amount, &record.CreatedAt); err != nil {
+		// err 是当前日期记录读取错误。
+		if err := rows.Scan(&record.OrderID, &record.Amount, &record.CreatedAt); err != nil {
 			return nil, err
 		}
 		records = append(records, record)
@@ -137,8 +137,8 @@ func (r *AnalyticsRepository) QueryStatus(ctx context.Context, filter analyticsa
 	for rows.Next() {
 		// record 是当前状态的聚合字段。
 		var record analyticsapp.StatusRecord
-		if // err 是当前状态记录读取错误。
-		err := rows.Scan(&record.Status, &record.Count, &record.Amount); err != nil {
+		// err 是当前状态记录读取错误。
+		if err := rows.Scan(&record.Status, &record.Count, &record.Amount); err != nil {
 			return nil, err
 		}
 		records = append(records, record)
@@ -165,8 +165,8 @@ func (r *AnalyticsRepository) QueryCity(ctx context.Context, filter analyticsapp
 	for rows.Next() {
 		// record 是当前城市的聚合字段。
 		var record analyticsapp.CityRecord
-		if // err 是当前城市记录读取错误。
-		err := rows.Scan(&record.City, &record.Count, &record.Amount); err != nil {
+		// err 是当前城市记录读取错误。
+		if err := rows.Scan(&record.City, &record.Count, &record.Amount); err != nil {
 			return nil, err
 		}
 		records = append(records, record)
@@ -193,8 +193,8 @@ func (r *AnalyticsRepository) QueryItem(ctx context.Context, filter analyticsapp
 	for rows.Next() {
 		// record 是当前商品的聚合字段。
 		var record analyticsapp.ItemRecord
-		if // err 是当前商品记录读取错误。
-		err := rows.Scan(&record.ItemID, &record.Count, &record.TotalAmount, &record.AvgAmount); err != nil {
+		// err 是当前商品记录读取错误。
+		if err := rows.Scan(&record.ItemID, &record.Count, &record.TotalAmount, &record.AvgAmount); err != nil {
 			return nil, err
 		}
 		records = append(records, record)
@@ -234,8 +234,8 @@ func (r *AnalyticsRepository) ListValidOrders(ctx context.Context, filter analyt
 	for rows.Next() {
 		// record 是当前订单的明细字段。
 		var record analyticsapp.ValidOrderRecord
-		if // err 是当前有效订单记录读取错误。
-		err := rows.Scan(&record.OrderID, &record.ItemID, &record.ItemTitle, &record.ItemDetail, &record.BuyerID, &record.Quantity, &record.Amount, &record.Status, &record.CookieID, &record.CreatedAt); err != nil {
+		// err 是当前有效订单记录读取错误。
+		if err := rows.Scan(&record.OrderID, &record.ItemID, &record.ItemTitle, &record.ItemDetail, &record.BuyerID, &record.Quantity, &record.Amount, &record.Status, &record.CookieID, &record.CreatedAt); err != nil {
 			return nil, err
 		}
 		records = append(records, record)

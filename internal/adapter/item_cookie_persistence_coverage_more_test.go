@@ -11,10 +11,8 @@ import (
 
 // TestItemCookiePersistencePortsCoverSessionStates 覆盖商品发布、商品同步和批量发布的 Cookie 会话状态分支。
 func TestItemCookiePersistencePortsCoverSessionStates(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库和 Cookie 会话共用的非取消上下文。
 	ctx := context.Background()
 	// detail 保存三个商品适配器共用的初始凭证视图。
 	detail := db.CookiePlatformRuntimeData{ID: "cid", UserID: 1, Value: "unb=1", MetadataJSON: `{}`}
@@ -68,17 +66,14 @@ func TestItemCookiePersistencePortsCoverSessionStates(t *testing.T) {
 
 // TestItemCookiePersistencePortsCoverDatabaseErrors 覆盖三个商品适配器写回 Cookie 时的数据库错误。
 func TestItemCookiePersistencePortsCoverDatabaseErrors(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库和 Cookie 会话共用的非取消上下文。
 	ctx := context.Background()
 	// detail 保存关闭数据库前读取的凭证视图。
 	detail := db.CookiePlatformRuntimeData{ID: "cid", UserID: 1, Value: "unb=1", MetadataJSON: `{}`}
 	// _, changedSession 保存会触发数据库写回的权威 Cookie 会话。
 	_, changedSession := mtop.WithCookieSnapshot(ctx, []cookierefresh.BrowserCookie{{Name: "sid", Value: "1", Domain: ".goofish.com", Path: "/"}})
 	changedSession.ReplaceSnapshot([]cookierefresh.BrowserCookie{{Name: "sid", Value: "2", Domain: ".goofish.com", Path: "/"}})
-	// closeErr 保存关闭测试数据库连接的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

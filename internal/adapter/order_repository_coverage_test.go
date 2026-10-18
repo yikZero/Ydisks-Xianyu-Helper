@@ -14,7 +14,6 @@ func TestOrderRepositoryDelegatesBusinessQueries(t *testing.T) {
 	// store、cleanup 保存临时数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 限制本测试所有数据库操作的生命周期。
 	ctx := context.Background()
 	// owner、ownerErr 保存测试用户及查询错误。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")

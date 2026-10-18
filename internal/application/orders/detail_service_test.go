@@ -41,7 +41,6 @@ func (s *detailRepositoryStub) GetItem(context.Context, string, string) (*ItemIn
 func TestDetailServiceChecksOwnership(t *testing.T) {
 	// service 保存不拥有目标账号的详情服务。
 	service := NewDetailService(&detailRepositoryStub{order: &Order{CookieID: "other"}, owned: false})
-	// err 保存详情读取返回的错误。
 	_, err := service.Get(context.Background(), 7, "order-1")
 	if !errors.Is(err, ErrForbidden) {
 		t.Fatalf("error=%v, want ErrForbidden", err)
@@ -52,7 +51,6 @@ func TestDetailServiceChecksOwnership(t *testing.T) {
 func TestDetailServiceReturnsNotFound(t *testing.T) {
 	// service 保存返回空订单的详情服务。
 	service := NewDetailService(&detailRepositoryStub{owned: true})
-	// err 保存详情读取返回的错误。
 	_, err := service.Get(context.Background(), 7, "missing")
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("error=%v, want ErrNotFound", err)

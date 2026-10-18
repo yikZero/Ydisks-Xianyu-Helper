@@ -85,7 +85,6 @@ func TestCardsRepositoryAppendDataMapping(t *testing.T) {
 	defer cleanup()
 	// repository 是待验证的卡券数据库适配器。
 	repository := NewCardsRepository(store)
-	// ctx 是本测试数据库操作使用的非取消上下文。
 	ctx := context.Background()
 	// owner、ownerErr 保存测试模板中的卡券所有者及查询错误。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")
@@ -140,7 +139,6 @@ func TestCardsRepositorySummaryPreservesContentType(t *testing.T) {
 
 // TestCardsRepositoryDataMetadataPreservesConsumedStock 验证元数据更新不会恢复已经并发消费的库存正文。
 func TestCardsRepositoryDataMetadataPreservesConsumedStock(t *testing.T) {
-	// store、cleanup 管理隔离数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// ctx 是本地 SQLite 读写使用的上下文。
@@ -176,7 +174,6 @@ func TestCardsRepositoryDataMetadataPreservesConsumedStock(t *testing.T) {
 
 // TestCardsRepositoryUpdateIfDataUnchangedRejectsStaleStock 验证库存快照守卫：编辑期间被自动发货消费后，旧快照不得把已发出的卡密写回库存。
 func TestCardsRepositoryUpdateIfDataUnchangedRejectsStaleStock(t *testing.T) {
-	// store、cleanup 管理隔离数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// ctx 是本地 SQLite 读写使用的上下文。
@@ -229,7 +226,6 @@ func TestCardsRepositoryPropagatesInfrastructureErrors(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定已关闭数据库的卡券适配器。
 	repository := NewCardsRepository(store)
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -250,7 +246,6 @@ func TestCardsRepositoryCoversClosedDatabaseOperations(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定已关闭数据库的卡券适配器。
 	repository := NewCardsRepository(store)
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

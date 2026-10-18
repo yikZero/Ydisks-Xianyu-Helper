@@ -17,7 +17,6 @@ func TestLoginTokenUpdatesDoNotRestartOrRenewAccount(t *testing.T) {
 	for _, outcome := range []string{"rotated", "exhausted", "session"} {
 		// t 管理当前登录态路径对应的持久化与续期断言。
 		t.Run(outcome, func(t *testing.T) {
-			// store、cleanup 提供隔离数据库及其释放函数。
 			store, cleanup := newSchedulerTestStore(t)
 			defer cleanup()
 			// account 保存启用的测试账号，凭证全部为合成值。

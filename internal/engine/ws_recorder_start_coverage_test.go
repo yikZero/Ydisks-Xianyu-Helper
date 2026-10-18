@@ -14,7 +14,6 @@ func TestWSRecorderStartCoversCleanupQueueFlushAndCancellation(t *testing.T) {
 	// account、store 和 cleanup 提供带真实 SQLite 存储的测试账号生命周期。
 	account, _, store, cleanup := newAccountForTest(t)
 	defer cleanup()
-	// ctx 和 cancel 控制记录器 worker 的可回收生命周期。
 	ctx, cancel := context.WithCancel(context.Background())
 	// recorder 是绑定测试账号的 WebSocket 诊断记录器。
 	recorder := newWSRecorder(store, account.CookieID, slog.Default())

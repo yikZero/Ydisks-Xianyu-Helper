@@ -5,9 +5,7 @@ import (
 	"testing"
 )
 
-// TestExtractTaskFromWS_BuyerReviewed 封装TestExtract任务FromWS买家Reviewed业务协调。
 func TestExtractTaskFromWS_BuyerReviewed(t *testing.T) {
-	// raw 用于本次流程后续判断的原始
 	raw := mustMap(t, `{
 	  "1": {
 	    "2": "62904549781@goofish",
@@ -21,7 +19,6 @@ func TestExtractTaskFromWS_BuyerReviewed(t *testing.T) {
 	    }
 	  }
 	}`)
-	// task 用于本次流程后续判断的任务
 	task := ExtractTaskFromWS("acc1", "cookie", raw)
 	if task == nil {
 		t.Fatal("评价卡片应解析为自动化事件")
@@ -32,9 +29,7 @@ func TestExtractTaskFromWS_BuyerReviewed(t *testing.T) {
 	}
 }
 
-// TestExtractTaskFromWS_BuyerReviewedUsesBusinessKeyAcrossCopyVariants 封装TestExtract任务FromWS买家ReviewedUsesBusinessKeyAcrossCopyVariants业务协调。
 func TestExtractTaskFromWS_BuyerReviewedUsesBusinessKeyAcrossCopyVariants(t *testing.T) {
-	// raw 用于本次流程后续判断的原始
 	raw := mustMap(t, `{
 	  "1":{"2":"62904549781@goofish","10":{
 	    "reminderContent":"感谢您的再次购买，评价已经完成",
@@ -43,7 +38,6 @@ func TestExtractTaskFromWS_BuyerReviewedUsesBusinessKeyAcrossCopyVariants(t *tes
 	    "extJson":"{\"updateKey\":\"62904549781:order-second:10:buyer_rate_seller:26\",\"contentType\":\"26\"}"
 	  }}
 	}`)
-	// task 用于本次流程后续判断的任务
 	task := ExtractTaskFromWS("acc1", "cookie", raw)
 	if task == nil || task.TriggerType != TriggerBuyerReviewed || task.OrderID != "order-second" {
 		t.Fatalf("second-purchase review task=%+v", task)
@@ -96,9 +90,7 @@ func TestExtractTaskFromWS_OrderCompletedUsesOrderIDFromBusinessCodeKey(t *testi
 	}
 }
 
-// TestExtractTaskFromWS_ServiceReviewInvitationIgnored 封装TestExtract任务FromWSServiceReviewInvitationIgnored业务协调。
 func TestExtractTaskFromWS_ServiceReviewInvitationIgnored(t *testing.T) {
-	// raw 用于本次流程后续判断的原始
 	raw := mustMap(t, `{
 	  "1": {
 	    "2": "62854995941@goofish",
@@ -110,15 +102,12 @@ func TestExtractTaskFromWS_ServiceReviewInvitationIgnored(t *testing.T) {
 	    }
 	  }
 	}`)
-	if // task 用于本次流程后续判断的任务
-	task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
+	if task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
 		t.Fatalf("服务评价邀请不能触发买家评价赠品: %+v", task)
 	}
 }
 
-// TestExtractTaskFromWS_OrderPaid 封装TestExtract任务FromWS订单Paid业务协调。
 func TestExtractTaskFromWS_OrderPaid(t *testing.T) {
-	// raw 用于本次流程后续判断的原始
 	raw := mustMap(t, `{
 	  "1": {
 	    "2": "63107041124@goofish",
@@ -132,7 +121,6 @@ func TestExtractTaskFromWS_OrderPaid(t *testing.T) {
 	    "6": {"3": {"5": "{\"dxCard\":{\"item\":{\"main\":{\"targetUrl\":\"fleamarket://order_detail?id=3310145690545023994&role=seller\"}}}}"}}
 	  }
 	}`)
-	// task 用于本次流程后续判断的任务
 	task := ExtractTaskFromWS("acc1", "cookie", raw)
 	if task == nil || task.TriggerType != TriggerOrderPaid || task.OrderID != "3310145690545023994" {
 		t.Fatalf("task=%+v", task)
@@ -260,8 +248,8 @@ func TestExtractTaskFromWS_BargainCardsRequireSystemMarker(t *testing.T) {
 func TestExtractTaskFromWS_BargainReadyBuyerIgnored(t *testing.T) {
 	// raw 保存带有买家角色订单链接的成功小刀卡片。
 	raw := mustMap(t, `{"1":{"7":1,"6":{"3":{"5":"{\"dxCard\":{\"item\":{\"main\":{\"exContent\":{\"title\":\"我已成功小刀，待发货\"},\"targetUrl\":\"fleamarket://order_detail?id=3310145690545023994&role=buyer\"}}}}"}}}}`)
-	if // task 表示买家侧卡片经卖家自动化入口解析后的结果。
-	task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
+	// task 表示买家侧卡片经卖家自动化入口解析后的结果。
+	if task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
 		t.Fatalf("买家成功小刀卡片不应触发自动发货: %+v", task)
 	}
 }
@@ -328,9 +316,7 @@ func TestExtractTaskFromWS_UserPaidTextIgnored(t *testing.T) {
 	}
 }
 
-// TestExtractTaskFromWS_BuyerOrderPaidIgnored 封装TestExtract任务FromWS买家订单PaidIgnored业务协调。
 func TestExtractTaskFromWS_BuyerOrderPaidIgnored(t *testing.T) {
-	// raw 用于本次流程后续判断的原始
 	raw := mustMap(t, `{
 	  "1": {
 	    "2": "63107041124@goofish",
@@ -343,15 +329,12 @@ func TestExtractTaskFromWS_BuyerOrderPaidIgnored(t *testing.T) {
 	    "6": {"3": {"5": "{\"dxCard\":{\"item\":{\"main\":{\"targetUrl\":\"fleamarket://order_detail?id=3310145690545023994&role=buyer\"}}}}"}}
 	  }
 	}`)
-	if // task 用于本次流程后续判断的任务
-	task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
+	if task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
 		t.Fatalf("买家订单不应进入卖家自动化和订单管理: %+v", task)
 	}
 }
 
-// TestExtractTaskFromWS_BuyerOrderPaidTaskNameIgnored 封装TestExtract任务FromWS买家订单Paid任务名称Ignored业务协调。
 func TestExtractTaskFromWS_BuyerOrderPaidTaskNameIgnored(t *testing.T) {
-	// raw 用于本次流程后续判断的原始
 	raw := mustMap(t, `{
 	  "1": {"2": "63107041124@goofish", "10": {
 	    "bizTag": "{\"taskName\":\"付款完成待发货_买家\"}",
@@ -359,8 +342,7 @@ func TestExtractTaskFromWS_BuyerOrderPaidTaskNameIgnored(t *testing.T) {
 	    "reminderContent": "[我已付款，等待你发货]"
 	  }}
 	}`)
-	if // task 用于本次流程后续判断的任务
-	task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
+	if task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
 		t.Fatalf("买家侧 taskName 不应进入卖家自动化和订单管理: %+v", task)
 	}
 }
@@ -477,19 +459,16 @@ func TestExtractTaskFromWS_BuyerOrderCreatedIgnored(t *testing.T) {
 	    "6": {"3": {"5": "{\"dxCard\":{\"item\":{\"main\":{\"targetUrl\":\"fleamarket://order_detail?id=3310145690545023994&role=buyer\"}}}}"}}
 	  }
 	}`)
-	if // task 是不应产生的自动化任务。
-	task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
+	// task 是不应产生的自动化任务。
+	if task := ExtractTaskFromWS("acc1", "cookie", raw); task != nil {
 		t.Fatalf("买家拍下订单不应进入卖家自动化: %+v", task)
 	}
 }
 
-// mustMap 封装mustMap业务协调。
 func mustMap(t *testing.T, s string) map[string]any {
 	t.Helper()
-	// m 用于本次流程后续判断的m
 	var m map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal([]byte(s), &m); err != nil {
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		t.Fatal(err)
 	}
 	return m

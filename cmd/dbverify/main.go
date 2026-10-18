@@ -27,13 +27,10 @@ import (
 
 // main 是验证 CLI 的进程入口；参数与运行错误统一由 run 返回退出码。
 func main() {
-	// cleanup 用于本次流程后续判断的cleanup
 	var cleanup func() error
-	// fail 用于本次流程后续判断的fail
 	fail := func(format string, args ...any) {
 		if cleanup != nil {
-			if // err 用于本次流程后续判断的err
-			err := cleanup(); err != nil {
+			if err := cleanup(); err != nil {
 				fmt.Printf("⚠️ 清理验证数据失败: %s\n", logsafe.Error(err))
 			}
 		}
@@ -45,14 +42,11 @@ func main() {
 		fmt.Println("用法: dbverify <database-url>")
 		os.Exit(1)
 	}
-	// url 用于本次流程后续判断的地址
 	url := os.Args[1]
-	// ctx、cancel 用于本次流程后续判断的ctx、cancel
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	fmt.Printf("连接 %s ...\n", maskURL(url))
-	// database、dialect、err 用于本次流程后续判断的database、dialect、err
 	database, dialect, err := db.Open(ctx, url)
 	if err != nil {
 		fail("❌ Open 失败: %v\n", err)
@@ -60,43 +54,32 @@ func main() {
 	defer database.Close()
 	fmt.Printf("✅ 迁移成功，方言=%s\n", dialect)
 
-	// store 用于本次流程后续判断的store
 	store := db.NewStore(database, dialect)
 
 	// 1) 创建用户（用唯一用户名，避免在已有数据的库上因 admin 重名而失败）。
 	ids := newVerifyIDs(time.Now().UnixNano())
-	// username 用于本次流程后续判断的username
 	username := ids.username
-	// accountID 用于本次流程后续判断的账号ID
 	accountID := ids.accountID
-	// orderID 用于本次流程后续判断的订单ID
 	orderID := ids.orderID
-	// itemID 用于本次流程后续判断的商品ID
 	itemID := ids.itemID
-	// buyerID 用于本次流程后续判断的买家ID
 	buyerID := ids.buyerID
 	cleanup = func() error {
-		// cleanupCtx、cleanupCancel 用于本次流程后续判断的cleanupCtx、cleanup取消
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cleanupCancel()
 		return cleanupVerifyData(cleanupCtx, store, ids)
 	}
-	// password、err 用于本次流程后续判断的password、err
 	password, err := newVerifyPassword()
 	if err != nil {
 		fail("❌ 生成验证密码失败: %v\n", err)
 	}
-	// ok、err 用于本次流程后续判断的ok、err
 	ok, err := store.Users.Create(ctx, username, username+"@test.local", password)
 	if err != nil || !ok {
 		fail("❌ 创建用户失败: err=%v ok=%v\n", err, ok)
 	}
-	// adminUser、err 用于本次流程后续判断的adminUser、err
 	adminUser, err := store.Users.GetByUsername(ctx, username)
 	if err != nil {
 		fail("❌ 查询验证用户失败: %v\n", err)
 	}
-	// userID 用于本次流程后续判断的用户ID
 	userID := adminUser.ID
 	fmt.Printf("✅ 创建验证用户 %s (id=%d)\n", username, userID)
 
@@ -125,8 +108,7 @@ func main() {
 	}); err != nil {
 		fail("❌ 商品 Upsert 失败: %v\n", err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.Items.Upsert(ctx, &db.ItemInfoRow{
+	if err := store.Items.Upsert(ctx, &db.ItemInfoRow{
 		CookieID: accountID, ItemID: itemID, ItemTitle: "更新后商品", ItemPrice: "29.90",
 	}); err != nil {
 		fail("❌ 商品二次 Upsert 失败: %v\n", err)
@@ -156,8 +138,7 @@ func main() {
 	if err != nil {
 		fail("❌ 创建通知渠道失败: %v\n", err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.Notifications.SetBindings(ctx, accountID, []int64{chID}); err != nil {
+	if err := store.Notifications.SetBindings(ctx, accountID, []int64{chID}); err != nil {
 		fail("❌ 绑定通知渠道失败: %v\n", err)
 	}
 	fmt.Printf("✅ 通知渠道 + 绑定 OK (channel=%d)\n", chID)
@@ -170,7 +151,6 @@ func main() {
 	if err != nil {
 		fail("❌ 创建自动化规则失败: %v\n", err)
 	}
-	// runID、started、err 用于本次流程后续判断的运行ID、started、err
 	runID, started, err := store.Automation.TryStartRun(ctx, db.AutomationRun{
 		RuleID: ruleID, CookieID: accountID, TriggerType: "order_paid", TriggerKey: orderID, Status: "running",
 	})
@@ -189,8 +169,7 @@ func main() {
 	}
 	fmt.Printf("✅ 自动化规则 + 防重 OK (rule=%d run=%d)\n", ruleID, runID)
 
-	if // err 用于本次流程后续判断的err
-	err := cleanup(); err != nil {
+	if err := cleanup(); err != nil {
 		fmt.Printf("❌ 清理验证数据失败: %s\n", logsafe.Error(err))
 		os.Exit(1)
 	}
@@ -248,15 +227,12 @@ func safeDiagnosticArgs(args []any) []any {
 	return safeArgs
 }
 
-// maskURL 封装maskURL业务协调。
 func maskURL(url string) string {
 	// 只显示 scheme 和 host，把 scheme 后到首个 '@' 之间的凭证替换为 ***。
 	for _, p := range []string{"mysql://", "postgres://", "postgresql://"} {
 		if len(url) > len(p) && url[:len(p)] == p {
-			// rest 用于本次流程后续判断的rest
 			rest := url[len(p):]
-			if // at 用于本次流程后续判断的at
-			at := strings.Index(rest, "@"); at >= 0 {
+			if at := strings.Index(rest, "@"); at >= 0 {
 				return p + "***@" + rest[at+1:]
 			}
 			return url
@@ -265,7 +241,6 @@ func maskURL(url string) string {
 	return url
 }
 
-// verifyIDs 用于本次流程后续判断的verifyIDs
 type verifyIDs struct {
 	username  string
 	accountID string
@@ -274,9 +249,7 @@ type verifyIDs struct {
 	buyerID   string
 }
 
-// newVerifyIDs 封装newVerifyIDs业务协调。
 func newVerifyIDs(n int64) verifyIDs {
-	// suffix 用于本次流程后续判断的suffix
 	suffix := fmt.Sprintf("%d", n)
 	return verifyIDs{
 		username:  "verify_" + suffix,
@@ -287,26 +260,19 @@ func newVerifyIDs(n int64) verifyIDs {
 	}
 }
 
-// newVerifyPassword 封装newVerify密码业务协调。
 func newVerifyPassword() (string, error) {
-	// b 用于本次流程后续判断的b
 	var b [24]byte
-	if // err 用于本次流程后续判断的err
-	_, err := rand.Read(b[:]); err != nil {
+	if _, err := rand.Read(b[:]); err != nil {
 		return "", err
 	}
 	return "verify_" + hex.EncodeToString(b[:]), nil
 }
 
-// cleanupVerifyData 封装cleanupVerify数据业务协调。
 func cleanupVerifyData(ctx context.Context, store *db.Store, ids verifyIDs) error {
-	// userID 用于本次流程后续判断的用户ID
 	userID := int64(0)
-	if // user、err 用于本次流程后续判断的user、err
-	user, err := store.Users.GetByUsername(ctx, ids.username); err == nil {
+	if user, err := store.Users.GetByUsername(ctx, ids.username); err == nil {
 		userID = user.ID
 	}
-	// queries 用于本次流程后续判断的queries
 	queries := []struct {
 		query string
 		args  []any
@@ -324,10 +290,8 @@ func cleanupVerifyData(ctx context.Context, store *db.Store, ids verifyIDs) erro
 		{`DELETE FROM sessions WHERE user_id=?`, []any{userID}},
 		{`DELETE FROM users WHERE username=? AND email=?`, []any{ids.username, ids.username + "@test.local"}},
 	}
-	// q 表示当前遍历过程中的q
 	for _, q := range queries {
-		if // err 用于本次流程后续判断的err
-		_, err := store.DB.ExecContext(ctx, q.query, q.args...); err != nil {
+		if _, err := store.DB.ExecContext(ctx, q.query, q.args...); err != nil {
 			return err
 		}
 	}

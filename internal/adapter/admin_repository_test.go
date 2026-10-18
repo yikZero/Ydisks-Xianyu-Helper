@@ -7,10 +7,8 @@ import (
 
 // TestAdminRepositoryMapsUsersStatsAndDelete 验证管理员适配器只返回摘要并保留删除/统计语义。
 func TestAdminRepositoryMapsUsersStatsAndDelete(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库操作上下文。
 	ctx := context.Background()
 	// created、createErr 保存普通用户创建结果。
 	created, createErr := store.Users.Create(ctx, "admin-repository-user", "admin-repository@example.com", "password")
@@ -71,7 +69,6 @@ func TestAdminRepositoryPropagatesClosedDatabaseErrors(t *testing.T) {
 	defer cleanup()
 	// repository 保存绑定已关闭数据库的管理员适配器。
 	repository := NewAdminRepository(store)
-	// ctx 保存数据库故障测试上下文。
 	ctx := context.Background()
 	// closeErr 保存关闭数据库连接的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {

@@ -10,10 +10,8 @@ import (
 
 // TestPaidDeliveryUsesNormalConsignForBargainReadyOrder 验证开启免拼后的两段 WebSocket 严格按免拼、发卡、普通确认发货顺序执行。
 func TestPaidDeliveryUsesNormalConsignForBargainReadyOrder(t *testing.T) {
-	// store、cleanup 保存付款自动发货主链路使用的测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是创建订单、规则和执行自动化任务共用的上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存规则归属管理员及读取错误。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -73,7 +71,6 @@ func TestConfirmShipmentUsesNormalConsignForBargainOrder(t *testing.T) {
 	// store、cleanup 保存自动化确认发货所需的本地数据库及资源释放函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试所有数据库与自动化操作共用的非取消上下文。
 	ctx := context.Background()
 	// client 是记录普通确认与免拼确认调用的 MTOP 内存替身。
 	client := &fakeMTop{consignOk: true, consignRet: []string{"SUCCESS::调用成功"}}
@@ -147,7 +144,6 @@ func TestBargainPendingRunsOnlyIndependentFreeShipping(t *testing.T) {
 	// store、cleanup 保存隔离的自动化数据库及资源释放函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存测试共用的无取消上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存账号所属管理员和读取错误。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -178,7 +174,6 @@ func TestBargainPendingRunsOnlyIndependentFreeShipping(t *testing.T) {
 
 // TestBargainPendingRequiresWebSocketAndIndependentSwitch 验证二人小刀普通发货不会因待刀成消息或计划任务误触发免拼。
 func TestBargainPendingRequiresWebSocketAndIndependentSwitch(t *testing.T) {
-	// store、cleanup 保存默认关闭自动免拼的测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// client 是若边界失效就会记录免拼调用的 MTOP 替身。

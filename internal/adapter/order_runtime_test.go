@@ -114,7 +114,6 @@ func TestNewOrderRuntimeHooksUsesTypedOptionalServices(t *testing.T) {
 
 // TestOrderRuntimeConfirmShipmentPersistsCookie 验证确认发货成功会写回平台返回的新 Cookie。
 func TestOrderRuntimeConfirmShipmentPersistsCookie(t *testing.T) {
-	// store、cleanup 保存测试数据库和资源清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// client 保存返回成功及新 Cookie 的平台客户端替身。
@@ -137,7 +136,6 @@ func TestOrderRuntimeConfirmShipmentPersistsCookie(t *testing.T) {
 
 // TestOrderRuntimeConfirmShipmentPropagatesPlatformError 验证平台错误会透传且不会伪造成功。
 func TestOrderRuntimeConfirmShipmentPropagatesPlatformError(t *testing.T) {
-	// store、cleanup 保存测试数据库和资源清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// expectedErr 保存平台确认发货错误。
@@ -157,7 +155,6 @@ func TestOrderRuntimeConfirmShipmentPropagatesPlatformError(t *testing.T) {
 
 // TestOrderRuntimeConfirmShipmentRejectsOtherOwner 验证跨用户确认发货会在平台调用前拒绝。
 func TestOrderRuntimeConfirmShipmentRejectsOtherOwner(t *testing.T) {
-	// store、cleanup 保存测试数据库和资源清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// client 保存用于确认平台未被调用的客户端替身。
@@ -175,7 +172,6 @@ func TestOrderRuntimeConfirmShipmentRejectsOtherOwner(t *testing.T) {
 
 // TestOrderRuntimeConfirmShipmentHonorsCancellation 验证请求取消会传入平台调用并返回取消错误。
 func TestOrderRuntimeConfirmShipmentHonorsCancellation(t *testing.T) {
-	// store、cleanup 保存测试数据库和资源清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// client 保存检查 Context 取消状态的客户端替身。

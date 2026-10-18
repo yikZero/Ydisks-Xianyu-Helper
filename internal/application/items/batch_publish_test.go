@@ -153,7 +153,6 @@ func TestBatchRunnerStopsOnCancellation(t *testing.T) {
 	repository := &batchRunnerRepository{rows: []BatchRow{{ID: 1, BatchID: "batch-2"}, {ID: 2, BatchID: "batch-2"}}, batch: BatchInfo{ID: "batch-2", UserID: 7, Status: "running", WorkerToken: "worker"}}
 	// publisher 在首行发布时取消 Context。
 	publisher := &batchRunnerPublisher{}
-	// ctx、cancel 控制 worker 取消生命周期。
 	ctx, cancel := context.WithCancel(context.Background())
 	publisher.err = context.Canceled
 	// runner 使用会返回取消错误的等待替身，避免测试等待真实间隔。

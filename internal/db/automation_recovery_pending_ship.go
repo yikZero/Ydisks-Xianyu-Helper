@@ -46,16 +46,13 @@ func (a *AutomationRules) PendingShipOrdersWithoutPaidRunAfter(ctx context.Conte
 	if limit <= 0 {
 		limit = 200
 	}
-	// cursorSQL 用于本次流程后续判断的游标SQL
 	cursorSQL := ""
-	// args 用于本次流程后续判断的args
 	args := []any{}
 	if afterOrderID != "" {
 		cursorSQL = " AND o.order_id>?"
 		args = append(args, afterOrderID)
 	}
 	args = append(args, limit)
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := a.DB.QueryContext(ctx, `
 SELECT order_id,item_id,buyer_id,spec_name,spec_value,quantity,amount,order_status,cookie_id,is_bargain,
        receiver_name,receiver_phone,receiver_address,receiver_city,version,chat_id,system_shipped,
@@ -80,18 +77,14 @@ WHERE o.order_status='pending_ship'
 		return nil, err
 	}
 	defer rows.Close()
-	// out 用于本次流程后续判断的out
 	out := []Order{}
 	for rows.Next() {
-		// ord 用于本次流程后续判断的ord
 		var ord Order
-		// isBargain、version、sysShipped 用于本次流程后续判断的isBargain、version、sysShipped
 		var isBargain, version, sysShipped int
 		// itemID、buyerID、specName、specValue、qty、amount、status、cookieID、receiverName、receiverPhone、receiverAddr、receiverCity、chatID 保存商品ID、buyerID、specName、specValue、qty、amount、status、cookieID、receiverName、receiverPhone、receiverAddr、receiverCity、chatID，供当前处理流程使用
 		var itemID, buyerID, specName, specValue, qty, amount, status, cookieID,
 			receiverName, receiverPhone, receiverAddr, receiverCity, chatID sql.NullString
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&ord.OrderID, &itemID, &buyerID, &specName, &specValue, &qty, &amount,
+		if err := rows.Scan(&ord.OrderID, &itemID, &buyerID, &specName, &specValue, &qty, &amount,
 			&status, &cookieID, &isBargain, &receiverName, &receiverPhone, &receiverAddr,
 			&receiverCity, &version, &chatID, &sysShipped, &ord.PaidAt,
 			&ord.ShippedAt, &ord.CompletedAt, &ord.BuyerReviewedAt, &ord.LastReviewRequestAt,

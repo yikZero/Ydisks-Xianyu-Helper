@@ -42,7 +42,6 @@ func TestLockLiveDeliveryTemplatesRejectsMissingTemplate(t *testing.T) {
 	// store、cleanup 保存模板引用锁测试使用的数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存模板创建和事务校验共用的上下文。
 	ctx := context.Background()
 	// userID 保存模板所有者标识。
 	userID, _ := seedAccount(t, store)
@@ -102,7 +101,6 @@ func TestDeliveryTemplateDeleteAndRuleCreateSerialize(t *testing.T) {
 	// store、cleanup 保存 SQLite 并发事务测试使用的数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存并发事务共用的上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存规则创建所需的账号归属。
 	userID, cookieID := seedAccount(t, store)
@@ -183,10 +181,8 @@ func TestDeliveryTemplateDeleteAndRuleCreateSerialize(t *testing.T) {
 
 // TestDeliveryTemplateWriteOrderingProtectsReferences 验证规则先提交、模板更新竞争和删除竞争都不会绕过模板引用保护。
 func TestDeliveryTemplateWriteOrderingProtectsReferences(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存事务写入共用的上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存规则和模板的归属信息。
 	userID, cookieID := seedAccount(t, store)
@@ -308,7 +304,6 @@ func TestAutomationRuleWriteRechecksTemplateVariableContract(t *testing.T) {
 	// store、cleanup 保存变量契约并发后置条件测试使用的数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存模板和规则写入共用的上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存规则归属与账号外键。
 	userID, cookieID := seedAccount(t, store)
@@ -357,7 +352,6 @@ func TestMultiDB_DeliveryTemplateReferenceContract(t *testing.T) {
 		target := target
 		t.Run(target.name, func(t *testing.T) {
 			defer target.cleanup()
-			// ctx 保存当前方言模板引用测试共用的上下文。
 			ctx := context.Background()
 			// userID、cookieID 保存当前方言规则归属。
 			userID, cookieID := seedAccount(t, target.store)

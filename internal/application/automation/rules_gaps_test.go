@@ -11,7 +11,6 @@ import (
 type failingProfileOwnership struct {
 	// ruleOwnershipFake 提供通用归属行为。
 	*ruleOwnershipFake
-	// err 是 GetItemDeliveryProfile 返回的错误。
 	err error
 }
 
@@ -24,7 +23,6 @@ func (f *failingProfileOwnership) GetItemDeliveryProfile(context.Context, int64,
 func TestNormalizeForUpdateGuardsAndRepositoryError(t *testing.T) {
 	// nilService 是未初始化的规则服务。
 	var nilService *RuleService
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := nilService.NormalizeForUpdate(context.Background(), 1, 1, RuleDraft{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err=%v", err)
 	}
@@ -32,11 +30,9 @@ func TestNormalizeForUpdateGuardsAndRepositoryError(t *testing.T) {
 	boom := errors.New("repository down")
 	// service 的仓储读取原规则会失败。
 	service := NewRuleService(&ruleRepositoryFake{existingErr: boom}, &ruleOwnershipFake{})
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := service.NormalizeForUpdate(context.Background(), 1, 2, RuleDraft{}); !errors.Is(err, boom) {
 		t.Fatalf("err=%v", err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := service.NormalizeForUpdate(context.Background(), 0, 2, RuleDraft{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err=%v", err)
 	}
@@ -57,13 +53,11 @@ func TestNormalizeSurfacesSKUSpecErrors(t *testing.T) {
 
 // TestNormalizeRuleSKUConfigsBranches 覆盖规格事实读取失败、停用动作跳过、非法配置、规格不完整与规格名称顺序不一致。
 func TestNormalizeRuleSKUConfigsBranches(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// boom 是商品规格事实读取失败。
 	boom := errors.New("profile unavailable")
 	// failing 的归属替身读取规格事实失败。
 	failing := &failingProfileOwnership{ruleOwnershipFake: &ruleOwnershipFake{}, err: boom}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := normalizeRuleSKUConfigs(ctx, failing, 1, "a", "item", nil); !errors.Is(err, boom) {
 		t.Fatalf("err=%v", err)
 	}
@@ -71,15 +65,12 @@ func TestNormalizeRuleSKUConfigsBranches(t *testing.T) {
 	plain := &ruleOwnershipFake{}
 	// disabled 的动作被停用，应原样跳过而不解析配置。
 	disabled := []ActionInput{{ActionType: ActionSendCard, Enabled: false, ConfigJSON: "not json"}, {ActionType: "other", Enabled: true, ConfigJSON: "not json"}}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := normalizeRuleSKUConfigs(ctx, plain, 1, "a", "", disabled); err != nil {
 		t.Fatalf("err=%v", err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := normalizeRuleSKUConfigs(ctx, plain, 1, "a", "", []ActionInput{{ActionType: ActionSendCard, Enabled: true, ConfigJSON: "null"}}); err == nil {
 		t.Fatal("null 配置应被拒绝")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := normalizeRuleSKUConfigs(ctx, plain, 1, "a", "", []ActionInput{{ActionType: ActionSendTemplate, Enabled: true, ConfigJSON: "[1]"}}); err == nil {
 		t.Fatal("非对象配置应被拒绝")
 	}
@@ -88,7 +79,6 @@ func TestNormalizeRuleSKUConfigsBranches(t *testing.T) {
 		{ActionType: ActionSendCard, Enabled: true, ConfigJSON: `{"spec_name":"颜色;版本","spec_value":"红;专业"}`},
 		{ActionType: ActionSendCard, Enabled: true, ConfigJSON: `{"spec_name":"版本;颜色","spec_value":"专业;红"}`},
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := normalizeRuleSKUConfigs(ctx, plain, 1, "a", "", mismatch); err == nil || !strings.Contains(err.Error(), "一致") {
 		t.Fatalf("err=%v", err)
 	}
@@ -97,7 +87,6 @@ func TestNormalizeRuleSKUConfigsBranches(t *testing.T) {
 		{ActionType: ActionSendCard, Enabled: true, ConfigJSON: `{"spec_name":"颜色;版本","spec_value":"红;专业"}`},
 		{ActionType: ActionSendTemplate, Enabled: true, ConfigJSON: `{"spec_name":"颜色;版本","spec_value":"蓝;基础"}`},
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := normalizeRuleSKUConfigs(ctx, plain, 1, "a", "", consistent); err != nil {
 		t.Fatalf("err=%v", err)
 	}

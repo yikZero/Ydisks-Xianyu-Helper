@@ -15,11 +15,9 @@ func archWrite(t *testing.T, root, relative, content string) {
 	t.Helper()
 	// full 是夹具文件绝对路径。
 	full := filepath.Join(root, filepath.FromSlash(relative))
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -43,11 +41,9 @@ func archBrokenLink(t *testing.T, root, relative string) {
 	t.Helper()
 	// full 是符号链接绝对路径。
 	full := filepath.Join(root, filepath.FromSlash(relative))
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.Symlink(filepath.Join(root, "does-not-exist"), full); err != nil {
 		t.Skipf("无法创建符号链接: %v", err)
 	}
@@ -97,21 +93,18 @@ func TestCheckRepositoryCleanTreeAndMain(t *testing.T) {
 
 // TestCheckRepositoryErrorBranches 覆盖总计划缺失、不可解析 Go 文件和不可读 Go 文件的错误返回。
 func TestCheckRepositoryErrorBranches(t *testing.T) {
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := checkRepository(t.TempDir()); err == nil {
 		t.Fatal("缺少总计划应失败")
 	}
 	// parseRoot 含语法错误的生产文件。
 	parseRoot := archCleanRepo(t, "| 1. 基线 | 当前阶段 |")
 	archWrite(t, parseRoot, "pkg/broken.go", "package broken\nfunc (")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := checkRepository(parseRoot); err == nil {
 		t.Fatal("语法错误应返回错误")
 	}
 	// readRoot 含一个断开的 .go 符号链接。
 	readRoot := archCleanRepo(t, "| 1. 基线 | 当前阶段 |")
 	archBrokenLink(t, readRoot, "pkg/link.go")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := checkRepository(readRoot); err == nil {
 		t.Fatal("不可读文件应返回错误")
 	}
@@ -145,12 +138,10 @@ func TestCheckGoFileReportsEveryImportViolation(t *testing.T) {
 	if !strings.Contains(archMessages(serverViolations), "禁止直接创建数据库事务") {
 		t.Fatalf("缺少事务违规: %s", archMessages(serverViolations))
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := checkGoFile(root, "missing.go", token.NewFileSet(), 1); err == nil {
 		t.Fatal("文件缺失应失败")
 	}
 	archWrite(t, root, "pkg/broken.go", "package x\nfunc (")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := checkGoFile(root, "pkg/broken.go", token.NewFileSet(), 1); err == nil {
 		t.Fatal("语法错误应失败")
 	}
@@ -165,14 +156,12 @@ func TestCheckStageTwoCompositionRootBranches(t *testing.T) {
 	// onlyTests 的 composition 只含测试文件。
 	onlyTests := t.TempDir()
 	archWrite(t, onlyTests, "internal/composition/a_test.go", "package composition\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkStageTwoCompositionRoot(onlyTests)); !strings.Contains(got, "必须包含生产装配代码") {
 		t.Fatalf("got=%s", got)
 	}
 	// noMain 有生产文件但缺少 cmd/server/main.go。
 	noMain := t.TempDir()
 	archWrite(t, noMain, "internal/composition/a.go", "package composition\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkStageTwoCompositionRoot(noMain)); !strings.Contains(got, "无法解析 cmd/server") {
 		t.Fatalf("got=%s", got)
 	}
@@ -180,7 +169,6 @@ func TestCheckStageTwoCompositionRootBranches(t *testing.T) {
 	noImport := t.TempDir()
 	archWrite(t, noImport, "internal/composition/a.go", "package composition\n")
 	archWrite(t, noImport, "cmd/server/main.go", "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println() }\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkStageTwoCompositionRoot(noImport)); !strings.Contains(got, "显式调用 internal/composition") {
 		t.Fatalf("got=%s", got)
 	}
@@ -188,7 +176,6 @@ func TestCheckStageTwoCompositionRootBranches(t *testing.T) {
 
 // TestReadActiveArchitectureStageMissingFile 验证总计划文件不存在时返回读取错误。
 func TestReadActiveArchitectureStageMissingFile(t *testing.T) {
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := readActiveArchitectureStage(t.TempDir()); err == nil {
 		t.Fatal("缺少总计划应失败")
 	}
@@ -199,14 +186,12 @@ func TestOpenAPIContractClosureWalkAndTransportImport(t *testing.T) {
 	// root 含一个引用 ./transport 的 feature 文件。
 	root := t.TempDir()
 	archWrite(t, root, "frontend/app/features/a/page.ts", "import { X } from './transport';\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkOpenAPIContractClosure(root)); !strings.Contains(got, "禁止引用手写 transport DTO") {
 		t.Fatalf("got=%s", got)
 	}
 	// broken 含一个不可读的 .ts 生产文件。
 	broken := t.TempDir()
 	archBrokenLink(t, broken, "frontend/app/a.ts")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkOpenAPIContractClosure(broken)); !strings.Contains(got, "扫描 OpenAPI 契约闭环失败") {
 		t.Fatalf("got=%s", got)
 	}
@@ -214,7 +199,6 @@ func TestOpenAPIContractClosureWalkAndTransportImport(t *testing.T) {
 	skipped := t.TempDir()
 	archWrite(t, skipped, "frontend/node_modules/x/a.ts", "import { X } from '../transport';\n")
 	archWrite(t, skipped, "frontend/dist/a.ts", "import { X } from '../transport';\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := checkOpenAPIContractClosure(skipped); len(got) != 0 {
 		t.Fatalf("got=%v", got)
 	}
@@ -236,7 +220,6 @@ func TestLifecycleArchitectureGateBranches(t *testing.T) {
 		t.Fatalf("冻结或非后台文件不应被报告: %s", got)
 	}
 	archWrite(t, root, "docs/architecture/lifecycle-inventory.md", "只有所有者\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkLifecycleArchitecture(root)); !strings.Contains(got, "缺少必填边界") {
 		t.Fatalf("got=%s", got)
 	}
@@ -259,19 +242,16 @@ func TestReactArchitectureGateBranches(t *testing.T) {
 		}
 	}
 	archWrite(t, root, "frontend/tsconfig.json", "{not json")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkReactArchitecture(root)); !strings.Contains(got, "无法解析 TypeScript 配置") {
 		t.Fatalf("got=%s", got)
 	}
 	archWrite(t, root, "frontend/tsconfig.json", `{"compilerOptions":{"noUnusedLocals":true}}`)
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkReactArchitecture(root)); !strings.Contains(got, "compilerOptions.noUnusedParameters") {
 		t.Fatalf("got=%s", got)
 	}
 	// broken 含不可读的前端源码。
 	broken := t.TempDir()
 	archBrokenLink(t, broken, "frontend/app/a.ts")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkReactArchitecture(broken)); !strings.Contains(got, "扫描前端架构失败") {
 		t.Fatalf("got=%s", got)
 	}
@@ -386,7 +366,6 @@ func TestCompatibilityGovernanceBranches(t *testing.T) {
 	// noServer 有矩阵但没有 server.go。
 	noServer := t.TempDir()
 	archWrite(t, noServer, "docs/architecture/api-compatibility-matrix.md", "x")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkCompatibilityGovernance(noServer)); !strings.Contains(got, "无法读取历史 API 遥测实现") {
 		t.Fatalf("got=%s", got)
 	}
@@ -431,7 +410,6 @@ func TestDynamicMapTypeHelpers(t *testing.T) {
 	}
 	// text、want 是类型文本与期望。
 	for text, want := range cases {
-		// got 保存下方被测函数的实际返回值，随后与期望值比较。
 		if got := containsDynamicMapType(parseType(text)); got != want {
 			t.Errorf("%s got=%v want=%v", text, got, want)
 		}
@@ -458,7 +436,6 @@ func TestLowLevelImportAndFirstLine(t *testing.T) {
 func TestStageTwoScannerBranches(t *testing.T) {
 	// appSyntax、appFset 是 application_services.go 夹具。
 	appSyntax, appFset := archParse(t, "application_services.go", "package server\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := archMessages(checkStageTwoTransportBoundary("internal/server/application_services.go", appSyntax, appFset)); !strings.Contains(got, "application_services.go") {
 		t.Fatalf("got=%s", got)
 	}
@@ -482,23 +459,19 @@ type ApplicationPorts struct {
 	F map[string]string
 }
 `)
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := checkStageTwoApplicationPortDeclarations("internal/server/application_ports.go", portSyntax, portFset); len(got) != 3 {
 		t.Fatalf("got=%s", archMessages(got))
 	}
 	// compSyntax、compFset 是反向依赖 Server 的 composition 核心文件。
 	compSyntax, compFset := archParse(t, "c.go", "package composition\n\nimport _ \"xianyu-go/internal/server\"\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := checkStageTwoCompositionProjection("internal/composition/c.go", compSyntax, compFset); len(got) != 1 {
 		t.Fatalf("got=%v", got)
 	}
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := checkStageTwoCompositionProjection("internal/composition/runtime/c.go", compSyntax, compFset); got != nil {
 		t.Fatalf("runtime 子层应放行: %v", got)
 	}
 	// ifaceSyntax、ifaceFset 的 Server 是接口而非结构体。
 	ifaceSyntax, ifaceFset := archParse(t, "s.go", "package server\n\ntype Other struct{}\n\ntype Server interface{}\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := checkServerInfrastructureFields("internal/server/s.go", ifaceSyntax, ifaceFset); len(got) != 0 {
 		t.Fatalf("got=%v", got)
 	}
@@ -513,7 +486,6 @@ func handler() {
 	_, _, _ = plain, other, req
 }
 `)
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := checkHTTPRequestContracts("internal/server/x_handlers.go", reqSyntax, reqFset); len(got) != 1 {
 		t.Fatalf("got=%v", got)
 	}
@@ -523,13 +495,11 @@ func handler() {
 func TestCompositionProjectionSkipsUnrelatedImports(t *testing.T) {
 	// syntax、fset 的文件先导入标准库再导入 Server。
 	syntax, fset := archParse(t, "c.go", "package composition\n\nimport (\n\t\"fmt\"\n\t_ \"xianyu-go/internal/server\"\n)\n\nvar _ = fmt.Sprint\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := checkStageTwoCompositionProjection("internal/composition/c.go", syntax, fset); len(got) != 1 {
 		t.Fatalf("got=%v", got)
 	}
 	// cleanSyntax、cleanFset 的文件没有 Server 导入。
 	cleanSyntax, cleanFset := archParse(t, "d.go", "package composition\n\nimport \"fmt\"\n\nvar _ = fmt.Sprint\n")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := checkStageTwoCompositionProjection("internal/composition/d.go", cleanSyntax, cleanFset); got != nil {
 		t.Fatalf("got=%v", got)
 	}

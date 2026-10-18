@@ -7,10 +7,8 @@ import (
 
 // TestMarkMessageReadMarksPriorOutgoingHistory 验证平台对目标出站消息的已读回执会确认同会话中更早的出站历史。
 func TestMarkMessageReadMarksPriorOutgoingHistory(t *testing.T) {
-	// store、cleanup 分别保存隔离的 SQLite 存储和关闭函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试数据库调用共用的上下文。
 	ctx := context.Background()
 	// userID 保存测试账号的数据库主键，用于建立会话所属账号。
 	var userID int64
@@ -59,10 +57,8 @@ func TestMarkMessageReadMarksPriorOutgoingHistory(t *testing.T) {
 
 // TestSaveIncomingMessageMarksPriorOutgoingHistoryRead 验证买家后续发言会确认此前出站历史已读，且不会确认其后的出站消息。
 func TestSaveIncomingMessageMarksPriorOutgoingHistoryRead(t *testing.T) {
-	// store、cleanup 分别保存隔离的 SQLite 存储和关闭函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试数据库调用共用的上下文。
 	ctx := context.Background()
 	// userID 保存测试账号的数据库主键，用于建立会话所属账号。
 	var userID int64

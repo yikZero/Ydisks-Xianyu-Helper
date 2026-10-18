@@ -24,15 +24,12 @@ func (port *itemCategoryHandlerCoveragePort) Recommend(context.Context, int64, s
 
 // TestRecommendItemPublishCategoryHandlerCoversValidationAndErrors 覆盖商品类目推荐的输入校验及错误映射。
 func TestRecommendItemPublishCategoryHandlerCoversValidationAndErrors(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// port 是当前测试注入的商品类目推荐应用端口。
 	port := &itemCategoryHandlerCoveragePort{result: itemapp.BatchPreviewCategory{CatID: "5001", CatName: "虚拟商品", ChannelCatID: "6001", TBCatID: "7001"}}
 	srv.applications.itemCategoryRecommendation = port
-	// handler 是注入可控类目推荐端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// successRecorder 保存类目推荐成功响应。

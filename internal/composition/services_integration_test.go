@@ -59,7 +59,6 @@ func buildTestServices(t *testing.T, provideChat bool) builtServices {
 	automationDeps, automationErr := adapter.NewAutomationDependencies(store)
 	// miscDeps、miscErr 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
 	miscDeps, miscErr := adapter.NewMiscDependencies(store)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	for _, err := range []error{orderErr, accountErr, itemErr, automationErr, miscErr} {
 		if err != nil {
 			t.Fatal(err)
@@ -144,12 +143,10 @@ func TestNewAssemblesServicesAndExposesTransportPorts(t *testing.T) {
 func TestServicesRuntimeEntrypointsOnEmptyDatabase(t *testing.T) {
 	// built 是完整装配结果。
 	built := buildTestServices(t, true)
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	if built.services.RecoverExpiredCredential(ctx, "missing-account") {
 		t.Fatal("未知账号不应声明已恢复")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := built.services.RefreshRuntimeAccount(ctx, "missing-account"); err == nil {
 		t.Fatal("未知账号的订单同步应返回错误")
 	}
@@ -170,7 +167,6 @@ func TestSettingsRuntimeTransportDelegatesToManager(t *testing.T) {
 		t.Fatal("重复建立 fencing 应失败")
 	}
 	transport.EndStopping("acc-1")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := transport.StopContext(context.Background(), "acc-1"); err != nil {
 		t.Fatalf("停止未运行账号应为空操作: %v", err)
 	}
@@ -190,11 +186,9 @@ func TestAccountLoginServiceWithRealDependencies(t *testing.T) {
 	// now 是会话登记时间。
 	now := time.Now()
 	login.RegisterQRSession("session-1", 7, now)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := login.AuthorizeQRSession("session-1", 7); err != nil {
 		t.Fatalf("属主应通过授权: %v", err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := login.AuthorizeQRSession("session-1", 8); err == nil {
 		t.Fatal("非属主应被拒绝")
 	}
@@ -211,7 +205,6 @@ func TestAccountLoginServiceWithRealDependencies(t *testing.T) {
 	if err := login.CreateCookie(context.Background(), "acc-x", "", 7, "manual"); err == nil {
 		t.Fatal("空 Cookie 应被拒绝")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := login.UpdateCookie(context.Background(), "acc-x", "", 7, "manual", 1); err == nil {
 		t.Fatal("未知账号更新应被拒绝")
 	}
@@ -241,7 +234,6 @@ func TestDownloadImageURLWithLocalServer(t *testing.T) {
 		}
 	}))
 	t.Cleanup(server.Close)
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// contentType、data、err 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
 	if data, contentType, err := downloadImageURL(ctx, server.URL+"/ok"); err != nil || contentType != "image/png" || len(data) != len(pngHeader) {
@@ -251,22 +243,18 @@ func TestDownloadImageURLWithLocalServer(t *testing.T) {
 	if _, contentType, err := downloadImageURL(ctx, server.URL+"/sniff"); err != nil || contentType != "image/png" {
 		t.Fatalf("sniff: %v %q", err, contentType)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, _, err := downloadImageURL(ctx, server.URL+"/text"); err == nil {
 		t.Fatal("非图片应被拒绝")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, _, err := downloadImageURL(ctx, server.URL+"/big"); err == nil {
 		t.Fatal("超限图片应被拒绝")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, _, err := downloadImageURL(ctx, server.URL+"/missing"); err == nil {
 		t.Fatal("404 应被拒绝")
 	}
 	// 启用公网限制后，本机地址必须被出站策略拒绝。
 	netguard.SetDefaultPublicOnly(true)
 	t.Cleanup(func() { netguard.SetDefaultPublicOnly(false) })
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, _, err := downloadImageURL(ctx, server.URL+"/ok"); err == nil {
 		t.Fatal("公网限制下应拒绝本机地址")
 	}

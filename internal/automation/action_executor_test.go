@@ -88,10 +88,8 @@ func (s *apiCardFetcherStub) Fetch(_ context.Context, request APICardRequest) (A
 
 // TestSendAPICardDeliversEachUnit 验证规则数量乘订单数量后逐单位获取并立即发送 API 卡密。
 func TestSendAPICardDeliversEachUnit(t *testing.T) {
-	// store、cleanup 保存测试数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存数据库与执行器共用的测试上下文。
 	ctx := context.Background()
 	// admin 是测试卡券的所有者。
 	admin, err := store.Users.GetByUsername(ctx, "admin")
@@ -127,7 +125,6 @@ func TestSendTemplateRendersBoundCards(t *testing.T) {
 	// store、cleanup 保存模板动作测试使用的数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存模板动作共用的测试上下文。
 	ctx := context.Background()
 	// admin 保存创建测试卡密组所需的用户。
 	admin, err := store.Users.GetByUsername(ctx, "admin")
@@ -160,7 +157,6 @@ func TestSendTemplateRendersBoundAPICard(t *testing.T) {
 	// store、cleanup 保存 API 模板动作测试使用的数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存数据库与执行器共用的测试上下文。
 	ctx := context.Background()
 	// admin 保存创建测试 API 卡密组所需的用户。
 	admin, err := store.Users.GetByUsername(ctx, "admin")
@@ -198,7 +194,6 @@ func TestSendDataCardProofUsesRenderedContent(t *testing.T) {
 	// store、cleanup 保存数据卡动作测试使用的数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存数据卡动作共用的测试上下文。
 	ctx := context.Background()
 	// admin 保存创建测试数据卡所需的用户。
 	admin, err := store.Users.GetByUsername(ctx, "admin")
@@ -229,10 +224,8 @@ func TestSendDataCardProofUsesRenderedContent(t *testing.T) {
 
 // TestSendDataCardReleasesInventoryLockBeforeExternalSend 验证第二个库存操作不会等待第一个外部发送完成。
 func TestSendDataCardReleasesInventoryLockBeforeExternalSend(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的上下文。
 	ctx := context.Background()
 	// admin 保存创建卡券组所需的管理员用户。
 	admin, err := store.Users.GetByUsername(ctx, "admin")

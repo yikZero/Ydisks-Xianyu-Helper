@@ -13,7 +13,6 @@ import (
 	"xianyu-go/internal/xianyu/mtop"
 )
 
-// fakeAccountTaskClient 用于本次流程后续判断的fake账号任务Client
 type fakeAccountTaskClient struct {
 	pendingCalls int
 	rateCalls    int
@@ -45,7 +44,6 @@ func (c *cancelingAccountTaskClient) RateBuyer(_ context.Context, cookiesStr, tr
 	return &mtop.AccountTaskResult{Success: true, Message: "ok"}, nil
 }
 
-// FetchPendingRateOrders 封装FetchPendingRate订单列表业务协调。
 func (f *fakeAccountTaskClient) FetchPendingRateOrders(context.Context, string, int, int) (*mtop.PendingRateResult, error) {
 	f.pendingCalls++
 	if f.pendingErr != nil {
@@ -54,7 +52,6 @@ func (f *fakeAccountTaskClient) FetchPendingRateOrders(context.Context, string, 
 	return &mtop.PendingRateResult{Orders: f.pending}, nil
 }
 
-// RateBuyer 封装Rate买家业务协调。
 func (f *fakeAccountTaskClient) RateBuyer(context.Context, string, string, string) (*mtop.AccountTaskResult, error) {
 	f.rateCalls++
 	if f.rateErr != nil {
@@ -63,7 +60,6 @@ func (f *fakeAccountTaskClient) RateBuyer(context.Context, string, string, strin
 	return &mtop.AccountTaskResult{Success: true, Message: "ok"}, nil
 }
 
-// FetchAllItems 封装FetchAll商品列表业务协调。
 func (f *fakeAccountTaskClient) FetchAllItems(_ context.Context, _ string, pageSize, maxPages int) (*mtop.ItemListResult, error) {
 	f.fetchItemsCalls++
 	f.fetchPageSize, f.fetchMaxPages = pageSize, maxPages
@@ -73,7 +69,6 @@ func (f *fakeAccountTaskClient) FetchAllItems(_ context.Context, _ string, pageS
 	return &mtop.ItemListResult{Items: f.items}, nil
 }
 
-// PolishItem 封装Polish商品业务协调。
 func (f *fakeAccountTaskClient) PolishItem(context.Context, string, string) (*mtop.AccountTaskResult, error) {
 	f.polishCalls++
 	if f.polishErr != nil {
@@ -102,10 +97,8 @@ func seedLocalCompletedOrders(t *testing.T, store *db.Store, ctx context.Context
 
 // TestScanAccountTasksTreatsEmptyItemListAsSuccess 验证调度扫描拿到空商品列表后完成当日任务且不会重复重试。
 func TestScanAccountTasksTreatsEmptyItemListAsSuccess(t *testing.T) {
-	// store、cleanup 保存扫描测试使用的 SQLite 存储及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是扫描和任务仓储调用共用的上下文。
 	ctx := context.Background()
 	// client 返回成功但为空的商品列表，并记录查询调用次数。
 	client := &fakeAccountTaskClient{}
@@ -131,29 +124,21 @@ func TestScanAccountTasksTreatsEmptyItemListAsSuccess(t *testing.T) {
 	}
 }
 
-// TestAccountTaskRateIsOrderIdempotent 封装Test账号任务RateIs订单Idempotent业务协调。
 func TestAccountTaskRateIsOrderIdempotent(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// client 用于本次流程后续判断的client
 	client := &fakeAccountTaskClient{pending: []mtop.PendingRateOrder{{TradeID: "order-1"}, {TradeID: "order-2"}}}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{AccountTaskClient: client})
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	if // err 用于本次流程后续判断的err
-	err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoRateEnabled: true,
+	if err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoRateEnabled: true,
 		RateContent: "交易愉快", PolishTime: "03:00"}); err != nil {
 		t.Fatal(err)
 	}
 	seedLocalCompletedOrders(t, store, ctx, "order-1", "order-2")
-	// first、err 用于本次流程后续判断的first、err
 	first, err := center.RunAccountTask(ctx, "cid", TaskAutoRate)
 	if err != nil || first.Success != 2 || client.rateCalls != 2 {
 		t.Fatalf("first=%+v calls=%d err=%v", first, client.rateCalls, err)
 	}
-	// second、err 用于本次流程后续判断的second、err
 	second, err := center.RunAccountTask(ctx, "cid", TaskAutoRate)
 	if err != nil || second.Skipped != 2 || client.rateCalls != 2 {
 		t.Fatalf("second=%+v calls=%d err=%v", second, client.rateCalls, err)
@@ -165,7 +150,6 @@ func TestAccountTaskRatePermanentPlatformFailureStopsFutureRequests(t *testing.T
 	// store、cleanup 保存本测试使用的 SQLite 自动化存储及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是自动评价永久失败测试共用的数据库上下文。
 	ctx := context.Background()
 	// expiredErr 保存平台明确拒绝超过 30 天订单的业务错误。
 	expiredErr := &mtop.MTopResponseError{API: "mtop.taobao.idle.rate.create", Kind: mtop.MTopErrorBusiness,
@@ -225,7 +209,6 @@ func TestAccountTaskRateAlreadyRatedCountsAsSuccessAndNotRateableStopsRetry(t *t
 			// store、cleanup 保存本子测试使用的 SQLite 自动化存储及关闭责任。
 			store, cleanup := newAutomationTestStore(t)
 			defer cleanup()
-			// ctx 是本子测试共用的数据库上下文。
 			ctx := context.Background()
 			// rejectErr 保存平台返回的业务拒绝错误。
 			rejectErr := &mtop.MTopResponseError{API: "mtop.taobao.idle.rate.create", Kind: mtop.MTopErrorBusiness, Ret: []string{testCase.ret}}
@@ -271,7 +254,6 @@ func TestScanAccountTasksRunsEnabledRateConfiguration(t *testing.T) {
 	// store、cleanup 保存本测试使用的 SQLite 自动化存储及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试扫描和任务执行共用的上下文。
 	ctx := context.Background()
 	// client 保存扫描器使用的本地账号任务平台替身。
 	client := &fakeAccountTaskClient{pending: []mtop.PendingRateOrder{{TradeID: "scan-order"}}}
@@ -304,7 +286,6 @@ func TestAccountTaskRateFinishFailureQuarantinesExternalSuccess(t *testing.T) {
 	// store 是当前测试使用的 SQLite 自动化存储。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// triggerErr 表示故意阻止 success 状态写入的 SQLite 触发器创建错误。
 	if _, triggerErr := store.DB.ExecContext(ctx, `CREATE TRIGGER reject_account_task_success
@@ -351,7 +332,6 @@ func TestAccountTaskRateFinishAndQuarantineFailureJoinsErrors(t *testing.T) {
 	// store 是当前测试使用的 SQLite 自动化存储。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// triggerErr 表示故意阻止 success 与 needs_review 状态写入的 SQLite 触发器创建错误。
 	if _, triggerErr := store.DB.ExecContext(ctx, `CREATE TRIGGER reject_account_task_result_states
@@ -437,7 +417,6 @@ func TestAccountTaskPolishMarkFailureQuarantinesExternalSuccess(t *testing.T) {
 	// store 是当前测试使用的 SQLite 自动化存储。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// settingsErr 表示写入擦亮设置时的数据库错误。
 	if settingsErr := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoPolishEnabled: true,
@@ -475,53 +454,41 @@ func TestAccountTaskPolishMarkFailureQuarantinesExternalSuccess(t *testing.T) {
 	}
 }
 
-// TestAccountTaskSessionExpiredRecoversOnceAndBlocksFurtherAPIRequests 封装Test账号任务会话ExpiredRecoversOnceAndBlocksFurtherAPI请求列表业务协调。
 func TestAccountTaskSessionExpiredRecoversOnceAndBlocksFurtherAPIRequests(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// sessionErr 用于本次流程后续判断的会话Err
 	sessionErr := &mtop.SessionExpiredError{API: "自动评价接口", Ret: []string{"FAIL_SYS_SESSION_EXPIRED::Session过期"}}
-	// client 用于本次流程后续判断的client
 	client := &fakeAccountTaskClient{rateErr: sessionErr}
-	// recoverer 用于本次流程后续判断的recoverer
 	recoverer := &fakeCredentialRecoverer{store: store, fail: true}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{
 		AccountTaskClient:  client,
 		OrderDetailFetcher: recoverer,
 	})
-	if // err 用于本次流程后续判断的err
-	err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoRateEnabled: true,
+	if err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoRateEnabled: true,
 		RateContent: "交易愉快", PolishTime: "03:00"}); err != nil {
 		t.Fatal(err)
 	}
 	seedLocalCompletedOrders(t, store, ctx, "session-order")
 
-	if // err 用于本次流程后续判断的err
-	_, err := center.RunAccountTask(ctx, "cid", TaskAutoRate); err == nil || !mtop.IsSessionExpiredErr(err) {
+	if _, err := center.RunAccountTask(ctx, "cid", TaskAutoRate); err == nil || !mtop.IsSessionExpiredErr(err) {
 		t.Fatalf("首次 session 失效应触发续期并返回原始分类错误: %v", err)
 	}
 	if client.rateCalls != 1 || recoverer.calls != 1 {
 		t.Fatalf("first calls: rate=%d recover=%d want 1/1", client.rateCalls, recoverer.calls)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := center.RunAccountTask(ctx, "cid", TaskAutoRate); err == nil || !strings.Contains(err.Error(), "已停止自动化 API 请求") {
+	if _, err := center.RunAccountTask(ctx, "cid", TaskAutoRate); err == nil || !strings.Contains(err.Error(), "已停止自动化 API 请求") {
 		t.Fatalf("未更新凭证时应保持阻断: %v", err)
 	}
 	if client.rateCalls != 1 || recoverer.calls != 1 {
 		t.Fatalf("blocked run must not call API/recovery again: rate=%d recover=%d", client.rateCalls, recoverer.calls)
 	}
 
-	if // err 用于本次流程后续判断的err
-	err := store.Cookies.UpdateValueExisting(ctx, "cid", "unb=1; _m_h5_tk=fresh_1; renewed=1"); err != nil {
+	if err := store.Cookies.UpdateValueExisting(ctx, "cid", "unb=1; _m_h5_tk=fresh_1; renewed=1"); err != nil {
 		t.Fatal(err)
 	}
 	client.rateErr = nil
-	if // err 用于本次流程后续判断的err
-	_, err := center.RunAccountTask(ctx, "cid", TaskAutoRate); err != nil {
+	if _, err := center.RunAccountTask(ctx, "cid", TaskAutoRate); err != nil {
 		t.Fatalf("凭证变化后应自动解除阻断: %v", err)
 	}
 	if client.rateCalls != 1 {
@@ -529,36 +496,27 @@ func TestAccountTaskSessionExpiredRecoversOnceAndBlocksFurtherAPIRequests(t *tes
 	}
 }
 
-// TestAccountTaskStopsRemainingOrdersOnSessionExpired 封装Test账号任务StopsRemaining订单列表On会话Expired业务协调。
 func TestAccountTaskStopsRemainingOrdersOnSessionExpired(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// sessionErr 用于本次流程后续判断的会话Err
 	sessionErr := &mtop.SessionExpiredError{API: "评价接口", Ret: []string{"FAIL_SYS_SESSION_EXPIRED::Session过期"}}
-	// client 用于本次流程后续判断的client
 	client := &fakeAccountTaskClient{
 		pending: []mtop.PendingRateOrder{{TradeID: "order-1"}, {TradeID: "order-2"}},
 		rateErr: sessionErr,
 	}
-	// recoverer 用于本次流程后续判断的recoverer
 	recoverer := &fakeCredentialRecoverer{store: store, fail: true}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{
 		AccountTaskClient:  client,
 		OrderDetailFetcher: recoverer,
 	})
-	if // err 用于本次流程后续判断的err
-	err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoRateEnabled: true,
+	if err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoRateEnabled: true,
 		RateContent: "交易愉快", PolishTime: "03:00"}); err != nil {
 		t.Fatal(err)
 	}
 	seedLocalCompletedOrders(t, store, ctx, "order-1", "order-2")
 
-	if // err 用于本次流程后续判断的err
-	_, err := center.RunAccountTask(ctx, "cid", TaskAutoRate); err == nil {
+	if _, err := center.RunAccountTask(ctx, "cid", TaskAutoRate); err == nil {
 		t.Fatal("session expiry must be returned")
 	}
 	if client.rateCalls != 1 || recoverer.calls != 1 {
@@ -568,10 +526,8 @@ func TestAccountTaskStopsRemainingOrdersOnSessionExpired(t *testing.T) {
 
 // TestAccountTaskStopsRemainingOrdersOnMTopTokenExpired 验证 Token 内部刷新耗尽后停止当前批次，但不恢复账号；t 管理本地 SQLite。
 func TestAccountTaskStopsRemainingOrdersOnMTopTokenExpired(t *testing.T) {
-	// store、cleanup 用于 Token 失效恢复测试的 SQLite 存储及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于任务与凭证恢复调用共用的上下文。
 	ctx := context.Background()
 	// tokenErr 模拟业务请求经过自身 Token 重试后仍无法恢复的错误。
 	tokenErr := &mtop.MTopResponseError{API: "评价接口", Kind: mtop.MTopErrorTokenExpired, HTTPStatus: 200}
@@ -603,10 +559,8 @@ func TestAccountTaskStopsRemainingOrdersOnMTopTokenExpired(t *testing.T) {
 
 // TestAccountTaskStopsRemainingOrdersOnRiskVerification 验证一次评价动作触发风控后，当前本地批次不会继续请求其他订单。
 func TestAccountTaskStopsRemainingOrdersOnRiskVerification(t *testing.T) {
-	// store、cleanup 保存风控停止测试使用的 SQLite 存储及其释放函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本轮本地订单事实和自动评价任务共用的上下文。
 	ctx := context.Background()
 	// riskErr 模拟平台在评价动作时要求安全验证，而非可立即刷新的普通 Token 失效。
 	riskErr := &mtop.RiskVerificationError{API: "评价接口", Ret: []string{"FAIL_SYS_USER_VALIDATE::RGV587_ERROR"}}
@@ -635,23 +589,16 @@ func TestAccountTaskStopsRemainingOrdersOnRiskVerification(t *testing.T) {
 	}
 }
 
-// TestAccountTaskPolishRunsOncePerBeijingDay 封装Test账号任务Polish运行记录OncePerBeijingDay业务协调。
 func TestAccountTaskPolishRunsOncePerBeijingDay(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// client 用于本次流程后续判断的client
 	client := &fakeAccountTaskClient{items: []mtop.ItemListItem{{ID: "item-1"}, {ID: "item-2"}}}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{AccountTaskClient: client})
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	if // err 用于本次流程后续判断的err
-	err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoPolishEnabled: true,
+	if err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoPolishEnabled: true,
 		RateContent: "交易愉快", PolishTime: "00:00"}); err != nil {
 		t.Fatal(err)
 	}
-	// first、err 用于本次流程后续判断的first、err
 	first, err := center.RunAccountTask(ctx, "cid", TaskAutoPolish)
 	if err != nil || first.Success != 2 || client.polishCalls != 2 {
 		t.Fatalf("first=%+v calls=%d err=%v", first, client.polishCalls, err)
@@ -659,79 +606,58 @@ func TestAccountTaskPolishRunsOncePerBeijingDay(t *testing.T) {
 	if client.fetchPageSize != 20 || client.fetchMaxPages != 20 {
 		t.Fatalf("unexpected item pagination: pageSize=%d maxPages=%d", client.fetchPageSize, client.fetchMaxPages)
 	}
-	// second、err 用于本次流程后续判断的second、err
 	second, err := center.RunAccountTask(ctx, "cid", TaskAutoPolish)
 	if err != nil || second.Skipped != 1 || client.polishCalls != 2 {
 		t.Fatalf("second=%+v calls=%d err=%v", second, client.polishCalls, err)
 	}
-	// settings、err 用于本次流程后续判断的settings、err
 	settings, err := store.AccountTasks.Get(ctx, "cid")
 	if err != nil || settings.LastPolishDate != beijingNow().Format("2006-01-02") {
 		t.Fatalf("settings=%+v err=%v", settings, err)
 	}
 }
 
-// TestManualPolishReportsItemFailures 封装TestManualPolishReports商品Failures业务协调。
 func TestManualPolishReportsItemFailures(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// client 用于本次流程后续判断的client
 	client := &fakeAccountTaskClient{items: []mtop.ItemListItem{{ID: "item-1"}}, polishErr: errors.New("both polish APIs failed")}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{AccountTaskClient: client})
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	if // err 用于本次流程后续判断的err
-	err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoPolishEnabled: true,
+	if err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoPolishEnabled: true,
 		RateContent: "交易愉快", PolishTime: "00:00"}); err != nil {
 		t.Fatal(err)
 	}
-	// summary、err 用于本次流程后续判断的summary、err
 	summary, err := center.RunAccountTask(ctx, "cid", TaskAutoPolish)
 	if err == nil || summary.Failed != 1 || summary.Success != 0 {
 		t.Fatalf("summary=%+v err=%v", summary, err)
 	}
 }
 
-// TestManualPolishCanRetryImmediatelyAfterFailure 封装TestManualPolishCan重试ImmediatelyAfterFailure业务协调。
 func TestManualPolishCanRetryImmediatelyAfterFailure(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// client 用于本次流程后续判断的client
 	client := &fakeAccountTaskClient{items: []mtop.ItemListItem{{ID: "item-1"}}, fetchItemsErr: errors.New("upstream 502")}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{AccountTaskClient: client})
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	if // err 用于本次流程后续判断的err
-	err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoPolishEnabled: true,
+	if err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoPolishEnabled: true,
 		RateContent: "交易愉快", PolishTime: "00:00"}); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := center.RunAccountTask(ctx, "cid", TaskAutoPolish); err == nil {
+	if _, err := center.RunAccountTask(ctx, "cid", TaskAutoPolish); err == nil {
 		t.Fatal("first polish should expose the upstream failure")
 	}
 	client.fetchItemsErr = nil
-	// second、err 用于本次流程后续判断的second、err
 	second, err := center.RunAccountTask(ctx, "cid", TaskAutoPolish)
 	if err != nil || second.Success != 1 || second.Skipped != 0 || client.polishCalls != 1 {
 		t.Fatalf("manual retry=%+v calls=%d err=%v", second, client.polishCalls, err)
 	}
-	// third、err 用于本次流程后续判断的third、err
 	third, err := center.RunAccountTask(ctx, "cid", TaskAutoPolish)
 	if err != nil || third.Skipped != 1 || client.polishCalls != 1 {
 		t.Fatalf("successful day must remain idempotent: summary=%+v calls=%d err=%v", third, client.polishCalls, err)
 	}
 }
 
-// TestPolishDueHonorsConfiguredTimeAndDate 封装TestPolishDueHonorsConfigured时间And日期业务协调。
 func TestPolishDueHonorsConfiguredTimeAndDate(t *testing.T) {
-	// now 用于本次流程后续判断的now
 	now := beijingNow()
-	// settings 用于本次流程后续判断的设置
 	settings := db.AccountTaskSettings{PolishTime: now.Add(2 * time.Hour).Format("15:04")}
 	if polishDue(settings, now) && now.Hour() < 22 {
 		t.Fatal("task must not run before configured time")
@@ -748,14 +674,12 @@ func TestPolishDueHonorsConfiguredTimeAndDate(t *testing.T) {
 
 // TestAccountTaskPolishEmptyItemListCompletesDay 验证成功获取空商品列表时完成当日任务且不重复请求平台。
 func TestAccountTaskPolishEmptyItemListCompletesDay(t *testing.T) {
-	// store、cleanup 保存内存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// client 初始返回空商品列表，随后模拟商品列表恢复。
 	client := &fakeAccountTaskClient{}
 	// center 是注入商品列表替身的自动化中心。
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{AccountTaskClient: client})
-	// ctx 是两次手动擦亮共用的测试上下文。
 	ctx := context.Background()
 	// err 是启用自动擦亮设置时不应出现的存储错误。
 	if err := store.AccountTasks.Upsert(ctx, db.AccountTaskSettings{CookieID: "cid", AutoPolishEnabled: true, RateContent: "交易愉快", PolishTime: "00:00"}); err != nil {

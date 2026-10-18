@@ -89,7 +89,6 @@ func TestMultiDB_AutomationOwnershipUncommittedTrace(t *testing.T) {
 		// t 管理当前数据库及并发事务的断言生命周期。
 		t.Run(target.name, func(t *testing.T) {
 			defer target.cleanup()
-			// ctx、cancel 限定两个竞争事务的最长生命周期，测试退出负责取消。
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			// store 提供双方共用的数据库连接池，不共用单个 SQL 事务。
@@ -134,7 +133,6 @@ func TestMultiDB_AutomationOwnershipUncommittedTrace(t *testing.T) {
 
 // TestAutomationOwnershipRejectsStaleActionAndAmbiguousTask 用 t 验证遗留错绑运行不能领取动作，矛盾延期订单号不能绕过归属锁。
 func TestAutomationOwnershipRejectsStaleActionAndAmbiguousTask(t *testing.T) {
-	// store、cleanup 提供隔离数据库和关闭职责。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// ctx 是本测试同步仓储调用的上下文。

@@ -24,7 +24,6 @@ func TestDiscoveryChatRefreshOutsideLock(t *testing.T) {
 	for _, outcome := range []string{"success", "cancel", "credentials", "generation"} {
 		// t 管理当前同步场景的断言。
 		t.Run(outcome, func(t *testing.T) {
-			// ctx、cancel 由本测试控制同步生命周期，退出时释放取消资源。
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			// repository 保存合法凭证和空会话缓存。

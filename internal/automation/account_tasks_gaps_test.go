@@ -42,7 +42,6 @@ func sessionExpiredErr() error {
 
 // TestScanAccountTasksGapBranches 覆盖扫描器的门禁读取失败、Session 阻断读取失败与评价、擦亮失败日志分支。
 func TestScanAccountTasksGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// now 是与擦亮时间匹配的北京时间，使擦亮任务到期。
 	now := beijingNow()
@@ -122,7 +121,6 @@ func TestScanAccountTasksGapBranches(t *testing.T) {
 
 // TestAccountTaskRunGapBranches 覆盖评价与擦亮流程的存储缺失、扫描时间、终态写入与凭证读取失败。
 func TestAccountTaskRunGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// settings 是评价配置。
 	settings := db.AccountTaskSettings{CookieID: "acct", RateContent: "好评"}

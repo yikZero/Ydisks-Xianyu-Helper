@@ -8,7 +8,7 @@ describe('request helpers', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
-    })); /* fetchMock 表示fetchMock。 */
+    }));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(get('/items', { page: 2, keyword: 'a b', ignored: undefined })).resolves.toEqual({ ok: true });
@@ -22,7 +22,7 @@ describe('request helpers', () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
-    })); /* fetchMock 表示fetchMock。 */
+    }));
     vi.stubGlobal('fetch', fetchMock);
 
     await post('/login', { username: 'admin' });
@@ -112,8 +112,8 @@ describe('request helpers', () => {
   } /* 测试回调验证：网络层异常原样透传。 */);
 
   test('notifies the app when an authenticated request returns 401', async () => {
-    const events = new EventTarget(); /* events 表示events。 */
-    const listener = vi.fn(); /* listener 表示listener。 */
+    const events = new EventTarget();
+    const listener = vi.fn();
     events.addEventListener('auth:logout', listener);
     vi.stubGlobal('window', events);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', {
@@ -142,8 +142,8 @@ describe('request helpers', () => {
   } /* 测试回调验证：并发认证失败只触发一次登出事件。 */);
 
   test('does not notify logout for a failed login request', async () => {
-    const events = new EventTarget(); /* events 表示events。 */
-    const listener = vi.fn(); /* listener 表示listener。 */
+    const events = new EventTarget();
+    const listener = vi.fn();
     events.addEventListener('auth:logout', listener);
     vi.stubGlobal('window', events);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', {
@@ -156,9 +156,9 @@ describe('request helpers', () => {
   } /* 测试回调验证：does not notify logout for a failed login request。 */);
 
   test('posts FormData without forcing a content type', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response('ok', { status: 200 })); /* fetchMock 表示fetchMock。 */
+    const fetchMock = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
-    const form = new FormData(); /* form 表示form。 */
+    const form = new FormData();
     form.set('name', 'value');
     await expect(postForm('/upload', form)).resolves.toBe('ok');
 	expect(fetchMock).toHaveBeenCalledWith('/upload', expect.objectContaining({
@@ -174,8 +174,8 @@ describe('request helpers', () => {
 	  init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')) /* 请求被取消时拒绝网络替身 Promise。 */, { once: true });
 	} /* 网络替身只在测试显式取消前保持挂起。 */) /* mockImplementation 回调模拟永不完成的上传请求。 */); /* fetchMock 是用于观察上传请求取消的网络替身。 */
 	vi.stubGlobal('fetch', fetchMock);
-	const pending = get('/slow', undefined, { timeoutMs: 50 }); /* pending 表示pending。 */
-	const rejection = expect(pending).rejects.toThrow('请求超时'); /* rejection 表示rejection。 */
+	const pending = get('/slow', undefined, { timeoutMs: 50 });
+	const rejection = expect(pending).rejects.toThrow('请求超时');
 	await vi.advanceTimersByTimeAsync(50);
 	await rejection;
 	vi.useRealTimers();

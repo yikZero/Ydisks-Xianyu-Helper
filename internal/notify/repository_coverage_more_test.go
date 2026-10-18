@@ -9,7 +9,6 @@ import (
 
 // TestStoreRepositoryGetSettingCoversSensitiveAndPublicPaths 验证通知仓储对普通设置和敏感设置使用不同读取边界。
 func TestStoreRepositoryGetSettingCoversSensitiveAndPublicPaths(t *testing.T) {
-	// store、cleanup 保存通知仓储测试数据库和关闭责任。
 	store, cleanup := newNotifyStore(t)
 	defer cleanup()
 	// ctx 是设置读取使用的非取消上下文。

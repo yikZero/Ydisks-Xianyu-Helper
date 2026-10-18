@@ -79,7 +79,6 @@ func newOrderRecoveryFixture(t *testing.T) *orderRecoveryFixture {
 // seed 为 t 在 f 的数据库创建 cookieID 所属的 remote 历史订单；deleted 决定是否预置软删除，失败立即终止。
 func (f *orderRecoveryFixture) seed(t *testing.T, cookieID string, remote mtop.SoldOrder, deleted bool) {
 	t.Helper()
-	// ctx 控制夹具写入生命周期；未经过刷新服务的写入只用于构造历史状态。
 	ctx := context.Background()
 	// err 保存旧订单写入失败，不允许刷新用例把缺失种子误判为恢复成功。
 	if err := f.store.Orders.Upsert(ctx, remote.OrderID, db.OrderUpsertOpts{CookieID: cookieID,

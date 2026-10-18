@@ -1,4 +1,5 @@
-// commentlint 检查 Go 源码是否为新增或修改的声明提供了准确的中文注释。
+// commentlint 检查 Go 生产源码中导出的函数、方法和类型是否带有文档注释，
+// 并拒绝批量生成的占位注释。局部变量、字段和测试代码不强制注释，按需说明即可。
 package main
 
 import (
@@ -12,7 +13,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"unicode"
 )
 
 // Finding 描述一个缺少中文注释的 Go 声明。
@@ -35,8 +35,11 @@ type templateCommentPattern struct {
 	expression *regexp.Regexp
 }
 
-// templateCommentPatterns 是阶段 10 必须清除的历史占位注释集合。
+// templateCommentPatterns 是禁止出现的机械占位注释句式，命中即说明注释只是复述了标识符。
 var templateCommentPatterns = []templateCommentPattern{
+	{name: "后续判断占位", expression: regexp.MustCompile(`用于本次流程后续判断的`)},
+	{name: "遍历变量占位", expression: regexp.MustCompile(`表示当前遍历过程中的`)},
+	{name: "业务协调占位", expression: regexp.MustCompile(`封装.{0,120}业务协调`)},
 	{name: "保存当前处理流程", expression: regexp.MustCompile(`保存.{0,80}供当前处理流程使用`)},
 	{name: "负责相关处理", expression: regexp.MustCompile(`负责.{0,80}相关处理`)},
 	{name: "泛化回调职责", expression: regexp.MustCompile(`回调函数负责当前业务流程`)},
@@ -80,7 +83,7 @@ func main() {
 	}
 	// finding 表示当前待输出的一条新增注释问题。
 	for _, finding := range findings {
-		fmt.Printf("%s:%d: [%s] %s 缺少中文注释\n", finding.File, finding.Line, finding.Kind, finding.Name)
+		fmt.Printf("%s:%d: [%s] %s 缺少文档注释\n", finding.File, finding.Line, finding.Kind, finding.Name)
 	}
 	// templateFindings 是所有非冻结源码中仍需替换的机械注释。
 	templateFindings, auditErr := collectTemplateCommentFindings(*rootFlag)
@@ -93,10 +96,10 @@ func main() {
 		fmt.Printf("%s:%d: [%s] 模板化注释\n", finding.File, finding.Line, finding.Kind)
 	}
 	if len(findings) > 0 || len(templateFindings) > 0 {
-		fmt.Fprintf(os.Stderr, "commentlint: 发现 %d 个缺少中文注释项和 %d 条模板化注释\n", len(findings), len(templateFindings))
+		fmt.Fprintf(os.Stderr, "commentlint: 发现 %d 个缺少文档注释项和 %d 条模板化注释\n", len(findings), len(templateFindings))
 		os.Exit(1)
 	}
-	fmt.Println("commentlint: 通过（无缺少中文注释或模板化注释）")
+	fmt.Println("commentlint: 通过（无缺少文档注释或模板化注释）")
 }
 
 // collectFindings 递归解析根目录下所有 Go 文件并收集缺少中文注释的声明。
@@ -114,7 +117,7 @@ func collectFindings(root string) ([]Finding, error) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, ".gen.go") {
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, ".gen.go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
 		// relativePath 用于识别仓库明确冻结、不得改写的 CAPTCHA 源码文件。
@@ -136,7 +139,7 @@ func collectFindings(root string) ([]Finding, error) {
 	return findings, nil
 }
 
-// collectTemplateCommentFindings 扫描 Go 源码中的模板化注释，供阶段 10 逐项替换为业务语义。
+// collectTemplateCommentFindings 扫描 Go 源码中的模板化注释，供维护者替换为真实业务语义。
 func collectTemplateCommentFindings(root string) ([]Finding, error) {
 	// findings 汇总所有模板化注释的位置与类别。
 	findings := make([]Finding, 0)
@@ -248,127 +251,79 @@ func shouldSkipDirectory(path, root string) bool {
 	return false
 }
 
-// inspectGoFile 解析单个 Go 文件并返回其中缺少中文注释的声明。
+// standardMethodNames 是实现标准库接口的方法名，其语义由接口约定，不要求重复文档。
+var standardMethodNames = map[string]bool{
+	"Error": true, "Unwrap": true, "String": true, "Is": true, "As": true, "Format": true,
+	"RoundTrip": true, "ServeHTTP": true, "MarshalJSON": true, "UnmarshalJSON": true,
+	"Len": true, "Less": true, "Swap": true, "Close": true,
+}
+
+// inspectGoFile 解析单个 Go 文件，返回缺少中文文档注释的导出函数、方法和类型。
 func inspectGoFile(root, path string) ([]Finding, error) {
-	// fileSet 保存 AST 位置到源码行号的映射。
 	fileSet := token.NewFileSet()
-	// fileNode 是当前文件的语法树和注释信息。
 	fileNode, err := parser.ParseFile(fileSet, path, nil, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("解析 %s 失败：%w", path, err)
 	}
-	// relativePath 让基线不依赖开发者本机的绝对路径。
 	relativePath, err := filepath.Rel(root, path)
 	if err != nil {
 		return nil, err
 	}
-	// findings 保存当前文件的检查结果。
 	findings := make([]Finding, 0)
-	// nodeStack 用于判断字段属于结构体/接口，还是函数参数/返回值。
-	nodeStack := make([]ast.Node, 0)
-	ast.Inspect(fileNode, func(node ast.Node) bool {
-		if node == nil {
-			nodeStack = nodeStack[:len(nodeStack)-1]
-			return true
-		}
-		// parent 是当前 AST 节点的直接父节点，用于识别结构体或接口字段。
-		var parent ast.Node
-		if len(nodeStack) > 0 {
-			parent = nodeStack[len(nodeStack)-1]
-		}
-		// current 是经过类型断言后的具体 AST 节点。
-		switch current := node.(type) {
+	for _, declaration := range fileNode.Decls {
+		switch current := declaration.(type) {
 		case *ast.FuncDecl:
-			if !hasChineseComment(fileNode, fileSet, current) {
+			if requiresFuncDoc(current) && !hasDocComment(fileNode, fileSet, current) {
 				findings = append(findings, newFinding(relativePath, fileSet, current, "function", funcName(current.Name)))
 			}
 		case *ast.GenDecl:
-			// spec 表示当前声明块中的一条常量、变量或类型规范。
 			for _, spec := range current.Specs {
-				checkSpec(fileNode, fileSet, relativePath, current, spec, &findings)
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok || !typeSpec.Name.IsExported() {
+					continue
+				}
+				// 单个 type 声明的文档挂在 GenDecl 上，分组声明的文档挂在各自的 TypeSpec 上。
+				if !hasDocComment(fileNode, fileSet, current) && !hasDocComment(fileNode, fileSet, typeSpec) {
+					findings = append(findings, newFinding(relativePath, fileSet, typeSpec, "type", typeSpec.Name.Name))
+				}
 			}
-		case *ast.Field:
-			// isStruct 表示字段是否属于结构体定义。
-			if _, isStruct := parent.(*ast.StructType); isStruct {
-				checkField(fileNode, fileSet, relativePath, current, &findings)
-			}
-			// isInterface 表示字段是否属于接口定义。
-			if _, isInterface := parent.(*ast.InterfaceType); isInterface {
-				checkField(fileNode, fileSet, relativePath, current, &findings)
-			}
-		case *ast.AssignStmt:
-			if current.Tok == token.DEFINE {
-				checkIdentifiers(fileNode, fileSet, relativePath, current, current.Lhs, "local-variable", &findings)
-			}
-		case *ast.RangeStmt:
-			checkIdentifiers(fileNode, fileSet, relativePath, current, []ast.Expr{current.Key, current.Value}, "range-variable", &findings)
 		}
-		nodeStack = append(nodeStack, node)
-		return true
-	})
+	}
 	return findings, nil
 }
 
-// checkSpec 检查常量、变量、类型声明及其名称是否有中文注释。
-func checkSpec(fileNode *ast.File, fileSet *token.FileSet, relativePath string, declaration *ast.GenDecl, spec ast.Spec, findings *[]Finding) {
-	// kind 用于把 Go 声明映射到可读的门禁错误类别。
-	kind := strings.ToLower(declaration.Tok.String())
-	// current 是当前规范的具体 AST 类型。
-	switch current := spec.(type) {
-	case *ast.ValueSpec:
-		// name 表示常量或变量规范中的一个绑定名称。
-		for _, name := range current.Names {
-			// declaration 允许分组 const/var 声明共用紧邻声明块的职责说明。
-			if name.Name == "_" || hasChineseComment(fileNode, fileSet, declaration) || hasChineseComment(fileNode, fileSet, current) {
-				continue
-			}
-			*findings = append(*findings, newFinding(relativePath, fileSet, current, kind, name.Name))
-		}
-	case *ast.TypeSpec:
-		if !hasChineseComment(fileNode, fileSet, current) {
-			*findings = append(*findings, newFinding(relativePath, fileSet, current, "type", current.Name.Name))
-		}
+// requiresFuncDoc 判断函数是否属于对包外可见、需要文档的 API：
+// 导出的普通函数，或导出类型上的导出方法（标准接口方法除外）。
+func requiresFuncDoc(function *ast.FuncDecl) bool {
+	if function.Name == nil || !function.Name.IsExported() {
+		return false
 	}
+	if function.Recv == nil || len(function.Recv.List) == 0 {
+		return true
+	}
+	if standardMethodNames[function.Name.Name] {
+		return false
+	}
+	return ast.IsExported(receiverTypeName(function.Recv.List[0].Type))
 }
 
-// checkField 检查结构体和接口字段，匿名字段以其类型名作为声明名称。
-func checkField(fileNode *ast.File, fileSet *token.FileSet, relativePath string, field *ast.Field, findings *[]Finding) {
-	if hasChineseComment(fileNode, fileSet, field) {
-		return
+// receiverTypeName 返回方法接收者的基础类型名，忽略指针和泛型参数。
+func receiverTypeName(expression ast.Expr) string {
+	switch current := expression.(type) {
+	case *ast.StarExpr:
+		return receiverTypeName(current.X)
+	case *ast.IndexExpr:
+		return receiverTypeName(current.X)
+	case *ast.IndexListExpr:
+		return receiverTypeName(current.X)
+	case *ast.Ident:
+		return current.Name
 	}
-	// names 保存显式字段名；匿名字段没有 Names，需要使用类型文本兜底。
-	names := make([]string, 0, len(field.Names))
-	// name 表示结构体或接口字段中的一个显式名称。
-	for _, name := range field.Names {
-		names = append(names, name.Name)
-	}
-	if len(names) == 0 {
-		names = append(names, "anonymous")
-	}
-	// name 表示已经归一化后的字段名称。
-	for _, name := range names {
-		*findings = append(*findings, newFinding(relativePath, fileSet, field, "field", name))
-	}
+	return ""
 }
 
-// checkIdentifiers 检查短变量声明或范围变量中的每个有效标识符。
-func checkIdentifiers(fileNode *ast.File, fileSet *token.FileSet, relativePath string, node ast.Node, expressions []ast.Expr, kind string, findings *[]Finding) {
-	if hasChineseComment(fileNode, fileSet, node) {
-		return
-	}
-	// expression 表示短变量或范围变量绑定列表中的一个表达式。
-	for _, expression := range expressions {
-		// identifier 是表达式对应的变量名；ok 表示表达式是否确实是标识符。
-		identifier, ok := expression.(*ast.Ident)
-		if !ok || identifier.Name == "_" {
-			continue
-		}
-		*findings = append(*findings, newFinding(relativePath, fileSet, node, kind, identifier.Name))
-	}
-}
-
-// hasChineseComment 判断声明附近是否存在包含汉字的文档或行注释。
-func hasChineseComment(fileNode *ast.File, fileSet *token.FileSet, node ast.Node) bool {
+// hasDocComment 判断声明紧邻处是否存在非空文档或行注释；中文或英文均可。
+func hasDocComment(fileNode *ast.File, fileSet *token.FileSet, node ast.Node) bool {
 	// startLine 和 endLine 限制注释必须紧邻声明，避免误认远处说明。
 	startLine := fileSet.Position(node.Pos()).Line
 	// endLine 是声明末尾所在的行，用于允许同一声明范围内的尾部注释。
@@ -384,20 +339,9 @@ func hasChineseComment(fileNode *ast.File, fileSet *token.FileSet, node ast.Node
 			continue
 		}
 		if commentStart == startLine || commentEnd == startLine-1 || commentStart <= endLine && commentEnd >= startLine {
-			if containsChinese(group.Text()) {
+			if strings.TrimSpace(group.Text()) != "" {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-// containsChinese 判断文本中是否至少包含一个汉字。
-func containsChinese(text string) bool {
-	// character 是待检查文本中的一个 Unicode 字符。
-	for _, character := range text {
-		if unicode.Is(unicode.Han, character) {
-			return true
 		}
 	}
 	return false

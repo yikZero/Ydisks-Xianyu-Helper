@@ -25,7 +25,6 @@ func startFrameServer(t *testing.T, frames []string) *httptest.Server {
 		defer serverConn.CloseNow()
 		// frame 是当前要推送的文本帧。
 		for _, frame := range frames {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			if err := serverConn.Write(r.Context(), websocket.MessageText, []byte(frame)); err != nil {
 				return
 			}
@@ -82,7 +81,6 @@ func TestRegisterRejectsMalformedAccessToken(t *testing.T) {
 	conn := dialLocal(t, srv, Config{})
 	// token 依次是非法百分号转义和解码后非 UTF-8 的 token。
 	for _, token := range []string{"%zz", "%ff"} {
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if err := conn.Register(context.Background(), "device", token); err == nil {
 			t.Fatalf("token=%q 必须被拒绝", token)
 		}
@@ -94,11 +92,9 @@ func TestOpenAndDialFailFastWhenContextCancelled(t *testing.T) {
 	// ctx 已取消，握手不会访问真实平台。
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := Open(ctx, Config{}, nil); err == nil {
 		t.Fatal("取消的上下文必须使 Open 失败")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := Dial(ctx, Config{}, nilLogger()); err == nil {
 		t.Fatal("取消的上下文必须使 Dial 失败")
 	}
@@ -110,7 +106,6 @@ func TestOpenBatchRequiresConfiguredRace(t *testing.T) {
 	original := batchConnectDelays
 	batchConnectDelays = nil
 	t.Cleanup(func() { batchConnectDelays = original })
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := openBatch(context.Background(), "ws://127.0.0.1:1", Config{}, nilLogger()); err == nil {
 		t.Fatal("缺少竞速配置必须报错")
 	}
@@ -142,7 +137,6 @@ func TestOutgoingRequestIDAndMidKeyEdges(t *testing.T) {
 	if outgoingRequestID(nilCtx) != "" {
 		t.Fatal("空上下文应返回空 mid")
 	}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := outgoingRequestID(WithOutgoingRequestID(context.Background(), " m1 ")); got != "m1" {
 		t.Fatalf("got=%q", got)
 	}
@@ -170,11 +164,9 @@ func TestExtractSyncPayloadsAndDecodeEdges(t *testing.T) {
 	if !ok || len(entries) != 3 || entries[0].valid || entries[1].valid || !entries[2].valid {
 		t.Fatalf("entries=%+v ok=%v", entries, ok)
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := decodeSyncData("!!!not-valid!!!"); err == nil {
 		t.Fatal("无法解密的数据必须报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期；parsed 保存被测函数解析得到的对象。
 	if parsed, err := decodeSyncData("eyJhIjoxfQ=="); err != nil || parsed["a"] == nil {
 		t.Fatalf("parsed=%v err=%v", parsed, err)
 	}
@@ -258,7 +250,6 @@ func TestOutgoingEchoValidation(t *testing.T) {
 	}
 	// tc 是当前状态码样例。
 	for _, tc := range codes {
-		// got 保存被测函数的实际返回值，用于与期望值比较；ok 保存被测函数返回的成功或命中标志。
 		if got, ok := strictChatSendResponseCode(tc.value); got != tc.want || ok != tc.ok {
 			t.Fatalf("value=%v got=%d ok=%v", tc.value, got, ok)
 		}
@@ -267,7 +258,6 @@ func TestOutgoingEchoValidation(t *testing.T) {
 
 // TestRegErrorReasonUnknownFrame 验证注册失败帧没有任何原因字段时返回统一的未知原因。
 func TestRegErrorReasonUnknownFrame(t *testing.T) {
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := regErrorReason(map[string]any{}); got != "unknown authentication error" {
 		t.Fatalf("got=%q", got)
 	}

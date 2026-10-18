@@ -22,12 +22,12 @@ const pageSources = [
 
 // rgb(var(--color-*)), CSS classes and the central index.css are references.
 // Literal colors in page code would bypass the design-token system.
-const hardCodedColorPattern = /#[0-9a-f]{3,8}\b|rgba?\((?!var\(--color-)/gi; /* hardCodedColorPattern 表示hardCodedColorPattern。 */
+const hardCodedColorPattern = /#[0-9a-f]{3,8}\b|rgba?\((?!var\(--color-)/gi;
 
 describe('global color token contract', () => {
   test('page components do not contain hard-coded color values', () => {
     const violations = pageSources.flatMap((filePath) => {
-      const source = readFileSync(filePath, 'utf8'); /* source 表示source。 */
+      const source = readFileSync(filePath, 'utf8');
       return [...source.matchAll(hardCodedColorPattern)].map((match) => `${filePath}:${match[0]}` /* match 是命中的硬编码颜色及其源码位置。 */);
     } /* flatMap 回调读取单个页面源码并收集其中的颜色令牌违规项。 */); /* violations 汇总每个页面绕过设计令牌的颜色值。 */
 
@@ -35,7 +35,7 @@ describe('global color token contract', () => {
   } /* 测试回调断言页面源码不直接写入色值。 */);
 
   test('the primary brand and highlight colors are defined in the central stylesheet', () => {
-    const globalStyles = readFileSync(resolve(__dirname, 'index.css'), 'utf8'); /* globalStyles 表示globalStyles。 */
+    const globalStyles = readFileSync(resolve(__dirname, 'index.css'), 'utf8');
 
     expect(globalStyles).toContain('--color-brand: 0 148 247;');
     expect(globalStyles).toContain('--color-brand-highlight: 0 113 227;');

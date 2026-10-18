@@ -12,13 +12,10 @@ import (
 	"time"
 )
 
-// orderAmountPattern 用于本次流程后续判断的订单AmountPattern
 var orderAmountPattern = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?$`)
 
-// groupedOrderAmountPattern 用于本次流程后续判断的grouped订单AmountPattern
 var groupedOrderAmountPattern = regexp.MustCompile(`^[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?$`)
 
-// ErrOrderConflict 用于本次流程后续判断的Err订单Conflict
 var ErrOrderConflict = errors.New("订单被并发更新，请重试")
 
 // maxOrderUpsertRetries 限制单次订单写入在乐观锁竞争下的总尝试次数，避免持续竞争无限占用请求协程。
@@ -70,12 +67,10 @@ type OrderPatch struct {
 	SystemShipped                                     *bool
 }
 
-// sqlExecer 用于本次流程后续判断的sqlExecer
 type sqlExecer interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
-// sqlQueryExecer 用于本次流程后续判断的sql查询Execer
 type sqlQueryExecer interface {
 	sqlExecer
 	QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -86,26 +81,21 @@ func (o *Orders) Patch(ctx context.Context, orderID string, patch OrderPatch) er
 	return patchOrder(ctx, o.DB, orderID, patch)
 }
 
-// PatchTx 封装PatchTx业务协调。
+// PatchTx 在调用方事务内按非空字段局部更新订单。
 func (o *Orders) PatchTx(ctx context.Context, tx *sql.Tx, orderID string, patch OrderPatch) error {
 	return patchOrder(ctx, tx, orderID, patch)
 }
 
-// patchOrder 封装patch订单业务协调。
 func patchOrder(ctx context.Context, execer sqlExecer, orderID string, patch OrderPatch) error {
 	if patch.Amount != nil {
-		// normalized、ok 用于本次流程后续判断的normalized、ok
 		normalized, ok := NormalizeOrderAmount(*patch.Amount)
 		if !ok {
 			return errors.New("订单金额必须是普通格式的非负有限数字")
 		}
 		patch.Amount = &normalized
 	}
-	// set 用于本次流程后续判断的set
 	set := []string{}
-	// args 用于本次流程后续判断的args
 	args := []any{}
-	// addString 用于本次流程后续判断的addString
 	addString := func(column string, value *string) {
 		if value != nil {
 			set = append(set, column+"=?")
@@ -133,14 +123,12 @@ func patchOrder(ctx context.Context, execer sqlExecer, orderID string, patch Ord
 	}
 	set = append(set, "updated_at=CURRENT_TIMESTAMP")
 	args = append(args, orderID)
-	// err 用于本次流程后续判断的err
 	_, err := execer.ExecContext(ctx, `UPDATE orders SET `+joinSet(set)+` WHERE order_id=?`, args...)
 	return err
 }
 
 // Upsert 插入或更新订单。仅更新提供的非零字段（INSERT OR IGNORE 占位 + 动态 UPDATE）。
 // version 参与乐观锁，保证 WebSocket、浏览器同步和 HTTP 并发更新不会绕过状态防倒退规则。
-// Upsert 封装Upsert业务协调。
 func (o *Orders) Upsert(ctx context.Context, orderID string, opts OrderUpsertOpts) error {
 	return upsertOrder(ctx, o.DB, o.Dialect, orderID, opts)
 }
@@ -225,14 +213,12 @@ func upsertManyOrders(ctx context.Context, execer sqlQueryExecer, dialect Dialec
 
 // SoftDelete 将订单标记为逻辑删除，保留历史数据供审计和后续恢复。
 func (o *Orders) SoftDelete(ctx context.Context, orderID string) (bool, error) {
-	// result、err 用于本次流程后续判断的result、err
 	result, err := o.DB.ExecContext(ctx,
 		`UPDATE orders SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
 		  WHERE order_id=? AND deleted_at IS NULL`, orderID)
 	if err != nil {
 		return false, err
 	}
-	// changed、err 用于本次流程后续判断的changed、err
 	changed, err := result.RowsAffected()
 	return changed > 0, err
 }
@@ -262,14 +248,14 @@ func upsertOrder(ctx context.Context, execer sqlQueryExecer, dialect Dialect, or
 		return err
 	}
 
-	for // attempt 是本次有界 CAS 尝试序号，最后一次失败不再退避。
-	attempt := 0; attempt < maxOrderUpsertRetries; attempt++ {
+	// attempt 是本次有界 CAS 尝试序号，最后一次失败不再退避。
+	for attempt := 0; attempt < maxOrderUpsertRetries; attempt++ {
 		// existingCookie、existingStatus、deletedAt 保存当前归属、阶段和软删除标记，分别约束写入身份、状态推进和恢复。
 		var existingCookie, existingStatus, deletedAt sql.NullString
 		// version 是读取快照的版本，必须与实际 UPDATE 时的版本匹配。
 		var version int
-		if // err 保存占位插入后的快照读取失败，失败时不执行猜测性更新。
-		err := execer.QueryRowContext(ctx,
+		// err 保存占位插入后的快照读取失败，失败时不执行猜测性更新。
+		if err := execer.QueryRowContext(ctx,
 			`SELECT cookie_id,order_status,version,deleted_at FROM orders WHERE order_id=?`, orderID).
 			Scan(&existingCookie, &existingStatus, &version, &deletedAt); err != nil {
 			return err
@@ -348,13 +334,9 @@ func orderUpsertRetryDelay(attempt int) time.Duration {
 	return delay
 }
 
-// orderUpsertAssignments 封装订单UpsertAssignments业务协调。
 func orderUpsertAssignments(opts OrderUpsertOpts) ([]string, []any) {
-	// set 用于本次流程后续判断的set
 	set := []string{}
-	// args 用于本次流程后续判断的args
 	args := []any{}
-	// add 用于本次流程后续判断的add
 	add := func(column string, value any, present bool) {
 		if present {
 			set = append(set, column+"=?")
@@ -403,7 +385,6 @@ func NormalizeOrderAmount(raw string) (string, bool) {
 	} else if !orderAmountPattern.MatchString(raw) {
 		return "", false
 	}
-	// value、err 用于本次流程后续判断的value、err
 	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil || math.IsInf(value, 0) || math.IsNaN(value) {
 		return "", false
@@ -427,9 +408,7 @@ func shouldUpdateOrderStatus(current, incoming string, platformSnapshot bool) bo
 	if current == "cancelled" && (incoming == "refunding" || incoming == "completed") {
 		return platformSnapshot
 	}
-	// early 用于本次流程后续判断的early
 	early := incoming == "processing" || incoming == "paid" || incoming == "pending_ship"
-	// advanced 用于本次流程后续判断的advanced
 	advanced := current == "shipped" || current == "completed" || current == "refunding" || current == "cancelled"
 	if early && advanced {
 		return false
@@ -558,13 +537,10 @@ func (o *Orders) findByIDs(ctx context.Context, accountFilter *string, orderIDs 
 
 // Get 按 order_id 查询。
 func (o *Orders) Get(ctx context.Context, orderID string) (*Order, error) {
-	// ord 用于本次流程后续判断的ord
 	var ord Order
-	// isBargain、version、sysShipped 用于本次流程后续判断的isBargain、version、sysShipped
 	var isBargain, version, sysShipped int
 	// itemID、buyerID、specName、specValue、qty、amount、status、cookieID、receiverName、receiverPhone、receiverAddr、receiverCity、chatID、paidAt、shippedAt、completedAt、buyerReviewedAt、lastReviewRequestAt、createdAt、updatedAt 保存商品ID、buyerID、specName、specValue、qty、amount、status、cookieID、receiverName、receiverPhone、receiverAddr、receiverCity、chatID、paidAt、shippedAt、completedAt、buyerReviewedAt、lastReview请求At、createdAt、updatedAt，供当前处理流程使用
 	var itemID, buyerID, specName, specValue, qty, amount, status, cookieID, receiverName, receiverPhone, receiverAddr, receiverCity, chatID, paidAt, shippedAt, completedAt, buyerReviewedAt, lastReviewRequestAt, createdAt, updatedAt sql.NullString
-	// err 用于本次流程后续判断的err
 	err := o.DB.QueryRowContext(ctx,
 		`SELECT order_id, item_id, buyer_id, spec_name, spec_value, quantity, amount,
 		        order_status, cookie_id, is_bargain, receiver_name, receiver_phone, receiver_address,
@@ -609,7 +585,6 @@ func (o *Orders) Get(ctx context.Context, orderID string) (*Order, error) {
 	return &ord, nil
 }
 
-// boolToInt 封装boolToInt业务协调。
 func boolToInt(b bool) int {
 	if b {
 		return 1
@@ -617,11 +592,8 @@ func boolToInt(b bool) int {
 	return 0
 }
 
-// joinSet 封装joinSet业务协调。
 func joinSet(parts []string) string {
-	// out 用于本次流程后续判断的out
 	out := ""
-	// i、p 表示当前遍历过程中的i、p
 	for i, p := range parts {
 		if i > 0 {
 			out += ", "

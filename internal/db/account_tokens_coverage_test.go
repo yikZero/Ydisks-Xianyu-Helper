@@ -8,10 +8,8 @@ import (
 
 // TestAccountTokensRejectsInvalidCandidatesAndCorruptedCiphertext 验证设备候选值和凭证密文损坏时的稳定错误。
 func TestAccountTokensRejectsInvalidCandidatesAndCorruptedCiphertext(t *testing.T) {
-	// store、cleanup 保存隔离的 SQLite 存储和关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// emptyErr 表示空设备候选值的输入校验错误。
 	_, emptyErr := store.Tokens.GetOrCreateDeviceID(ctx, "cid", "")
@@ -45,7 +43,6 @@ func TestAccountTokensRejectsInvalidCandidatesAndCorruptedCiphertext(t *testing.
 	if decryptErr == nil {
 		t.Fatal("损坏的访问令牌密文应返回解密错误")
 	}
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

@@ -15,7 +15,6 @@ import (
 	apirenew "xianyu-go/internal/xianyu/renew"
 )
 
-// loginRenewInterval 用于本次流程后续判断的登录RenewInterval
 const (
 	loginRenewInterval     = 600 * time.Second
 	cookiesRefreshInterval = 600 * time.Second
@@ -28,7 +27,6 @@ const (
 	legacySchedulerWaitTimeout = 10 * time.Second
 )
 
-// loginRenewEnabledSetting 用于本次流程后续判断的登录Renew启用状态设置
 const (
 	loginRenewEnabledSetting      = "renewal.login_renew.enabled"
 	loginRenewIntervalSetting     = "renewal.login_renew.interval_seconds"
@@ -38,22 +36,21 @@ const (
 	cookiesRefreshIntervalSetting = "renewal.cookies_refresh.interval_seconds"
 )
 
-// AccountStarter 用于本次流程后续判断的账号Starter
+// AccountStarter 使用新的 Cookie 启动账号运行时。
 type AccountStarter interface {
 	Start(ctx context.Context, cookieID, cookieValue string) error
 }
 
-// accountRestarter 用于本次流程后续判断的账号Restarter
 type accountRestarter interface {
 	Restart(ctx context.Context, cookieID string) error
 }
 
-// PasswordRefresher 用于本次流程后续判断的密码Refresher
+// PasswordRefresher 在凭证无法续期时尝试密码登录刷新，返回是否成功。
 type PasswordRefresher interface {
 	OnPasswordLoginRefresh(ctx context.Context, cookieID string) bool
 }
 
-// Scheduler 用于本次流程后续判断的Scheduler
+// Scheduler 定时检查账号凭证并执行续期，连续失败时发送告警。
 type Scheduler struct {
 	mu        sync.Mutex
 	store     *db.Store
@@ -76,7 +73,7 @@ type Scheduler struct {
 	stopRequested bool
 }
 
-// RenewalNotifier 用于本次流程后续判断的RenewalNotifier
+// RenewalNotifier 发送账号续期相关告警。
 type RenewalNotifier interface {
 	NotifyAccountEvent(cookieID, eventType, level, title, body string)
 }
@@ -86,7 +83,6 @@ func NewScheduler(store *db.Store, starter AccountStarter, refresher PasswordRef
 	if logger == nil {
 		logger = slog.Default()
 	}
-	// notifier 用于本次流程后续判断的notifier
 	var notifier RenewalNotifier
 	if len(notifiers) > 0 {
 		notifier = notifiers[0]
@@ -212,13 +208,11 @@ func (s *Scheduler) WaitContext(ctx context.Context) error {
 	}
 }
 
-// runAPICookieRenewFixed 封装运行API登录凭证RenewFixed业务协调。
 func (s *Scheduler) runAPICookieRenewFixed(ctx context.Context) {
 	if s.apiRenewEnabled(ctx) {
 		s.executeAPICookieRenew(ctx)
 	}
 	for {
-		// timer 用于本次流程后续判断的定时器
 		timer := time.NewTimer(s.apiRenewInterval(ctx))
 		select {
 		case <-ctx.Done():
@@ -234,15 +228,12 @@ func (s *Scheduler) runAPICookieRenewFixed(ctx context.Context) {
 	}
 }
 
-// runFixed 封装运行Fixed业务协调。
 func (s *Scheduler) runFixed(ctx context.Context, name, settingKey, intervalKey string, defaultEnabled bool, defaultInterval time.Duration, fn func(context.Context)) {
 	if s.settingEnabled(ctx, settingKey, defaultEnabled) {
 		fn(ctx)
 	}
 	for {
-		// interval 用于本次流程后续判断的interval
 		interval := s.settingInterval(ctx, intervalKey, defaultInterval)
-		// timer 用于本次流程后续判断的定时器
 		timer := time.NewTimer(interval)
 		select {
 		case <-ctx.Done():
@@ -258,18 +249,14 @@ func (s *Scheduler) runFixed(ctx context.Context, name, settingKey, intervalKey 
 	}
 }
 
-// executeLoginRenew 封装execute登录Renew业务协调。
 func (s *Scheduler) executeLoginRenew(ctx context.Context) {
 	s.cleanupExpiredLogs(ctx)
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := newBatchID()
-	// accounts、err 用于本次流程后续判断的accounts、err
 	accounts, err := s.store.Cookies.ActiveRenewalRuntimeAccounts(ctx)
 	if err != nil {
 		s.logger.Warn("login_renew 加载账号失败", "err", err)
 		return
 	}
-	// i、account 表示当前遍历过程中的i、account
 	for i, account := range accounts {
 		if s.isSessionCooled(account.ID) {
 			s.logger.Info("login_renew session 冷却中，跳过", "account", account.ID)
@@ -282,15 +269,11 @@ func (s *Scheduler) executeLoginRenew(ctx context.Context) {
 	}
 }
 
-// loginRenewOne 封装登录RenewOne业务协调。
 func (s *Scheduler) loginRenewOne(ctx context.Context, batchID string, account db.RenewalRuntimeAccount) {
-	// credentialUnlock 用于本次流程后续判断的credentialUnlock
 	credentialUnlock := s.store.LockAccountCredentials(account.ID)
 	// credentialLocked 标识当前调用是否持有账号凭证锁。
 	credentialLocked := true
-	// credentialUpdated 用于本次流程后续判断的credentialUpdated
 	credentialUpdated := false
-	// sessionExpired 用于本次流程后续判断的会话Expired
 	sessionExpired := false
 	defer func() {
 		if credentialLocked {
@@ -309,9 +292,7 @@ func (s *Scheduler) loginRenewOne(ctx context.Context, batchID string, account d
 			// Token Cookie 已持久化，后续 MTOP 请求读取新值；重启会额外触发启动 Session 续期。
 		}
 	}()
-	// started 用于本次流程后续判断的started
 	started := time.Now()
-	// latest、err 用于本次流程后续判断的latest、err
 	latest, err := s.reloadRenewalAccount(ctx, account)
 	if err != nil {
 		s.addLoginLog(ctx, batchID, account.ID, "failed", "重读账号凭证失败: "+err.Error(), nil, time.Since(started))
@@ -321,15 +302,11 @@ func (s *Scheduler) loginRenewOne(ctx context.Context, batchID string, account d
 	if !account.Enabled {
 		return
 	}
-	// runCtx、cancel 用于本次流程后续判断的运行Ctx、cancel
 	runCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	// mtopCtx 用于本次流程后续判断的mtopCtx
 	var mtopCtx context.Context
-	// cookieSession 用于本次流程后续判断的登录凭证会话
 	var cookieSession *mtop.CookieSession
-	if // snapshot、ok 用于本次流程后续判断的snapshot、ok
-	snapshot, ok := cookierefresh.SnapshotFromMetadataOK(account.MetadataJSON); ok {
+	if snapshot, ok := cookierefresh.SnapshotFromMetadataOK(account.MetadataJSON); ok {
 		mtopCtx, cookieSession = mtop.WithCookieSnapshot(runCtx, snapshot)
 	} else {
 		mtopCtx, cookieSession = mtop.WithFlatCookieSession(runCtx, account.Value)
@@ -337,7 +314,6 @@ func (s *Scheduler) loginRenewOne(ctx context.Context, batchID string, account d
 	// 登录态检查只使用当前快照；慢速 loginuser.get 不得持有共享凭证锁。
 	credentialUnlock()
 	credentialLocked = false
-	// res、callErr 用于本次流程后续判断的res、callErr
 	res, callErr := s.mtop.CheckLoginStatusContext(mtopCtx, account.Value)
 	// credentialUnlock 保存外部检查完成后重新进入提交临界区的释放函数。
 	credentialUnlock = s.store.LockAccountCredentials(account.ID)
@@ -360,13 +336,10 @@ func (s *Scheduler) loginRenewOne(ctx context.Context, batchID string, account d
 	// 对齐浏览器在响应头到达时立即应用 Set-Cookie 的时序。权威 session
 	// 因此必须在处理请求或解析错误之前持久化，否则下次请求会
 	// 从数据库回滚到旧 Jar。
-	// updated 用于本次流程后续判断的updated
 	updated := []string(nil)
-	// value、snapshot、changed 用于本次流程后续判断的value、snapshot、changed
 	value, snapshot, changed := cookieSession.State()
 	// 完整 Jar 即使本轮没有变化也已经权威接管请求；不能因扁平 Cookie
 	// 的顺序或尾分号不同回退写入并清掉快照。
-	// sessionHandled 用于本次流程后续判断的会话Handled
 	sessionHandled := snapshot != nil
 	if credentialSnapshotChanged {
 		// 外部响应基于旧快照，本切片暂不具备可安全重放的 loginuser.get Cookie 集合，因此丢弃旧响应状态。
@@ -378,13 +351,11 @@ func (s *Scheduler) loginRenewOne(ctx context.Context, batchID string, account d
 	}
 	if changed {
 		updated = cookierefresh.ChangedCookieNames(account.Value, value)
-		// metadata 用于本次流程后续判断的metadata
 		metadata := cookierefresh.MetadataWithoutSnapshot(account.MetadataJSON)
 		if snapshot != nil {
 			metadata = cookierefresh.MetadataWithSnapshot(account.MetadataJSON, snapshot)
 		}
-		if // persistErr 用于本次流程后续判断的persistErr
-		persistErr := s.store.Cookies.UpdateRenewalCookie(ctx, account.ID, value, metadata, time.Now().Unix()); persistErr != nil {
+		if persistErr := s.store.Cookies.UpdateRenewalCookie(ctx, account.ID, value, metadata, time.Now().Unix()); persistErr != nil {
 			if callErr != nil {
 				persistErr = errors.Join(callErr, fmt.Errorf("保存 loginuser.get 响应 Cookie Jar: %w", persistErr))
 			}
@@ -414,10 +385,8 @@ func (s *Scheduler) loginRenewOne(ctx context.Context, batchID string, account d
 			// 注入 mock 或没有权威快照的历史账号仍走扁平
 			// Cookie 兼容路径。扁平值无法证明旧 snapshot 的
 			// Domain/Path/expiry 仍有效，因此必须清除旧快照。
-			// metadata 用于本次流程后续判断的metadata
 			metadata := cookierefresh.MetadataWithoutSnapshot(account.MetadataJSON)
-			if // err 用于本次流程后续判断的err
-			err := s.store.Cookies.UpdateRenewalCookie(ctx, account.ID, res.UpdatedCookies, metadata, time.Now().Unix()); err != nil {
+			if err := s.store.Cookies.UpdateRenewalCookie(ctx, account.ID, res.UpdatedCookies, metadata, time.Now().Unix()); err != nil {
 				s.addLoginLog(ctx, batchID, account.ID, "failed", "保存 Cookie 失败: "+err.Error(), updated, time.Since(started))
 				return
 			}
@@ -431,18 +400,14 @@ func (s *Scheduler) loginRenewOne(ctx context.Context, batchID string, account d
 	}
 }
 
-// executeAPICookieRenew 封装executeAPI登录凭证Renew业务协调。
 func (s *Scheduler) executeAPICookieRenew(ctx context.Context) {
 	s.cleanupExpiredLogs(ctx)
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := newBatchID()
-	// accounts、err 用于本次流程后续判断的accounts、err
 	accounts, err := s.store.Cookies.ActiveRenewalRuntimeAccounts(ctx)
 	if err != nil {
 		s.logger.Warn("api_cookie_renew 加载账号失败", "err", err)
 		return
 	}
-	// i、account 表示当前遍历过程中的i、account
 	for i, account := range accounts {
 		s.apiCookieRenewOne(ctx, batchID, account)
 		if i < len(accounts)-1 {
@@ -451,15 +416,10 @@ func (s *Scheduler) executeAPICookieRenew(ctx context.Context) {
 	}
 }
 
-// apiCookieRenewOne 封装api登录凭证RenewOne业务协调。
 func (s *Scheduler) apiCookieRenewOne(ctx context.Context, batchID string, account db.RenewalRuntimeAccount) {
-	// credentialUnlock 用于本次流程后续判断的credentialUnlock
 	credentialUnlock := s.store.LockAccountCredentials(account.ID)
-	// credentialLocked 用于本次流程后续判断的credentialLocked
 	credentialLocked := true
-	// credentialChanged 用于本次流程后续判断的credentialChanged
 	credentialChanged := false
-	// credentialPersisted 用于本次流程后续判断的credentialPersisted
 	credentialPersisted := false
 	// renewalSucceeded 仅在官方 Promise 正常兑现后置真；部分 Cookie 更新不能触发恢复动作。
 	renewalSucceeded := false
@@ -471,9 +431,7 @@ func (s *Scheduler) apiCookieRenewOne(ctx context.Context, batchID string, accou
 			s.wakeCredentialBlockedAutomation(ctx, account.ID)
 		}
 	}()
-	// started 用于本次流程后续判断的started
 	started := time.Now()
-	// latest、err 用于本次流程后续判断的latest、err
 	latest, err := s.reloadRenewalAccount(ctx, account)
 	if err != nil {
 		s.addAPILog(ctx, db.RenewalLog{BatchID: batchID, CookieID: account.ID, Status: "failed", ErrorMessage: "重读账号凭证失败: " + err.Error(), RenewMethod: "auto_login_plugin"})
@@ -489,7 +447,6 @@ func (s *Scheduler) apiCookieRenewOne(ctx context.Context, batchID string, accou
 	// 续期请求只使用当前快照；慢速外部 API 调用不得持有共享凭证锁。
 	credentialUnlock()
 	credentialLocked = false
-	// res、callErr 用于本次流程后续判断的res、callErr
 	res, callErr := s.renewAPI(ctx, account.Value, cookierefresh.SnapshotFromMetadata(account.MetadataJSON))
 	// credentialUnlock 保存外部请求完成后重新进入提交临界区的释放函数。
 	credentialUnlock = s.store.LockAccountCredentials(account.ID)
@@ -532,7 +489,6 @@ func (s *Scheduler) apiCookieRenewOne(ctx context.Context, batchID string, accou
 		}
 	}
 	if res == nil {
-		// message 用于本次流程后续判断的消息
 		message := "接口续期未返回结果"
 		if callErr != nil {
 			message = callErr.Error()
@@ -544,17 +500,13 @@ func (s *Scheduler) apiCookieRenewOne(ctx context.Context, batchID string, accou
 	if res.HasPending() {
 		s.watchPendingAPIRenew(ctx, batchID, account.ID, res, initialCookieValue, initialCookieMetadata)
 	}
-	// stepDetails 用于本次流程后续判断的stepDetails
 	stepDetails := make([]string, 0, len(res.StepDetails)+1)
-	// step 表示当前遍历过程中的step
 	for _, step := range res.StepDetails {
 		stepDetails = append(stepDetails, fmt.Sprintf("%s: http=%d business_ok=%v set_cookie=%d", step.Name, step.HTTPStatus, step.BusinessOK, step.SetCookieCount))
 	}
 	stepDetails = append(stepDetails, fmt.Sprintf("result: success=%v skipped=%v reason=%s", res.Success, res.Skipped, res.SkipReason))
-	// updated 用于本次流程后续判断的updated
 	updated := cookierefresh.ChangedCookieNames(account.Value, res.NewCookies)
 	if res.CookieSnapshotComplete || len(res.SetCookies) > 0 || res.NewCookies != account.Value {
-		// metadata 用于本次流程后续判断的metadata
 		metadata := cookierefresh.MetadataWithoutSnapshot(account.MetadataJSON)
 		if res.CookieSnapshotComplete {
 			metadata = cookierefresh.MetadataWithSnapshot(account.MetadataJSON, res.CookieSnapshot)
@@ -587,11 +539,9 @@ func (s *Scheduler) apiCookieRenewOne(ctx context.Context, batchID string, accou
 		s.logger.Info("接口续期任务成功", "account", account.ID, "method", res.RenewMethod, "updated", strings.Join(updated, ","), "message", res.Message)
 		credentialUnlock()
 		credentialLocked = false
-		if // restarter、ok 用于本次流程后续判断的restarter、ok
-		restarter, ok := s.starter.(accountRestarter); ok {
+		if restarter, ok := s.starter.(accountRestarter); ok {
 			s.logger.Info("接口续期成功，正在重启账号以应用最新登录凭证", "account", account.ID)
-			if // err 用于本次流程后续判断的err
-			err := restarter.Restart(ctx, account.ID); err != nil {
+			if err := restarter.Restart(ctx, account.ID); err != nil {
 				s.addAPILog(ctx, db.RenewalLog{BatchID: batchID, CookieID: account.ID, Status: "failed", ErrorMessage: "重建消息连接失败: " + err.Error(), UpdatedCookieNames: updated, StepDetails: strings.Join(stepDetails, " | "), RenewMethod: res.RenewMethod, DurationMS: time.Since(started).Milliseconds(), RequestCount: res.RequestCount})
 				s.logger.Warn("接口续期成功，但重启账号失败", "account", account.ID, "err", err)
 				return
@@ -599,7 +549,6 @@ func (s *Scheduler) apiCookieRenewOne(ctx context.Context, batchID string, accou
 			s.logger.Info("接口续期后的账号重启已完成", "account", account.ID)
 		}
 	}
-	// status 用于本次流程后续判断的状态
 	status := "failed"
 	if res.HasPending() {
 		status = "pending"
@@ -643,32 +592,26 @@ func (s *Scheduler) rejectConflictingAPIRenewal(ctx context.Context, batchID str
 	return true
 }
 
-// restartAfterCredentialUpdate 封装restartAfterCredentialUpdate业务协调。
 func (s *Scheduler) restartAfterCredentialUpdate(ctx context.Context, accountID string, enabled bool, source string) {
 	if !enabled || ctx.Err() != nil {
 		return
 	}
-	// restarter、ok 用于本次流程后续判断的restarter、ok
 	restarter, ok := s.starter.(accountRestarter)
 	if !ok {
 		return
 	}
 	s.logger.Info("认证 Cookie 已更新，正在重启账号以刷新 WS Token", "account", accountID, "source", source)
-	if // err 用于本次流程后续判断的err
-	err := restarter.Restart(ctx, accountID); err != nil {
+	if err := restarter.Restart(ctx, accountID); err != nil {
 		s.logger.Warn("认证 Cookie 已更新，但重启账号刷新 WS Token 失败", "account", accountID, "source", source, "err", err)
 	}
 }
 
-// renewAPI 封装renewAPI业务协调。
 func (s *Scheduler) renewAPI(ctx context.Context, cookieStr string, snapshot []cookierefresh.BrowserCookie) (*apirenew.Result, error) {
-	// runCtx、cancel 用于本次流程后续判断的运行Ctx、cancel
 	runCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	return s.api.RenewAPIFirst(runCtx, cookieStr, snapshot)
 }
 
-// watchPendingAPIRenew 封装watchPendingAPIRenew业务协调。
 func (s *Scheduler) watchPendingAPIRenew(ctx context.Context, batchID, cookieID string, result *apirenew.Result, initialCookieValue, initialCookieMetadata string) {
 	if result == nil || !result.HasPending() || s.store == nil || s.store.Cookies == nil {
 		return
@@ -676,9 +619,7 @@ func (s *Scheduler) watchPendingAPIRenew(ctx context.Context, batchID, cookieID 
 	s.watchers.Add(1)
 	go func() {
 		defer s.watchers.Done()
-		// waitCtx、waitCancel 用于本次流程后续判断的waitCtx、wait取消
 		waitCtx, waitCancel := context.WithTimeout(ctx, 35*time.Second)
-		// late、waitErr 用于本次流程后续判断的late、waitErr
 		late, waitErr := result.AwaitPending(waitCtx)
 		waitCancel()
 		if late == nil {
@@ -688,14 +629,10 @@ func (s *Scheduler) watchPendingAPIRenew(ctx context.Context, batchID, cookieID 
 			}
 			return
 		}
-		// opCtx、opCancel 用于本次流程后续判断的opCtx、op取消
 		opCtx, opCancel := context.WithTimeout(ctx, 30*time.Second)
 		defer opCancel()
-		// finalErr 用于本次流程后续判断的finalErr
 		var finalErr error
-		// changed 用于本次流程后续判断的changed
 		changed := func() bool {
-			// unlock 用于本次流程后续判断的unlock
 			unlock := s.store.LockAccountCredentials(cookieID)
 			defer unlock()
 			detail, getErr := s.store.Cookies.GetCookiePlatformRuntimeData(opCtx, cookieID) // detail 只包含迟到 Cookie 合并所需的 Cookie 与 metadata。
@@ -712,13 +649,11 @@ func (s *Scheduler) watchPendingAPIRenew(ctx context.Context, batchID, cookieID 
 				s.logger.Warn("保存定时静默续期迟到 Cookie 时检测到并发凭证冲突", "account", cookieID)
 				return false
 			}
-			// newCookies、metadata、changed 用于本次流程后续判断的newCookies、metadata、changed
 			newCookies, metadata, changed := apirenew.RebaseResponseCookies(detail.Value, detail.MetadataJSON, late)
 			if !changed {
 				return false
 			}
-			if // saveErr 用于本次流程后续判断的saveErr
-			saveErr := s.store.Cookies.UpdateRenewalCookie(opCtx, cookieID, newCookies, metadata, time.Now().Unix()); saveErr != nil {
+			if saveErr := s.store.Cookies.UpdateRenewalCookie(opCtx, cookieID, newCookies, metadata, time.Now().Unix()); saveErr != nil {
 				s.logger.Warn("保存定时静默续期迟到 Cookie 失败", "account", cookieID, "err", saveErr)
 				finalErr = saveErr
 				return false
@@ -737,9 +672,7 @@ func (s *Scheduler) watchPendingAPIRenew(ctx context.Context, batchID, cookieID 
 			s.logger.Warn("定时静默续期底层响应失败，已保存响应 Cookie", "account", cookieID, "err", waitErr)
 			finalErr = errors.Join(finalErr, waitErr)
 		}
-		// status 用于本次流程后续判断的状态
 		status := "failed"
-		// errorMessage 用于本次流程后续判断的错误消息
 		errorMessage := ""
 		if finalErr != nil {
 			errorMessage = finalErr.Error()
@@ -761,17 +694,13 @@ func (s *Scheduler) watchPendingAPIRenew(ctx context.Context, batchID, cookieID 
 	}()
 }
 
-// wakeCredentialBlockedAutomation 封装wakeCredentialBlocked自动化业务协调。
 func (s *Scheduler) wakeCredentialBlockedAutomation(ctx context.Context, cookieID string) {
 	if s == nil || s.store == nil || s.store.Automation == nil {
 		return
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.store.Automation.WakeCredentialBlocked(ctx, cookieID); err != nil {
+	if err := s.store.Automation.WakeCredentialBlocked(ctx, cookieID); err != nil {
 		s.logger.Warn("Cookie 更新后唤醒自动化任务失败", "account", cookieID, "err", err)
 		return
 	}
 	s.logger.Info("Cookie 更新后已唤醒待恢复自动化任务", "account", cookieID)
 }
-
-// apiRenewEnabled 封装apiRenew启用状态业务协调。

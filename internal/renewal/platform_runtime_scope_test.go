@@ -16,7 +16,6 @@ func TestPendingAPIRenewUsesPlatformRuntimeData(t *testing.T) {
 	// store 是本测试使用的续期数据库；cleanup 负责关闭数据库连接。
 	store, cleanup := newSchedulerTestStore(t)
 	defer cleanup()
-	// ctx 是迟到续期测试共用的上下文。
 	ctx := context.Background()
 	// account 是接口续期批次使用的最小续期账号视图。
 	account := createSchedulerAccount(t, store, "cid-platform-runtime", "unb=1; havana_lgc_exp="+futureSchedulerMillis())

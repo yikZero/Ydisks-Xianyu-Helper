@@ -14,7 +14,6 @@ import (
 func TestMatchKeywordExpressionsTable(t *testing.T) {
 	// cases 是纯匹配函数的确定性输入与期望结果表。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// expressions 是同一条规则按 OR 语义执行的表达式集合。
 		expressions []string
@@ -112,7 +111,6 @@ func TestReplyKeywordExpressionsSQLiteResolve(t *testing.T) {
 	// store、cleanup 提供本地 SQLite 真实仓储及其关闭责任。
 	store, cleanup := newReplyStore(t)
 	defer cleanup()
-	// ctx 是本测试所有本地数据库操作共用的上下文。
 	ctx := context.Background()
 
 	// _, addErr 保存账号级多表达式规则的写入结果。
@@ -155,7 +153,6 @@ func TestReplyKeywordExpressionsSQLiteResolve(t *testing.T) {
 	}
 	// regexpCases 覆盖真实数据库读取后的正则锚点、OR、量词和内联标志消息。
 	regexpCases := []struct {
-		// name 是正则回归子测试名称。
 		name string
 		// text 是触发正则规则的消息文本。
 		text string
@@ -260,7 +257,6 @@ func TestReplyKeywordExpressionsSQLiteLegacyRows(t *testing.T) {
 	// store、cleanup 提供历史数据回归所需的本地 SQLite 仓储。
 	store, cleanup := newReplyStore(t)
 	defer cleanup()
-	// ctx 是历史规则写入和解析共用的上下文。
 	ctx := context.Background()
 	// _, textErr 写入缺少 keyword_expressions 的历史文本规则。
 	_, textErr := store.DB.ExecContext(ctx,

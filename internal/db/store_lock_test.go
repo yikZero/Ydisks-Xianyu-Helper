@@ -94,8 +94,8 @@ func TestLockAccountCredentialsSerializesConcurrentUpdates(t *testing.T) {
 	var countMu sync.Mutex
 	// done 是两个并发调用完成的同步信号。
 	done := make(chan struct{}, 2)
-	for // i 表示当前并发锁测试调用序号。
-	i := 0; i < 2; i++ {
+	// i 表示当前并发锁测试调用序号。
+	for i := 0; i < 2; i++ {
 		go func() {
 			// unlock 是当前调用方的账号锁释放函数。
 			unlock := store.LockAccountCredentials("cookie-3")
@@ -113,8 +113,8 @@ func TestLockAccountCredentialsSerializesConcurrentUpdates(t *testing.T) {
 			done <- struct{}{}
 		}()
 	}
-	for // i 表示当前完成信号序号。
-	i := 0; i < 2; i++ {
+	// i 表示当前完成信号序号。
+	for i := 0; i < 2; i++ {
 		select {
 		case <-done:
 		case <-time.After(time.Second):

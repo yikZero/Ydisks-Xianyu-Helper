@@ -16,7 +16,6 @@ func TestAuthenticationRepositoryVerifiedSessionLifecycle(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定夹具库的认证适配器。
 	repository := NewAuthenticationRepository(store)
-	// ctx 是共用的非取消 Context。
 	ctx := context.Background()
 	// user、matched、verifyErr 是正确密码的校验结果。
 	user, matched, verifyErr := repository.VerifyLogin(ctx, "admin", "pw")
@@ -80,7 +79,6 @@ func TestOrderRepositoryOwnerAndFind(t *testing.T) {
 	defer cleanup()
 	// repository 是订单仓储适配器。
 	repository := NewOrderRepository(store)
-	// ctx 是共用的非取消 Context。
 	ctx := context.Background()
 	// ownerID、ownerErr 是夹具账号 cid 的所属用户。
 	ownerID, ownerErr := repository.GetOwnerID(ctx, "cid")
@@ -105,7 +103,6 @@ func TestOrderRepositoryOwnerAndFind(t *testing.T) {
 
 // TestAdapterChatSessionRoleGuards 覆盖聊天服务缺失时的角色读取默认值与写入错误。
 func TestAdapterChatSessionRoleGuards(t *testing.T) {
-	// ctx 是共用的非取消 Context。
 	ctx := context.Background()
 	// nilAdapter 同时覆盖 nil 接收者与零值适配器。
 	for _, target := range []*Adapter{nil, {}} {

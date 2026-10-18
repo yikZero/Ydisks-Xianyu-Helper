@@ -93,7 +93,6 @@ func (p *batchGapPreview) Preview(context.Context, itemapp.BatchPreviewInput) ([
 
 // batchGapPersistence 是预检持久化端口的可控桩。
 type batchGapPersistence struct {
-	// err 是 Persist 返回的错误。
 	err error
 	// result 是 Persist 成功时返回的结果。
 	result itemapp.BatchPreviewPersistenceResult
@@ -106,7 +105,6 @@ func (p *batchGapPersistence) Persist(context.Context, itemapp.BatchPreviewPersi
 
 // TestPublishBatchManagementHandlersMapErrors 覆盖管理类接口把应用层错误映射为 HTTP 状态码的全部分支。
 func TestPublishBatchManagementHandlersMapErrors(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// management 是注入的批量管理桩。
@@ -114,7 +112,6 @@ func TestPublishBatchManagementHandlersMapErrors(t *testing.T) {
 	srv.applications.itemBatchManagement = management
 	// handler 是注入桩后的完整路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// cases 描述每个接口在不同应用错误下期望的状态码。
@@ -126,8 +123,7 @@ func TestPublishBatchManagementHandlersMapErrors(t *testing.T) {
 		// set 在请求前配置桩错误。
 		set func(err error)
 		// err 是注入的应用错误。
-		err error
-		// want 是期望的 HTTP 状态码。
+		err  error
 		want int
 	}{
 		{"start conflict", "POST", "/items/publish-batches", `{"preview_id":"b1"}`, func(e error) { management.startErr = e }, itemapp.ErrBatchConflict, http.StatusConflict},
@@ -160,7 +156,6 @@ func TestPublishBatchManagementHandlersMapErrors(t *testing.T) {
 func TestPreviewItemPublishBatchRejectsInvalidInputs(t *testing.T) {
 	// uploadRoot 是本测试专用的上传根目录，避免写入仓库 data 目录。
 	t.Setenv("XIANYU_UPLOAD_DIR", t.TempDir())
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -175,7 +170,6 @@ func TestPreviewItemPublishBatchRejectsInvalidInputs(t *testing.T) {
 	srv.applications.itemBatchPreviewPersistence = persistence
 	// handler 是注入桩后的完整路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// send 以 multipart 提交表单字段和可选文件，返回响应状态与正文。
@@ -214,7 +208,6 @@ func TestPreviewItemPublishBatchRejectsInvalidInputs(t *testing.T) {
 	const csvData = "标题,价格\n商品,1\n"
 
 	preview.ownedErr = errors.New("db down")
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", csvData, "", ""); code != http.StatusInternalServerError {
 		t.Errorf("ownership error status=%d", code)
 	}
@@ -242,11 +235,9 @@ func TestPreviewItemPublishBatchRejectsInvalidInputs(t *testing.T) {
 		}
 	}
 
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", strings.Repeat("a", 21<<20), "", ""); code != http.StatusBadRequest {
 		t.Errorf("oversize sheet status=%d", code)
 	}
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", csvData, "i.zip", "not a zip"); code != http.StatusBadRequest {
 		t.Errorf("bad zip status=%d", code)
 	}
@@ -258,30 +249,25 @@ func TestPreviewItemPublishBatchRejectsInvalidInputs(t *testing.T) {
 	if code, _ := send(base(), "..", csvData, "", ""); code != http.StatusInternalServerError {
 		t.Errorf("dotdot name status=%d", code)
 	}
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", "标题\n", "", ""); code != http.StatusBadRequest {
 		t.Errorf("header-only sheet status=%d", code)
 	}
 
 	preview.previewErr = itemapp.ErrBatchPreviewNoRows
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", csvData, "", ""); code != http.StatusBadRequest {
 		t.Errorf("preview no rows status=%d", code)
 	}
 	preview.previewErr = errors.New("preview failed")
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", csvData, "", ""); code != http.StatusBadRequest {
 		t.Errorf("preview error status=%d", code)
 	}
 	preview.previewErr = nil
 
 	persistence.err = itemapp.ErrBatchPreviewNoRows
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", csvData, "", ""); code != http.StatusBadRequest {
 		t.Errorf("persist no rows status=%d", code)
 	}
 	persistence.err = errors.New("persist failed")
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", csvData, "", ""); code != http.StatusInternalServerError {
 		t.Errorf("persist error status=%d", code)
 	}
@@ -300,7 +286,6 @@ func TestPreviewItemPublishBatchRejectsInvalidInputs(t *testing.T) {
 
 	// 默认账号不属于当前用户。
 	preview.owned = false
-	// code 本次请求返回的 HTTP 状态码
 	if code, _ := send(base(), "a.csv", csvData, "", ""); code != http.StatusForbidden {
 		t.Errorf("foreign cookie status=%d", code)
 	}
@@ -308,15 +293,12 @@ func TestPreviewItemPublishBatchRejectsInvalidInputs(t *testing.T) {
 
 // TestPublishBatchSmallHelpers 覆盖失败类型、最终状态以及账号归属和 Cookie 读取的辅助分支。
 func TestPublishBatchSmallHelpers(t *testing.T) {
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := finalPublishBatchStatus(nil); got != "failed" {
 		t.Errorf("nil batch => %q", got)
 	}
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := finalPublishBatchStatus(&itemapp.BatchInfo{FailedCount: 1}); got != "failed" {
 		t.Errorf("all failed => %q", got)
 	}
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := finalPublishBatchStatus(&itemapp.BatchInfo{FailedCount: 1, SuccessCount: 1}); got != "partially_failed" {
 		t.Errorf("partial => %q", got)
 	}
@@ -325,7 +307,6 @@ func TestPublishBatchSmallHelpers(t *testing.T) {
 	if srv.cookieOwnedByUser(context.Background(), 1, "c") {
 		t.Error("nil summary port must not own")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := srv.cookieValueForUser(context.Background(), 1, "c"); err == nil {
 		t.Error("nil credential port should fail")
 	}

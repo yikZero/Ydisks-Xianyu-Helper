@@ -58,7 +58,6 @@ func TestParseOrderRefreshRequestSupportsJSONAndMultipart(t *testing.T) {
 
 // TestOrderRefreshRejectsMalformedInputBeforeCreatingJob 验证损坏载荷不会被解释为空筛选，更不会创建全账号刷新任务。
 func TestOrderRefreshRejectsMalformedInputBeforeCreatingJob(t *testing.T) {
-	// srv、store、cleanup 提供完整认证路由和可检查后台任务数量的测试数据库。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
 	// handler 是当前测试用的完整 HTTP 路由树。

@@ -36,7 +36,6 @@ func TestMainWrapsPNGIntoICO(t *testing.T) {
 	input, output := filepath.Join(dir, "in.png"), filepath.Join(dir, "out.ico")
 	// payload 是占位的 PNG 字节，转换器不解析其内容。
 	payload := []byte("fake-png-bytes")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.WriteFile(input, payload, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +65,6 @@ func TestMainPanicsOnIOFailures(t *testing.T) {
 	mustPanic(t, main)
 	// input 是存在的输入；输出目录不存在导致写入失败。
 	input := filepath.Join(dir, "in.png")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.WriteFile(input, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}

@@ -16,8 +16,7 @@ type syncRepositoryFake struct {
 	allResult SyncAllResult
 	// pageResult 保存分页同步桩的结果。
 	pageResult SyncPageResult
-	// err 保存桩返回的错误。
-	err error
+	err        error
 	// allQuery 保存最近一次全量查询。
 	allQuery SyncQuery
 	// pageQuery 保存最近一次分页查询。
@@ -78,7 +77,6 @@ func TestSyncServiceRejectsInvalidInput(t *testing.T) {
 	// testCase 表示当前输入场景。
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			// err 是本次校验返回的错误。
 			_, err := NewSyncService(&syncRepositoryFake{}).SyncAll(context.Background(), testCase.query)
 			if !errors.Is(err, testCase.wantErr) {
 				t.Fatalf("err=%v want=%v", err, testCase.wantErr)
@@ -105,8 +103,7 @@ func TestSyncServicePreservesErrorKind(t *testing.T) {
 	cases := []struct {
 		// name 是测试场景名称。
 		name string
-		// err 是 Port 返回的错误。
-		err error
+		err  error
 		// wantKind 是期望保留的阶段。
 		wantKind SyncErrorKind
 	}{

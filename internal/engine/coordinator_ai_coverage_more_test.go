@@ -87,11 +87,9 @@ func TestOutgoingCoordinatorCoversHistoryQueries(t *testing.T) {
 	// historyConn.historyErr、historyConn.conversationsErr 模拟两个历史查询的远端失败。
 	historyConn.historyErr = context.DeadlineExceeded
 	historyConn.conversationsErr = context.Canceled
-	// err 表示聊天历史远端查询返回的错误。
 	if _, _, err := coordinator.fetchChatHistory(context.Background(), "chat", 0, 1); err == nil {
 		t.Fatal("聊天历史远端错误应向上传播")
 	}
-	// err 表示历史会话远端查询返回的错误。
 	if _, _, err := coordinator.fetchChatConversations(context.Background(), 0, 1); err == nil {
 		t.Fatal("会话历史远端错误应向上传播")
 	}
@@ -99,10 +97,8 @@ func TestOutgoingCoordinatorCoversHistoryQueries(t *testing.T) {
 
 // TestGlobalAIConfigCoversDatabaseFailure 覆盖 AI 全局配置读取首个敏感设置失败分支。
 func TestGlobalAIConfigCoversDatabaseFailure(t *testing.T) {
-	// store、cleanup 保存随后关闭数据库连接的 AI 测试存储。
 	store, cleanup := newAIStore(t)
 	defer cleanup()
-	// closeErr 保存关闭 AI 测试数据库连接的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

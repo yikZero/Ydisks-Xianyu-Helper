@@ -8,7 +8,6 @@ import (
 
 // TestTransCookies_Table 表驱动覆盖 cookie 解析的边界。
 func TestTransCookies_Table(t *testing.T) {
-	// cases 用于本次流程后续判断的cases
 	cases := []struct {
 		name string
 		in   string
@@ -28,15 +27,12 @@ func TestTransCookies_Table(t *testing.T) {
 		{"single fragment no space separator", "a=1;b=2", map[string]string{"a": "1", "b": "2"}},
 		{"trailing separator", "a=1; b=2;", map[string]string{"a": "1", "b": "2"}},
 	}
-	// tc 表示当前遍历过程中的tc
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// got 用于本次流程后续判断的got
 			got := TransCookies(tc.in)
 			if len(got) != len(tc.want) {
 				t.Fatalf("TransCookies(%q) = %v (len %d), want %v (len %d)", tc.in, got, len(got), tc.want, len(tc.want))
 			}
-			// k、v 表示当前遍历过程中的k、v
 			for k, v := range tc.want {
 				if got[k] != v {
 					t.Fatalf("TransCookies(%q)[%q] = %q, want %q", tc.in, k, got[k], v)
@@ -48,7 +44,6 @@ func TestTransCookies_Table(t *testing.T) {
 
 // TestSignToken 表驱动覆盖从 cookie 串提取 _m_h5_tk token 的边界。
 func TestSignToken(t *testing.T) {
-	// cases 用于本次流程后续判断的cases
 	cases := []struct {
 		name string
 		in   string
@@ -64,10 +59,8 @@ func TestSignToken(t *testing.T) {
 		{"token with multiple underscores takes first", "_m_h5_tk=a_b_c", "a"},
 		{"token among other cookies", "a=1; _m_h5_tk=tken_123; b=2", "tken"},
 	}
-	// tc 表示当前遍历过程中的tc
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// got 用于本次流程后续判断的got
 			got := SignToken(tc.in)
 			if got != tc.want {
 				t.Fatalf("SignToken(%q) = %q, want %q", tc.in, got, tc.want)
@@ -76,9 +69,7 @@ func TestSignToken(t *testing.T) {
 	}
 }
 
-// TestSignTokenUsesFirstScopedDuplicate 封装TestSign令牌UsesFirstScopedDuplicate业务协调。
 func TestSignTokenUsesFirstScopedDuplicate(t *testing.T) {
-	// got 用于本次流程后续判断的got
 	got := SignToken("_m_h5_tk=narrow_1; other=x; _m_h5_tk=wide_2")
 	if got != "narrow" {
 		t.Fatalf("SignToken duplicate=%q want narrow", got)
@@ -87,12 +78,9 @@ func TestSignTokenUsesFirstScopedDuplicate(t *testing.T) {
 
 // TestSignToken_ConsistentWithTransCookies SignToken 必须基于 TransCookies 的解析结果。
 func TestSignToken_ConsistentWithTransCookies(t *testing.T) {
-	// cookies 用于本次流程后续判断的cookies
 	cookies := "x=1; _m_h5_tk=mytoken_999; y=2"
-	// want 用于本次流程后续判断的want
 	want := strings.SplitN(TransCookies(cookies)["_m_h5_tk"], "_", 2)[0]
-	if // got 用于本次流程后续判断的got
-	got := SignToken(cookies); got != want {
+	if got := SignToken(cookies); got != want {
 		t.Fatalf("SignToken = %q, want %q derived from TransCookies", got, want)
 	}
 }

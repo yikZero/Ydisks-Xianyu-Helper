@@ -25,7 +25,6 @@ func TestAccountSettingsAndCookieSessionGuards(t *testing.T) {
 	if !HasStoredCookieCredential(&account.CredentialDetail{MetadataJSON: metadata}) {
 		t.Fatal("完整 Cookie 快照应被识别为有效凭证")
 	}
-	// ctx 是本测试 Cookie 会话包装共用的上下文。
 	ctx := context.Background()
 	// snapshotContext、snapshotSession 保存完整 Cookie 快照会话及上下文。
 	snapshotContext, snapshotSession := WithCookieSnapshot(ctx, []BrowserCookie{{Name: "unb", Value: "id"}})
@@ -59,7 +58,6 @@ func TestItemAndSystemDependenciesConstructPorts(t *testing.T) {
 	if nilOrder != nil || nilOrderErr == nil {
 		t.Fatalf("空订单依赖构造异常 dependencies=%v err=%v", nilOrder, nilOrderErr)
 	}
-	// store、cleanup 保存完整依赖组使用的测试数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// itemDependencies 保存商品端口构造入口。

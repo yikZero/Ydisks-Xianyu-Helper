@@ -412,8 +412,8 @@ func adjustPriceCentsFromConfig(configJSON string) (int64, error) {
 	var cfg struct {
 		TargetPrice string `json:"target_price"`
 	}
-	if // err 是动作配置 JSON 的解析错误。
-	err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
+	// err 是动作配置 JSON 的解析错误。
+	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
 		return 0, fmt.Errorf("解析改价动作配置: %w", err)
 	}
 	return parseYuanToCents(cfg.TargetPrice)

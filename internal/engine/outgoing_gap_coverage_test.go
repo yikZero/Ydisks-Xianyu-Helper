@@ -92,19 +92,15 @@ func TestOutgoingCoordinatorNilAccountGuards(t *testing.T) {
 	coordinator := &outgoingMessageCoordinator{}
 	// ctx 是测试使用的背景上下文。
 	ctx := context.Background()
-	// err 保存 sendText 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := coordinator.sendText(ctx, "c", "b", "hi"); err == nil {
 		t.Fatal("sendText 未初始化应报错")
 	}
-	// err 保存 sendImage 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := coordinator.sendImage(ctx, "c", "b", "https://x/i.jpg", 0, 1, 1); err == nil {
 		t.Fatal("sendImage 未初始化应报错")
 	}
-	// err 保存 sendItemCard 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := coordinator.sendItemCard(ctx, "c", "b", "1", "t", "u", "1"); err == nil {
 		t.Fatal("sendItemCard 未初始化应报错")
 	}
-	// err 保存 currentSenderState 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, _, err := coordinator.currentSenderState(); err == nil {
 		t.Fatal("currentSenderState 未初始化应报错")
 	}
@@ -131,7 +127,6 @@ func TestSendItemCardPaths(t *testing.T) {
 	account := newOutgoingGapAccount(conn, handler)
 	// ctx 携带 UI 待发送消息关联键。
 	ctx := WithOutgoingMessageKey(context.Background(), "key-1")
-	// err 保存 SendItemCard 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendItemCard(ctx, "chat", "buyer", " item-1 ", " 标题 ", " https://img ", " ¥12.50 "); err != nil {
 		t.Fatalf("SendItemCard() err=%v", err)
 	}
@@ -147,7 +142,6 @@ func TestSendItemCardPaths(t *testing.T) {
 
 	// failing 是旁路必定失败的账号，发送结果仍应成功。
 	failing := newOutgoingGapAccount(&itemCardWSConn{fakeWSConn: &fakeWSConn{}}, &failingObserverHandler{outgoingObserverHandler: &outgoingObserverHandler{}})
-	// err 保存 SendItemCard 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := failing.SendItemCard(context.Background(), "chat", "buyer", "1", "t", "u", "1"); err != nil {
 		t.Fatalf("旁路失败不应影响发送: %v", err)
 	}
@@ -156,21 +150,18 @@ func TestSendItemCardPaths(t *testing.T) {
 	notSent := &ws.SendError{Kind: ws.SendNotSent, Err: errors.New("closed")}
 	// rejectedAccount 是商品卡片发送被协议层拒绝的账号
 	rejectedAccount := newOutgoingGapAccount(&itemCardWSConn{fakeWSConn: &fakeWSConn{}, err: notSent}, nil)
-	// err 保存 SendItemCard 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := rejectedAccount.SendItemCard(context.Background(), "chat", "buyer", "1", "t", "u", "1"); !errors.Is(err, automation.ErrMessageNotSent) {
 		t.Fatalf("确定未发送应归类为 ErrMessageNotSent: %v", err)
 	}
 
 	// unsupported 是不支持商品卡片的基础连接。
 	unsupported := newOutgoingGapAccount(&fakeWSConn{}, nil)
-	// err 保存 SendItemCard 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := unsupported.SendItemCard(context.Background(), "chat", "buyer", "1", "t", "u", "1"); !errors.Is(err, automation.ErrMessageNotSent) {
 		t.Fatalf("不支持卡片应返回 ErrMessageNotSent: %v", err)
 	}
 
 	// offline 是没有连接的账号。
 	offline := newOutgoingGapAccount(nil, nil)
-	// err 保存 SendItemCard 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := offline.SendItemCard(context.Background(), "chat", "buyer", "1", "t", "u", "1"); !errors.Is(err, automation.ErrMessageNotSent) {
 		t.Fatalf("无连接应返回 ErrMessageNotSent: %v", err)
 	}
@@ -190,11 +181,9 @@ func TestSendTextConfirmedAndFailurePaths(t *testing.T) {
 		account.outgoing.echoTracker.observe(OutgoingChatMessage{ChatID: "chat", BuyerID: "buyer", MessageType: "text", Text: text, RequestID: requestID})
 		return nil
 	}
-	// err 保存 SendText 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendText(ctx, "chat", "buyer", " 你好 "); err != nil {
 		t.Fatalf("带回显确认的文本发送失败: %v", err)
 	}
-	// err 保存 SendText 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendText(ctx, "chat", "buyer", "   "); err != nil {
 		t.Fatalf("空文本应直接成功: %v", err)
 	}
@@ -202,12 +191,10 @@ func TestSendTextConfirmedAndFailurePaths(t *testing.T) {
 	// notSent 与 unknown 分别是确定未发送和结果未知的平台错误。
 	notSent, unknown := &ws.SendError{Kind: ws.SendNotSent, Err: errors.New("closed")}, errors.New("unknown")
 	conn.onText = func(context.Context, string) error { return notSent }
-	// err 保存 SendText 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendText(ctx, "chat", "buyer", "a"); !errors.Is(err, automation.ErrMessageNotSent) {
 		t.Fatalf("未发送错误分类异常: %v", err)
 	}
 	conn.onText = func(context.Context, string) error { return unknown }
-	// err 保存 SendText 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendText(ctx, "chat", "buyer", "b"); !errors.Is(err, unknown) || errors.Is(err, automation.ErrMessageNotSent) {
 		t.Fatalf("未知错误应保留原错误链: %v", err)
 	}
@@ -215,7 +202,6 @@ func TestSendTextConfirmedAndFailurePaths(t *testing.T) {
 	// 回显始终不到达且预算极短：必须返回回显未确认。
 	account.outgoing.echoWaitTimeout = time.Millisecond
 	conn.onText = func(context.Context, string) error { return nil }
-	// err 保存 SendText 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendText(ctx, "chat", "buyer", "c"); !errors.Is(err, errOutgoingEchoUnconfirmed) {
 		t.Fatalf("回显超时应返回未确认: %v", err)
 	}
@@ -229,11 +215,9 @@ func TestSendImageConfirmedAndFailurePaths(t *testing.T) {
 	conn := &hookWSConn{fakeWSConn: &fakeWSConn{}}
 	// account 是挂接该连接的在线账号。
 	account := newOutgoingGapAccount(conn, nil)
-	// err 保存 SendImage 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendImage(ctx, "chat", "buyer", "  ", 0, 1, 1); err != nil {
 		t.Fatalf("空图片地址应直接成功: %v", err)
 	}
-	// err 保存 SendImage 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendImage(ctx, "chat", "buyer", "/static/a.png", 0, 1, 1); err == nil {
 		t.Fatal("本地静态图片应被拒绝")
 	}
@@ -243,25 +227,21 @@ func TestSendImageConfirmedAndFailurePaths(t *testing.T) {
 		account.outgoing.echoTracker.observe(OutgoingChatMessage{ChatID: "chat", BuyerID: "buyer", MessageType: "image", Content: url, RequestID: requestID})
 		return nil
 	}
-	// err 保存 SendImage 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendImage(ctx, "chat", "buyer", "https://cdn/x.jpg", 0, 1, 1); err != nil {
 		t.Fatalf("带回显确认的图片发送失败: %v", err)
 	}
 	// notSent 与 unknown 分别是确定未发送和结果未知的平台错误。
 	notSent, unknown := &ws.SendError{Kind: ws.SendRejected, Code: 403}, errors.New("unknown")
 	conn.onImage = func(context.Context, string) error { return notSent }
-	// err 保存 SendImage 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendImage(ctx, "chat", "buyer", "https://cdn/y.jpg", 0, 1, 1); !errors.Is(err, automation.ErrMessageNotSent) {
 		t.Fatalf("拒绝错误应归类为未发送: %v", err)
 	}
 	conn.onImage = func(context.Context, string) error { return unknown }
-	// err 保存 SendImage 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := account.SendImage(ctx, "chat", "buyer", "https://cdn/z.jpg", 0, 1, 1); !errors.Is(err, unknown) {
 		t.Fatalf("未知错误应保留: %v", err)
 	}
 	// offline 是无连接账号，图片发送应返回状态错误。
 	offline := newOutgoingGapAccount(nil, nil)
-	// err 保存 SendImage 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := offline.SendImage(ctx, "chat", "buyer", "https://cdn/x.jpg", 0, 1, 1); err == nil {
 		t.Fatal("无连接图片发送应失败")
 	}
@@ -274,21 +254,17 @@ func TestOutgoingCoordinatorStateAndQueryBoundaries(t *testing.T) {
 	noUnb.runtimeMu.Lock()
 	noUnb.conn = &fakeWSConn{}
 	noUnb.runtimeMu.Unlock()
-	// err 保存 currentSenderState 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, _, err := noUnb.outgoing.currentSenderState(); !errors.Is(err, automation.ErrMessageNotSent) {
 		t.Fatalf("缺少 unb 应返回未发送错误: %v", err)
 	}
 	// offline 是无连接账号，查询入口应返回状态错误。
 	offline := newOutgoingGapAccount(nil, nil)
-	// err 保存 FetchChatHistory 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, _, err := offline.FetchChatHistory(context.Background(), "c", 0, 1); err == nil {
 		t.Fatal("无连接历史查询应失败")
 	}
-	// err 保存 FetchChatConversations 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, _, err := offline.FetchChatConversations(context.Background(), 0, 1); err == nil {
 		t.Fatal("无连接会话查询应失败")
 	}
-	// err 保存 MarkChatRead 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := offline.MarkChatRead(context.Background(), "c", nil); err == nil {
 		t.Fatal("无连接已读上报应失败")
 	}
@@ -306,7 +282,6 @@ func TestOutgoingEchoTrackerNilGuards(t *testing.T) {
 	}
 	// waiter 是空指针等待器。
 	var waiter *outgoingEchoWaiter
-	// err 保存 wait 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := waiter.wait(context.Background(), time.Second); err != nil {
 		t.Fatalf("空等待器应视为已确认: %v", err)
 	}
@@ -321,20 +296,17 @@ func TestOutgoingEchoWaitBranches(t *testing.T) {
 	// done 是已被回显确认的等待器；非正超时会使用默认预算但立即返回。
 	done := tracker.register("c", "b", "text", "x")
 	close(done.done)
-	// err 保存 wait 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := done.wait(context.Background(), 0); err != nil {
 		t.Fatalf("已完成等待器应返回 nil: %v", err)
 	}
 	// pending 是尚未确认的等待器。
 	pending := tracker.register("c", "b", "text", "y")
-	// err 保存 wait 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := pending.wait(context.Background(), time.Nanosecond); !errors.Is(err, errOutgoingEchoUnconfirmed) {
 		t.Fatalf("计时器到期应返回未确认: %v", err)
 	}
 	// ctx 是已取消的调用方上下文。
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	// err 保存 wait 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := pending.wait(ctx, time.Minute); !errors.Is(err, context.Canceled) {
 		t.Fatalf("取消应返回 context.Canceled: %v", err)
 	}
@@ -522,7 +494,6 @@ func TestOutgoingEchoCancelSkipsOtherWaiters(t *testing.T) {
 func TestSendTextWithoutConnectionAndNilClassification(t *testing.T) {
 	// offline 是没有可用连接的账号。
 	offline := newOutgoingGapAccount(nil, nil)
-	// err 保存 SendText 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := offline.SendText(context.Background(), "c", "b", "hi"); !errors.Is(err, automation.ErrMessageNotSent) {
 		t.Fatalf("无连接文本发送应返回未发送错误: %v", err)
 	}

@@ -178,7 +178,6 @@ func TestOfficialQueryEncoding(t *testing.T) {
 
 // TestOfficialDelayCancellation 验证等待前取消不会发起网络请求；t 管理取消场景断言。
 func TestOfficialDelayCancellation(t *testing.T) {
-	// ctx、cancel 是已取消的请求生命周期，覆盖正常等待与测试跳过等待两种设置。
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	// delay 是两种允许的等待配置，均不得吞掉调用方取消。

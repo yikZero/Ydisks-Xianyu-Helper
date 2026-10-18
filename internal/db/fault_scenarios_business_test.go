@@ -76,7 +76,6 @@ func TestFaultInjectionAutomationTemplatesCards(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 			if err := store.Orders.Upsert(ctx, "ord-r", OrderUpsertOpts{CookieID: cookieID, ItemID: "item-r", BuyerID: "b", OrderStatus: "pending_ship"}); err != nil {
 				t.Fatal(err)
 			}
@@ -116,7 +115,6 @@ func TestFaultInjectionAutomationTemplatesCards(t *testing.T) {
 			userID, cookieID := seedAccount(t, store)
 			// ctx 是准备阶段上下文。
 			ctx := context.Background()
-			// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 			if err := store.Orders.Upsert(ctx, "ord-d", OrderUpsertOpts{CookieID: cookieID, ItemID: "i", BuyerID: "b", OrderStatus: "completed"}); err != nil {
 				t.Fatal(err)
 			}
@@ -241,7 +239,6 @@ func TestFaultInjectionItemsOrdersMessaging(t *testing.T) {
 				_, _ = store.OrderRefreshJobs.Recoverable(ctx, time.Now().Unix()+7200, 10)
 				_, _ = store.OrderRefreshJobs.RequeueExpired(ctx, "job1", time.Now().Unix()+7200)
 				_, _ = store.OrderRefreshJobs.Complete(ctx, "job1", "tok", "completed", "{}", "")
-				// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 				_, err := store.OrderRefreshJobs.Cancel(ctx, userID, "job1")
 				return err
 			}

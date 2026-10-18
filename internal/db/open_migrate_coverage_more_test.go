@@ -7,7 +7,6 @@ import (
 
 // TestOpenAndMigrateCoverInputAndInfrastructureErrors 验证数据库连接解析、取消和迁移方言错误边界。
 func TestOpenAndMigrateCoverInputAndInfrastructureErrors(t *testing.T) {
-	// ctx 是数据库打开测试共用的上下文。
 	ctx := context.Background()
 	// invalidURLs 保存应在连接前被拒绝的数据库 URL。
 	invalidURLs := []string{"", "   ", "oracle://example"}
@@ -29,7 +28,6 @@ func TestOpenAndMigrateCoverInputAndInfrastructureErrors(t *testing.T) {
 	if unknownDialectErr := Migrate(ctx, nil, Dialect("oracle")); unknownDialectErr == nil {
 		t.Fatal("unknown dialect should fail")
 	}
-	// store、cleanup 保存有效数据库及随后主动关闭的连接。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// closeErr 保存关闭数据库连接的错误。

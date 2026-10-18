@@ -163,16 +163,13 @@ func (a *Account) UpdateCookieContext(ctx context.Context, cookieStr string) err
 // tryLoginStatusCheck 调用 mtop.taobao.idlemessage.pc.loginuser.get 做轻量登录态确认。
 // 这个接口的成本低于完整 token 刷新，且可能顺手下发新的签名 Cookie；
 // 因此在 session 失效后、接口续期前先跑一遍，避免已实现的登录态检查能力闲置。
-// tryLoginStatusCheck 封装try登录状态Check业务协调。
 func (c *credentialCoordinator) tryLoginStatusCheck(ctx context.Context) loginStatusCheckResult {
 	// a 是本凭证协调器绑定的账号 facade，提供状态与固定依赖访问。
 	a := c.account
-	// checker、ok 用于本次流程后续判断的checker、ok
 	checker, ok := a.mtop.(loginStatusChecker)
 	if !ok {
 		return loginStatusCheckResult{}
 	}
-	// credentialUnlock 用于本次流程后续判断的credentialUnlock
 	credentialUnlock := func() {}
 	// credentialLocked 标识当前调用是否持有账号凭证锁。
 	credentialLocked := false
@@ -186,14 +183,10 @@ func (c *credentialCoordinator) tryLoginStatusCheck(ctx context.Context) loginSt
 		}
 	}()
 	a.mu.Lock()
-	// cookieStr 用于本次流程后续判断的登录凭证Str
 	cookieStr := a.CookieStr
 	a.mu.Unlock()
-	// requestCtx 用于本次流程后续判断的请求Ctx
 	requestCtx := ctx
-	// cookieSession 用于本次流程后续判断的登录凭证会话
 	var cookieSession *mtop.CookieSession
-	// metadataJSON 用于本次流程后续判断的metadataJSON
 	metadataJSON := ""
 	if a.store != nil && a.store.Cookies != nil {
 		runtimeData, detailErr := a.store.Cookies.GetCookieRuntimeData(ctx, a.CookieID) // runtimeData 只包含登录态检查所需的 Cookie 与 metadata。
@@ -206,8 +199,7 @@ func (c *credentialCoordinator) tryLoginStatusCheck(ctx context.Context) loginSt
 		// runtimeData 已在凭证锁内读取，下面只负责根据 metadata 建立 Cookie 会话。
 		// metadataJSON 保留完整 Jar 信息，不能退化为仅使用扁平 Cookie。
 		// snapshot 分支继续沿用登录态检查原有的请求作用域和持久化顺序。
-		if // snapshot、complete 用于本次流程后续判断的snapshot、complete
-		snapshot, complete := cookierefresh.SnapshotFromMetadataOK(metadataJSON); complete {
+		if snapshot, complete := cookierefresh.SnapshotFromMetadataOK(metadataJSON); complete {
 			requestCtx, cookieSession = mtop.WithCookieSnapshot(ctx, snapshot)
 		} else {
 			requestCtx, cookieSession = mtop.WithFlatCookieSession(ctx, cookieStr)
@@ -218,7 +210,6 @@ func (c *credentialCoordinator) tryLoginStatusCheck(ctx context.Context) loginSt
 		credentialUnlock()
 		credentialLocked = false
 	}
-	// res、err 用于本次流程后续判断的res、err
 	res, err := checker.CheckLoginStatusContext(requestCtx, cookieStr)
 	if a.store != nil && a.store.Cookies != nil {
 		// credentialUnlock 保存外部检查完成后重新进入提交临界区的释放函数。
@@ -243,16 +234,13 @@ func (c *credentialCoordinator) tryLoginStatusCheck(ctx context.Context) loginSt
 		}
 	}
 	if cookieSession != nil {
-		// value、snapshot、changed 用于本次流程后续判断的value、snapshot、changed
 		value, snapshot, changed := cookieSession.State()
 		if changed {
-			// metadata 用于本次流程后续判断的metadata
 			metadata := cookierefresh.MetadataWithoutSnapshot(metadataJSON)
 			if snapshot != nil {
 				metadata = cookierefresh.MetadataWithSnapshot(metadataJSON, snapshot)
 			}
-			if // persistErr 用于本次流程后续判断的persistErr
-			persistErr := a.store.Cookies.UpdateRenewalCookie(ctx, a.CookieID, value, metadata, time.Now().Unix()); persistErr != nil {
+			if persistErr := a.store.Cookies.UpdateRenewalCookie(ctx, a.CookieID, value, metadata, time.Now().Unix()); persistErr != nil {
 				a.logger.Warn("登录态检查保存响应 Cookie Jar 失败", "err", persistErr)
 				return loginStatusCheckResult{}
 			}
@@ -301,21 +289,18 @@ func (c *credentialCoordinator) tryLoginStatusCheck(ctx context.Context) loginSt
 // tryAPIRenew 是密码登录前的轻量恢复层，只执行官网 auto-login plugin 的
 // 单次 silentHasLogin 流程。如果只拿到部分 Cookie，仍先保存并清 token，
 // 但继续按 Go 协议执行后续恢复；仍失败时由上层要求重新扫码登录。
-// tryAPIRenew 封装tryAPIRenew业务协调。
 func (c *credentialCoordinator) tryAPIRenew(ctx context.Context) bool {
 	// a 是本凭证协调器绑定的账号 facade，提供可选续期端口。
 	a := c.account
 	if a.renewer == nil {
 		return false
 	}
-	// renewed 用于本次流程后续判断的renewed
 	renewed, _ := a.tryAPIRenewUsing(ctx, func(runCtx context.Context, cookieStr string, snapshot []cookierefresh.BrowserCookie) (*renew.Result, error) {
 		return a.renewer.RenewAPIFirst(runCtx, cookieStr, snapshot)
 	})
 	return renewed
 }
 
-// tryAPIRenewUsing 封装tryAPIRenewUsing业务协调。
 func (c *credentialCoordinator) tryAPIRenewUsing(ctx context.Context, call func(context.Context, string, []cookierefresh.BrowserCookie) (*renew.Result, error)) (bool, error) {
 	// a 是本凭证协调器绑定的账号 facade，统一提供凭证状态与运行时状态。
 	a := c.account
@@ -325,7 +310,6 @@ func (c *credentialCoordinator) tryAPIRenewUsing(ctx context.Context, call func(
 		return false, gateErr
 	}
 	defer releaseRefreshGate()
-	// credentialUnlock 用于本次流程后续判断的credentialUnlock
 	credentialUnlock := func() {}
 	// credentialLocked 标识当前调用是否持有账号凭证锁。
 	credentialLocked := false
@@ -342,10 +326,8 @@ func (c *credentialCoordinator) tryAPIRenewUsing(ctx context.Context, call func(
 		return false, nil
 	}
 	a.mu.Lock()
-	// cookieStr 用于本次流程后续判断的登录凭证Str
 	cookieStr := a.CookieStr
 	a.mu.Unlock()
-	// snapshot 用于本次流程后续判断的snapshot
 	var snapshot []cookierefresh.BrowserCookie
 	// metadataJSON 保存用于续期请求和提交比较的 Cookie metadata。
 	metadataJSON := ""
@@ -372,7 +354,6 @@ func (c *credentialCoordinator) tryAPIRenewUsing(ctx context.Context, call func(
 		credentialUnlock()
 		credentialLocked = false
 	}
-	// res、err 用于本次流程后续判断的res、err
 	res, err := call(ctx, cookieStr, snapshot)
 	// responseMetadataOverride 保存并发更新期间重放响应 Cookie 后的 metadata。
 	responseMetadataOverride := ""
@@ -415,9 +396,7 @@ func (c *credentialCoordinator) tryAPIRenewUsing(ctx context.Context, call func(
 		}
 		return false, err
 	}
-	// updated 用于本次流程后续判断的updated
 	updated := false
-	// persisted 用于本次流程后续判断的persisted
 	persisted := false
 	if responseMetadataOverridden && a.store != nil && a.store.Cookies != nil {
 		// err 保存并发重放结果写回错误。
@@ -435,17 +414,14 @@ func (c *credentialCoordinator) tryAPIRenewUsing(ctx context.Context, call func(
 			a.logger.Warn("保存续期 Cookie 快照失败", "err", detailErr)
 			return false, detailErr
 		}
-		// metadata 用于本次流程后续判断的metadata
 		metadata := cookierefresh.MetadataWithSnapshot(runtimeData.MetadataJSON, res.CookieSnapshot)
-		if // err 用于本次流程后续判断的err
-		err := a.store.Cookies.UpdateRenewalCookie(ctx, a.CookieID, res.NewCookies, metadata, time.Now().Unix()); err != nil {
+		if err := a.store.Cookies.UpdateRenewalCookie(ctx, a.CookieID, res.NewCookies, metadata, time.Now().Unix()); err != nil {
 			a.logger.Warn("保存续期 Cookie 快照失败", "err", err)
 			return false, err
 		}
 		persisted = true
 	} else if len(res.SetCookies) > 0 && a.store != nil && a.store.Cookies != nil {
-		if // err 用于本次流程后续判断的err
-		err := a.persistRenewFlatCookie(ctx, res.NewCookies); err != nil {
+		if err := a.persistRenewFlatCookie(ctx, res.NewCookies); err != nil {
 			a.logger.Warn("保存接口续期扁平 Cookie 失败", "err", err)
 			return false, err
 		}
@@ -459,7 +435,6 @@ func (c *credentialCoordinator) tryAPIRenewUsing(ctx context.Context, call func(
 	if res.HasPending() {
 		a.watchPendingAPIRenew(ctx, res)
 	}
-	// credentialChanged 用于本次流程后续判断的credentialChanged
 	credentialChanged := res.NewCookies != cookieStr && (res.CookieSnapshotComplete || len(res.SetCookies) > 0 || res.NewCookies != "")
 	if credentialChanged {
 		if persisted || a.store == nil || a.store.Cookies == nil {
@@ -494,7 +469,6 @@ func (c *credentialCoordinator) tryAPIRenewUsing(ctx context.Context, call func(
 	return false, nil
 }
 
-// persistRenewFlatCookie 封装persistRenewFlat登录凭证业务协调。
 func (c *credentialCoordinator) persistRenewFlatCookie(ctx context.Context, newCookies string) error {
 	// a 是本凭证协调器绑定的账号 facade，提供窄 Cookie repository。
 	a := c.account
@@ -514,14 +488,12 @@ func (c *credentialCoordinator) persistRenewFlatCookie(ctx context.Context, newC
 	return a.store.Cookies.UpdateRenewalCookie(ctx, a.CookieID, newCookies, metadata, time.Now().Unix())
 }
 
-// watchPendingAPIRenew 封装watchPendingAPIRenew业务协调。
 func (c *credentialCoordinator) watchPendingAPIRenew(parent context.Context, result *renew.Result) {
 	// a 是本凭证协调器绑定的账号 facade，提供生命周期任务登记。
 	a := c.account
 	a.pendingRenewal.watch(parent, a.beginTask, result, a.persistPendingRenewCookies, a.logger)
 }
 
-// persistPendingRenewCookies 封装persistPendingRenewCookies业务协调。
 func (c *credentialCoordinator) persistPendingRenewCookies(ctx context.Context, result *renew.Result) error {
 	// a 是本凭证协调器绑定的账号 facade，提供凭证存储与脱敏日志。
 	a := c.account
@@ -534,7 +506,6 @@ func (c *credentialCoordinator) persistPendingRenewCookies(ctx context.Context, 
 		return gateErr
 	}
 	defer releaseRefreshGate()
-	// credentialUnlock 用于本次流程后续判断的credentialUnlock
 	credentialUnlock := a.store.LockAccountCredentials(a.CookieID)
 	// credentialLocked 表示延迟清理是否仍拥有数据库凭证锁。
 	credentialLocked := true
@@ -550,13 +521,11 @@ func (c *credentialCoordinator) persistPendingRenewCookies(ctx context.Context, 
 	// runtimeData 已在凭证锁内读取，避免迟到响应覆盖并发写入的最新凭证状态。
 	// RebaseResponseCookies 继续根据当前 Cookie 与 metadata 重放 Set-Cookie。
 	// 下面的 UpdateRenewalCookie、运行时状态和通知顺序保持原有行为。
-	// newCookies、metadata、changed 用于本次流程后续判断的newCookies、metadata、changed
 	newCookies, metadata, changed := renew.RebaseResponseCookies(runtimeData.Value, runtimeData.MetadataJSON, result)
 	if !changed {
 		return nil
 	}
-	if // err 用于本次流程后续判断的err
-	err := a.store.Cookies.UpdateRenewalCookie(ctx, a.CookieID, newCookies, metadata, time.Now().Unix()); err != nil {
+	if err := a.store.Cookies.UpdateRenewalCookie(ctx, a.CookieID, newCookies, metadata, time.Now().Unix()); err != nil {
 		return err
 	}
 	a.replaceCredentialState(newCookies, credentialStateFingerprint(newCookies, metadata))
@@ -572,7 +541,6 @@ func (c *credentialCoordinator) persistPendingRenewCookies(ctx context.Context, 
 // adoptRecoveredCookie 统一接收“轻量检查/接口续期”拿到的新 Cookie。
 // 官网页面在普通 Set-Cookie 更新后保持当前 FishEngine/device ID 与健康 WS；
 // 下一次重连才使用新 Cookie 获取新的连接级 accessToken。
-// adoptRecoveredCookie 封装adoptRecovered登录凭证业务协调。
 func (c *credentialCoordinator) adoptRecoveredCookie(ctx context.Context, newCookies, source string) bool {
 	// a 是本凭证协调器绑定的账号 facade，提供当前凭证状态与状态通知。
 	a := c.account
@@ -580,15 +548,13 @@ func (c *credentialCoordinator) adoptRecoveredCookie(ctx context.Context, newCoo
 		return false
 	}
 	a.mu.Lock()
-	// oldCookies 用于本次流程后续判断的oldCookies
 	oldCookies := a.CookieStr
 	a.mu.Unlock()
 	if newCookies == oldCookies {
 		return false
 	}
 	if a.store != nil && a.store.Cookies != nil {
-		if // err 用于本次流程后续判断的err
-		err := a.store.Cookies.UpdateValueExisting(ctx, a.CookieID, newCookies); err != nil {
+		if err := a.store.Cookies.UpdateValueExisting(ctx, a.CookieID, newCookies); err != nil {
 			a.logger.Error(source+"后保存 cookie 失败", "cookie_id", a.CookieID, "err", err)
 			return false
 		}
@@ -601,12 +567,10 @@ func (c *credentialCoordinator) adoptRecoveredCookie(ctx context.Context, newCoo
 	return true
 }
 
-// notifyCredentialUpdated 封装notifyCredentialUpdated业务协调。
 func (c *credentialCoordinator) notifyCredentialUpdated(ctx context.Context) {
 	// a 是本凭证协调器绑定的账号 facade；调用点已经完成凭证锁释放。
 	a := c.account
-	if // handler、ok 用于本次流程后续判断的handler、ok
-	handler, ok := a.handler.(credentialUpdateHandler); ok {
+	if handler, ok := a.handler.(credentialUpdateHandler); ok {
 		handler.OnCredentialUpdated(ctx, a.CookieID)
 	}
 }
@@ -614,4 +578,3 @@ func (c *credentialCoordinator) notifyCredentialUpdated(ctx context.Context) {
 // refreshToken 调 mtop token API，返回 (accessToken, 更新后的 cookie)。
 // 成功时记录 token 的服务端过期时间并保持 device_id 持久化，但连接流程
 // 不会复用该 token；下一次 loginV2/reConnect 仍会重新调用本方法。
-// refreshToken 封装refresh令牌业务协调。

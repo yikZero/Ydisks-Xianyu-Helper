@@ -113,26 +113,20 @@ func capturingAIServer(t *testing.T, content string) (*httptest.Server, *atomic.
 // 采用默认的仅砍价策略——非砍价消息不外呼模型并交还默认回复，砍价消息才调用模型，
 // 且商品专属资料随系统提示词发送给模型。
 func TestAIReplyItemEnabledWithoutAccountConfigUsesBargainOnlyDefaults(t *testing.T) {
-	// store、cleanup 是隔离数据库；该账号刻意没有 ai_reply_settings 记录。
 	store, cleanup := newAIStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// server、calls、lastBody 是记录调用的模型服务。
 	server, calls, lastBody := capturingAIServer(t, "可以便宜一点，95 元吧。")
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.DB.ExecContext(ctx, `INSERT INTO item_info (cookie_id,item_id,item_title,item_price,item_description) VALUES ('cid','item-1','相机','100','九成新')`); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Settings.Set(ctx, "ai_api_key", "sk-test"); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Settings.Set(ctx, "ai_api_url", server.URL); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Upsert 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.ItemAISettings.Upsert(ctx, db.ItemAISettingsRow{CookieID: "cid", ItemID: "item-1", Override: db.ItemAIOverrideEnabled, Context: "含原装电池，不含存储卡"}); err != nil {
 		t.Fatal(err)
 	}
@@ -161,30 +155,23 @@ func TestAIReplyItemEnabledWithoutAccountConfigUsesBargainOnlyDefaults(t *testin
 // TestAIReplyItemDisabledNeverCallsModelEvenWhenAccountEnabled 验证商品强制停用优先于账号启用：
 // 即使是砍价消息、账号为全场景模式，也完全不调用模型服务。
 func TestAIReplyItemDisabledNeverCallsModelEvenWhenAccountEnabled(t *testing.T) {
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAIStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// server、calls 是记录调用次数的模型服务。
 	server, calls, _ := capturingAIServer(t, "不应被调用")
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.DB.ExecContext(ctx, `INSERT INTO ai_reply_settings (cookie_id,ai_enabled,max_discount_percent,max_discount_amount,max_bargain_rounds,custom_prompts,ai_mode) VALUES ('cid',1,10,20,3,'','full_service')`); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.DB.ExecContext(ctx, `INSERT INTO item_info (cookie_id,item_id,item_title,item_price) VALUES ('cid','item-off','商品','100')`); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Settings.Set(ctx, "ai_api_key", "sk-test"); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Settings.Set(ctx, "ai_api_url", server.URL); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Upsert 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.ItemAISettings.Upsert(ctx, db.ItemAISettingsRow{CookieID: "cid", ItemID: "item-off", Override: db.ItemAIOverrideDisabled}); err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +197,6 @@ func TestAIReplyReportsItemSettingsReadFailure(t *testing.T) {
 	}
 	// store 保存 NewStore 调用的返回结果，供随后的断言使用。
 	store := db.NewStore(database, db.DialectSQLite)
-	// closeErr 保存 Close 调用返回的错误，随后断言它是否符合该场景的预期。
 	if closeErr := database.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -225,10 +211,8 @@ func TestAIReplyReportsItemSettingsReadFailure(t *testing.T) {
 // 并让模型服务返回 modelReply；autoAdjust 控制是否允许生成自动改价提案。
 func setupBargainAI(t *testing.T, modelReply string, autoAdjust bool) (*AIReplierImpl, context.Context) {
 	t.Helper()
-	// store、cleanup 是隔离数据库及其释放函数。
 	store, cleanup := newAIStore(t)
 	t.Cleanup(cleanup)
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// server 是返回固定模型回复的本地服务。
 	server := mockOpenAIServer(t, 0, modelReply)
@@ -237,21 +221,17 @@ func setupBargainAI(t *testing.T, modelReply string, autoAdjust bool) (*AIReplie
 	if autoAdjust {
 		autoFlag = 1
 	}
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.DB.ExecContext(ctx, `INSERT INTO ai_reply_settings
 		(cookie_id,ai_enabled,auto_adjust_price_enabled,max_discount_percent,max_discount_amount,max_bargain_rounds,custom_prompts)
 		VALUES ('cid',1,?,10,20,3,'')`, autoFlag); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.DB.ExecContext(ctx, `INSERT INTO item_info (cookie_id,item_id,item_title,item_price,item_description) VALUES ('cid','item-b','商品','100','描述')`); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Settings.Set(ctx, "ai_api_key", "sk-test"); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 Set 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Settings.Set(ctx, "ai_api_url", server.URL); err != nil {
 		t.Fatal(err)
 	}

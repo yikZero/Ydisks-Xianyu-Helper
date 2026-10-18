@@ -45,9 +45,7 @@ func TestVersionedQRLoginRoutesPreserveLegacyContracts(t *testing.T) {
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
 	setTestQRLogin(srv, &fakeQRLoginService{status: map[string]any{"status": "waiting"}})
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// ownQRSession 预先建立状态查询所需的会话所有权记录。
 	ownQRSession(t, srv, store, "versioned-qr-session")

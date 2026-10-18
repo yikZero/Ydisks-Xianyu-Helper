@@ -70,10 +70,8 @@ func (sender *coverageItemRuntimeSender) SendItemCard(_ context.Context, _, buye
 
 // TestChatSendingWrappersMapOutgoingAndMediaMessages 验证聊天外发适配器的文本、媒体和状态转换。
 func TestChatSendingWrappersMapOutgoingAndMediaMessages(t *testing.T) {
-	// store、cleanup 保存隔离的 SQLite 存储和关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试聊天外发共用的上下文。
 	ctx := context.Background()
 	// repository 保存真实领域聊天服务包装后的应用外发仓储。
 	repository := NewChatOutgoingRepository(domainchat.New(store))
@@ -108,7 +106,6 @@ func TestChatSendingWrappersMapOutgoingAndMediaMessages(t *testing.T) {
 
 // TestChatSenderForwardsToRuntime 验证应用层发送器把文本与图片请求透传到账号运行时。
 func TestChatSenderForwardsToRuntime(t *testing.T) {
-	// ctx 是本测试发送器共用的上下文。
 	ctx := context.Background()
 	// unavailableSender 保存空运行时发送器的应用层包装。
 	unavailableSender := chatSender{}
@@ -328,12 +325,10 @@ func TestChatReadReporterWithoutRuntime(t *testing.T) {
 
 // TestChatReadReporterAndSenderProviderUseStartedRuntime 验证已启动账号会进入已读上报和发送器适配分支。
 func TestChatReadReporterAndSenderProviderUseStartedRuntime(t *testing.T) {
-	// store、cleanup 保存账号管理器启动所需的隔离数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// manager 保存只用于测试运行时句柄解析的账号管理器。
 	manager := accountmanager.NewManager(store, &Adapter{}, nil)
-	// ctx、cancel 保存账号运行时的生命周期上下文。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// startErr 保存测试账号运行实例登记结果。
@@ -386,7 +381,6 @@ func TestChatReadReporterAndSenderProviderRejectMissingRuntime(t *testing.T) {
 
 // TestChatSendingConstructionAndCredentialGuards 验证聊天应用构造和凭证仓储的缺失依赖保护。
 func TestChatSendingConstructionAndCredentialGuards(t *testing.T) {
-	// ctx 是本测试依赖保护共用的上下文。
 	ctx := context.Background()
 	// emptyRepository 保存没有数据库入口的聊天凭证仓储。
 	emptyRepository := chatCredentialRepository{}
@@ -403,7 +397,6 @@ func TestChatSendingConstructionAndCredentialGuards(t *testing.T) {
 	if emptyService == nil {
 		t.Fatal("聊天应用服务构造结果为空")
 	}
-	// store、cleanup 保存完整聊天应用构造使用的测试存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// completeService 保存带领域服务和数据库适配器的聊天应用服务。

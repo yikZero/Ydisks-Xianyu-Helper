@@ -73,7 +73,6 @@ func TestCookieSessionReplaceAndFlatPaths(t *testing.T) {
 	if _, snapshot, _ := session.State(); snapshot == nil {
 		t.Fatal("权威会话应返回非空快照对象")
 	}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := normalizedCompleteSnapshot(nil); got == nil || len(got) != 0 {
 		t.Fatalf("got=%v", got)
 	}
@@ -91,13 +90,11 @@ func TestApplyFlatSetCookiesEdges(t *testing.T) {
 	if got, changed := applyFlatSetCookies("a=1; b=2", []string{"a=; Max-Age=-1"}, now); !changed || strings.Contains(got, "a=") {
 		t.Fatalf("got=%q changed=%v", got, changed)
 	}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := absorbMTopResponseCookies(t.Context(), "fallback", nil); got != "fallback" {
 		t.Fatalf("got=%q", got)
 	}
 	// resp 是不带 Set-Cookie 的响应，无会话时应保持兜底值。
 	resp := &http.Response{Header: http.Header{}}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := absorbMTopResponseCookies(t.Context(), "fallback", resp); got != "fallback" {
 		t.Fatalf("got=%q", got)
 	}

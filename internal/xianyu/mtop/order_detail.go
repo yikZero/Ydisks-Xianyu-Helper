@@ -30,8 +30,8 @@ type OrderDetailResult struct {
 func (c *ClientImpl) FetchOrderDetail(ctx context.Context, cookiesStr, orderID string) (*OrderDetailResult, error) {
 	// currentCookies 保存本次请求及 Token 刷新后的凭证，不向诊断输出明文。
 	currentCookies := cookiesStr
-	if // session 提供调用方持有的最新 Cookie 快照。
-	session := cookieSessionFromContext(ctx); session != nil {
+	// session 提供调用方持有的最新 Cookie 快照。
+	if session := cookieSessionFromContext(ctx); session != nil {
 		currentCookies, _, _ = session.State()
 	}
 	// attempt 限制详情端点最多两次请求，刷新失败或再次过期立即结束。
@@ -62,52 +62,38 @@ func (c *ClientImpl) FetchOrderDetail(ctx context.Context, cookiesStr, orderID s
 	}
 }
 
-// fetchOrderDetailOnce 封装fetch订单DetailOnce业务协调。
 func (c *ClientImpl) fetchOrderDetailOnce(ctx context.Context, cookiesStr, orderID string) (*OrderDetailResult, []string, string, error) {
-	// hc 用于本次流程后续判断的hc
 	hc := c.httpClient()
-	// endpoint 用于本次流程后续判断的endpoint
 	endpoint := c.OrderDetailURL
 	if endpoint == "" {
 		endpoint = OrderDetailAPI
 	}
-	// documentURL 用于本次流程后续判断的documentURL
 	documentURL := "https://www.goofish.com/order-detail?orderId=" + url.QueryEscape(orderID) + "&role=seller"
-	// signingCookies、requestCookies 用于本次流程后续判断的signingCookies、requestCookies
 	signingCookies, requestCookies := mtopRequestCookies(ctx, cookiesStr, documentURL, endpoint)
-	// t 用于本次流程后续判断的t
 	t := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	// dataVal 用于本次流程后续判断的数据Val
 	dataVal := `{"tid":"` + orderID + `"}`
-	// sign 用于本次流程后续判断的sign
 	sign := protocol.GenerateSign(t, protocol.SignToken(signingCookies), dataVal)
-	// req、err 用于本次流程后续判断的req、err
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint+"?"+buildOrderDetailQuery(t, sign), strings.NewReader("data="+url.QueryEscape(dataVal)))
 	if err != nil {
 		return nil, nil, cookiesStr, err
 	}
 	setCommonHeaders(req, requestCookies)
 	req.Header.Set("Referer", documentURL)
-	// resp、err 用于本次流程后续判断的resp、err
 	resp, err := hc.Do(req)
 	if err != nil {
 		return nil, nil, cookiesStr, fmt.Errorf("订单详情请求失败: %w", err)
 	}
 	defer resp.Body.Close()
-	// updated 用于本次流程后续判断的updated
 	updated := absorbMTopResponseCookies(ctx, cookiesStr, resp)
-	// raw、err 用于本次流程后续判断的raw、err
 	raw, err := readMTopBody(resp)
 	if err != nil {
 		return nil, nil, updated, c.mtopResponseFailureWithCause("订单详情接口", resp.StatusCode, nil, "读取响应失败", err)
 	}
-	// decoded 用于本次流程后续判断的decoded
 	var decoded struct {
 		Ret  []string       `json:"ret"`
 		Data map[string]any `json:"data"`
 	}
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal(raw, &decoded); err != nil {
+	if err := json.Unmarshal(raw, &decoded); err != nil {
 		return nil, nil, updated, c.mtopResponseFailureWithCause("订单详情接口", resp.StatusCode, nil, "JSON 解析失败", err)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
@@ -514,7 +500,6 @@ func splitOrderSpecSegment(segment string) (string, string, bool) {
 	return name, value, name != "" && value != ""
 }
 
-// buildOrderDetailQuery 封装build订单Detail查询业务协调。
 func buildOrderDetailQuery(t, sign string) string {
 	return "jsv=2.7.2&appKey=" + protocol.SignAppKey +
 		"&t=" + t + "&sign=" + sign +

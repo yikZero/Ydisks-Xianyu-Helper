@@ -9,10 +9,8 @@ import (
 
 // TestChatMetadataStoresRepliesAndNotesByAccount 验证快捷回复上限及买家备注的账号隔离、清除语义。
 func TestChatMetadataStoresRepliesAndNotesByAccount(t *testing.T) {
-	// store、cleanup 分别保存隔离 SQLite 存储和测试结束后的资源释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试数据库调用共用的上下文。
 	ctx := context.Background()
 	// userID 保存创建两个账号所需的本地用户主键。
 	var userID int64

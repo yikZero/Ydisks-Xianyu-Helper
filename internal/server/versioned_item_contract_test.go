@@ -21,9 +21,7 @@ func TestVersionedItemRoutesPreserveLegacyContracts(t *testing.T) {
 	if insertErr != nil {
 		t.Fatalf("insert item fixtures: %v", insertErr)
 	}
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// listReq 是读取版本化商品列表的请求。
@@ -55,8 +53,8 @@ func TestVersionedItemRoutesPreserveLegacyContracts(t *testing.T) {
 	assertOpenAPISuccessResponse(t, aiGetReq, aiGetRecorder)
 	// aiDefault 是未配置商品返回的默认继承设置。
 	var aiDefault itemAISettingsResponse
-	if // decodeErr 是默认商品 AI 配置响应解码错误。
-	decodeErr := json.Unmarshal(aiGetRecorder.Body.Bytes(), &aiDefault); decodeErr != nil {
+	// decodeErr 是默认商品 AI 配置响应解码错误。
+	if decodeErr := json.Unmarshal(aiGetRecorder.Body.Bytes(), &aiDefault); decodeErr != nil {
 		t.Fatal(decodeErr)
 	}
 	if aiDefault.AIOverride != "inherit" || aiDefault.ItemContext != "" {
@@ -72,8 +70,8 @@ func TestVersionedItemRoutesPreserveLegacyContracts(t *testing.T) {
 	assertOpenAPISuccessResponse(t, aiPutReq, aiPutRecorder)
 	// aiSaved 是服务端返回的规范化商品 AI 配置。
 	var aiSaved itemAISettingsResponse
-	if // decodeErr 是已保存商品 AI 配置响应解码错误。
-	decodeErr := json.Unmarshal(aiPutRecorder.Body.Bytes(), &aiSaved); decodeErr != nil {
+	// decodeErr 是已保存商品 AI 配置响应解码错误。
+	if decodeErr := json.Unmarshal(aiPutRecorder.Body.Bytes(), &aiSaved); decodeErr != nil {
 		t.Fatal(decodeErr)
 	}
 	if aiSaved.AIOverride != "enabled" || aiSaved.ItemContext != "24 小时内发货" {

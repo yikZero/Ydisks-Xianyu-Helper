@@ -13,7 +13,6 @@ import (
 
 // TestBuildRuntimeWiresCompleteRuntimeAndLifecycle 使用真实临时 SQLite 验证组合根能装配完整运行时，并完成启动与逆序关闭。
 func TestBuildRuntimeWiresCompleteRuntimeAndLifecycle(t *testing.T) {
-	// ctx 是打开数据库与生命周期操作共用的测试 Context。
 	ctx := context.Background()
 	// sqlDB、dialect、openErr 分别是临时库连接、方言及打开错误。
 	sqlDB, dialect, openErr := db.Open(ctx, filepath.Join(t.TempDir(), "runtime.db"))
@@ -39,7 +38,6 @@ func TestBuildRuntimeWiresCompleteRuntimeAndLifecycle(t *testing.T) {
 	if startErr := built.Lifecycle.Start(startCtx); startErr != nil {
 		t.Fatal(startErr)
 	}
-	// closeErr 保存生命周期关闭返回的错误，非空表示逆序关闭失败。
 	if closeErr := built.Lifecycle.Close(startCtx); closeErr != nil {
 		t.Fatal(closeErr)
 	}

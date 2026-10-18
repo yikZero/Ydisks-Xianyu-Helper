@@ -8,10 +8,8 @@ import (
 
 // TestChatSessionAndMessageLifecycle 覆盖聊天会话、消息幂等、未读计数和已读回执路径。
 func TestChatSessionAndMessageLifecycle(t *testing.T) {
-	// store、cleanup 提供迁移后的 SQLite 测试数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存聊天账号归属。
 	userID, cookieID := seedAccount(t, store)

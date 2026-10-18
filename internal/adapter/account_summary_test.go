@@ -12,7 +12,6 @@ import (
 func TestAccountSummaryRepositoryRejectsMissingStore(t *testing.T) {
 	// repository 是未装配数据库的账号摘要适配器。
 	repository := NewAccountSummaryRepository(nil)
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// err 表示账号 ID 列表查询因缺少数据库依赖返回的装配错误。
 	if _, err := repository.ListOwnedIDs(ctx, 1); err == nil {
@@ -46,12 +45,10 @@ func TestAccountSummaryRepositoryRejectsMissingStore(t *testing.T) {
 
 // TestAccountSummaryRepositoryMapsNonSensitiveQueries 验证真实 SQLite 下摘要、所有权、状态和管理员列表的映射。
 func TestAccountSummaryRepositoryMapsNonSensitiveQueries(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的账号摘要适配器。
 	repository := NewAccountSummaryRepository(store)
-	// ctx 是本测试共用的非取消数据库上下文。
 	ctx := context.Background()
 	// ids、idsErr 保存账号 ID 列表及查询错误。
 	ids, idsErr := repository.ListOwnedIDs(ctx, 1)
@@ -92,12 +89,10 @@ func TestAccountSummaryRepositoryMapsNonSensitiveQueries(t *testing.T) {
 
 // TestAccountSummaryRepositoryMapsOwnershipAndInfrastructureErrors 验证越权、缺失账号和数据库故障不会返回伪成功。
 func TestAccountSummaryRepositoryMapsOwnershipAndInfrastructureErrors(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的账号摘要适配器。
 	repository := NewAccountSummaryRepository(store)
-	// ctx 是本测试共用的非取消数据库上下文。
 	ctx := context.Background()
 	// _, otherErr 保存第二个用户创建错误；用户主键随后从摘要查询得到。
 	_, otherErr := store.Users.Create(ctx, "other", "other@example.com", "pw")

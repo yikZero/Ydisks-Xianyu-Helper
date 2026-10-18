@@ -9,10 +9,8 @@ import (
 // TestRenewalRuntimeQueriesCoverMissingAndCorruptRows 验证续期窄查询对缺失账号和损坏密文的错误边界。
 func TestRenewalRuntimeQueriesCoverMissingAndCorruptRows(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "renewal-runtime-boundary-key")
-	// store、cleanup 保存本测试数据库及其关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// missingPlatformErr 保存平台运行视图读取不存在账号的错误。
 	if _, missingPlatformErr := store.Cookies.GetCookiePlatformRuntimeData(ctx, "missing-platform"); !errors.Is(missingPlatformErr, ErrNotFound) {
@@ -51,10 +49,8 @@ func TestRenewalRuntimeQueriesCoverMissingAndCorruptRows(t *testing.T) {
 // TestUpdateRenewalCookieCoversInputAndDefaultTimestampBranches 验证续期 Cookie 更新的输入校验和默认时间戳路径。
 func TestUpdateRenewalCookieCoversInputAndDefaultTimestampBranches(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "renewal-update-boundary-key")
-	// store、cleanup 保存本测试数据库及其关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// blankErr 保存空账号标识的输入校验错误。
 	if blankErr := store.Cookies.UpdateRenewalCookie(ctx, "   ", "sid=1", `{}`, 1); blankErr == nil {
@@ -89,7 +85,6 @@ func TestUpdateRenewalCookieCoversInputAndDefaultTimestampBranches(t *testing.T)
 
 // TestOrderWriteUnitOfWorkCoversInitializationGuards 验证订单写入事务及事务内窄方法的初始化保护。
 func TestOrderWriteUnitOfWorkCoversInitializationGuards(t *testing.T) {
-	// store、cleanup 保存有效 UnitOfWork 所需的测试数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// ctx 是事务初始化保护测试使用的上下文。

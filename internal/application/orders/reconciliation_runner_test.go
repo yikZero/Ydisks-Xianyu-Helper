@@ -35,7 +35,6 @@ func TestReconciliationRecoveryCoordinatorLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("构造补偿扫描协调器失败: %v", err)
 	}
-	// err 保存首次启动补偿扫描器的生命周期错误。
 	if err := coordinator.Start(context.Background()); err != nil {
 		t.Fatalf("启动补偿扫描失败: %v", err)
 	}
@@ -44,11 +43,9 @@ func TestReconciliationRecoveryCoordinatorLifecycle(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("补偿扫描未启动")
 	}
-	// err 保存重复启动补偿扫描器的生命周期错误。
 	if err := coordinator.Start(context.Background()); err != nil {
 		t.Fatalf("重复启动应保持幂等: %v", err)
 	}
-	// err 保存首次关闭补偿扫描器的生命周期错误。
 	if err := coordinator.Close(context.Background()); err != nil {
 		t.Fatalf("关闭补偿扫描失败: %v", err)
 	}
@@ -61,7 +58,6 @@ func TestReconciliationRecoveryCoordinatorLifecycle(t *testing.T) {
 	if !errors.Is(coordinator.Start(context.Background()), ErrReconciliationRecoveryStopped) {
 		t.Fatal("关闭后的补偿扫描器应拒绝再次启动")
 	}
-	// err 保存重复关闭补偿扫描器的生命周期错误。
 	if err := coordinator.Close(context.Background()); err != nil {
 		t.Fatalf("重复关闭应保持幂等: %v", err)
 	}
@@ -81,11 +77,9 @@ func TestReconciliationRecoveryCoordinatorRequiresDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("构造补偿扫描协调器失败: %v", err)
 	}
-	// err 保存缺少启动 Context 时的生命周期错误。
 	if err := coordinator.Start(missingContext); err == nil {
 		t.Fatal("缺失启动 Context 应失败")
 	}
-	// err 保存缺少关闭 Context 时的生命周期错误。
 	if err := coordinator.Close(missingContext); err == nil {
 		t.Fatal("缺失关闭 Context 应失败")
 	}

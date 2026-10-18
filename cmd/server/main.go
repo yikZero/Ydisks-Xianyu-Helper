@@ -147,7 +147,6 @@ type applicationRuntimeCoordinator interface {
 	Close(context.Context) error
 }
 
-// main 封装main业务协调。
 func main() {
 	// opts 是命令行解析出的服务启动选项。
 	opts := parseOptions()
@@ -184,7 +183,6 @@ func main() {
 	}
 }
 
-// parseOptions 封装parseOptions业务协调。
 func parseOptions() serverOptions {
 	// opts 收集所有命令行标志的目标字段，并在 flag.Parse 后返回。
 	var opts serverOptions
@@ -316,8 +314,8 @@ func prepareServerStartup(opts *serverOptions) (serverStartupConfig, error) {
 		if keyErr != nil {
 			return serverStartupConfig{}, keyErr
 		}
-		if // err 保存设置进程级数据密钥环境变量的错误。
-		err := os.Setenv("XIANYU_DATA_KEY", key); err != nil {
+		// err 保存设置进程级数据密钥环境变量的错误。
+		if err := os.Setenv("XIANYU_DATA_KEY", key); err != nil {
 			return serverStartupConfig{}, fmt.Errorf("设置 XIANYU_DATA_KEY 失败: %w", err)
 		}
 	}
@@ -537,7 +535,6 @@ func wrapShutdownError(stage string, shutdownErr error) error {
 // desktop/system-service installations persist logs in their platform log
 // directory. Windows services do not have a useful console, so they get a
 // default log file beside the service data directory.
-// openServerLogWriter 封装openServerLogWriter业务协调。
 func openServerLogWriter(dataDir string) (io.Writer, func(), error) {
 	// logDir 是环境变量或 Windows 服务数据目录指定的持久化日志目录。
 	logDir := strings.TrimSpace(os.Getenv("XIANYU_LOG_DIR"))
@@ -561,7 +558,6 @@ func openServerLogWriter(dataDir string) (io.Writer, func(), error) {
 	return file, func() { _ = file.Close() }, nil
 }
 
-// applyPlaywrightRuntimeRoot 封装applyPlaywrightRuntimeRoot业务协调。
 func applyPlaywrightRuntimeRoot(opts *serverOptions) {
 	if opts == nil {
 		return
@@ -584,7 +580,6 @@ func applyPlaywrightRuntimeRoot(opts *serverOptions) {
 // resolveDataDir 返回桌面端的标准用户数据目录。
 // Linux/Docker 保留原有相对路径行为；macOS 和 Windows 在没有显式 -workdir
 // 时使用当前用户的系统配置目录，避免把具体用户路径写进安装包或代码。
-// resolveDataDir 封装resolve数据Dir业务协调。
 func resolveDataDir(workDir string) (string, error) {
 	if strings.TrimSpace(workDir) != "" {
 		return filepath.Clean(workDir), nil
@@ -600,7 +595,6 @@ func resolveDataDir(workDir string) (string, error) {
 	return filepath.Join(configDir, userDataDirName), nil
 }
 
-// resolveDBPath 封装resolveDB路径业务协调。
 func resolveDBPath(dataDir, configuredPath string) string {
 	if dataDir != "" && configuredPath == defaultDBPath {
 		return filepath.Join(dataDir, "data", "xianyu_data.db")
@@ -608,7 +602,6 @@ func resolveDBPath(dataDir, configuredPath string) string {
 	return configuredPath
 }
 
-// loadOrCreateDataKey 封装loadOrCreate数据Key业务协调。
 func loadOrCreateDataKey(path string) (string, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
@@ -720,7 +713,6 @@ func isNonLoopbackListenAddress(address string) bool {
 	return ip == nil || !ip.IsLoopback()
 }
 
-// ensureAdmin 封装ensureAdmin业务协调。
 func ensureAdmin(ctx context.Context, store *db.Store, email, password string) error {
 	if password == "" {
 		password = os.Getenv("XIANYU_ADMIN_PASSWORD")
@@ -733,7 +725,6 @@ func ensureAdmin(ctx context.Context, store *db.Store, email, password string) e
 	return err
 }
 
-// ensureAdminIfMissing 封装ensureAdminIfMissing业务协调。
 func ensureAdminIfMissing(ctx context.Context, store *db.Store, email, password string) (bool, error) {
 	// admin、err 分别是现有管理员记录及其查询失败原因。
 	admin, err := store.Users.GetAdmin(ctx)

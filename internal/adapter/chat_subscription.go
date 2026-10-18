@@ -60,8 +60,8 @@ func (p chatSubscriptionProvider) Subscribe(ctx context.Context, userID int64) (
 			select {
 			case <-forwardCtx.Done():
 				return
-			case // event、ok 保存领域事件及源订阅通道是否仍然开放。
-			event, ok := <-source:
+			// event、ok 保存领域事件及源订阅通道是否仍然开放。
+			case event, ok := <-source:
 				if !ok {
 					return
 				}

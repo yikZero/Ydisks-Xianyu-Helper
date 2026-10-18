@@ -117,7 +117,6 @@ func TestListAdminTasksReturnsNamedStatusDTO(t *testing.T) {
 
 // TestVersionedAdminTaskRouteRequiresAdminAndReturnsStatus 证明版本化管理路由已挂载并继承管理员权限。
 func TestVersionedAdminTaskRouteRequiresAdminAndReturnsStatus(t *testing.T) {
-	// srv、cleanup 是带测试数据库和认证服务的完整 HTTP 服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// taskDone 是用于快速完成测试任务的退出信号。
@@ -128,7 +127,6 @@ func TestVersionedAdminTaskRouteRequiresAdminAndReturnsStatus(t *testing.T) {
 	<-taskDone
 	// handler 是当前版本化管理路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// request、recorder 是版本化任务查询请求及响应捕获器。
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/admin/tasks", nil)

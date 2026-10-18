@@ -109,7 +109,6 @@ func TestOrderOwnershipRecoveryUnsafe(t *testing.T) {
 			defer cleanup()
 			// userID、expected、options 是满足其他恢复条件的有效证据。
 			userID, expected, options := seedOwnershipRepair(t, store)
-			// ctx 控制本用例数据库操作生命周期。
 			ctx := context.Background()
 			// err 保存副作用夹具写入错误，不把夹具故障误认为安全保护通过。
 			if _, err := store.DB.ExecContext(ctx, fixture); err != nil {
@@ -212,7 +211,6 @@ func TestOrderOwnershipRecoveryRollback(t *testing.T) {
 			userID, expected, options := seedOwnershipRepair(t, store)
 			// actual 是数据库仍保持的真实旧快照，用于验证事务回滚。
 			actual := expected
-			// ctx、cancel 由测试拥有，取消场景在调用前终止事务生命周期。
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			// want 是可识别的失败种类；数据库故障只要求错误不为空。
@@ -296,7 +294,6 @@ func TestOrderOwnershipRecoveryRollback(t *testing.T) {
 
 // TestOrderOwnershipRecoveryPreservesNotificationHistory 验证 t 中通知和其他用户坏任务不会被读取、迁移或删除。
 func TestOrderOwnershipRecoveryPreservesNotificationHistory(t *testing.T) {
-	// store、cleanup 创建隔离数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// userID、expected、options 提供合法恢复证据。
@@ -336,7 +333,6 @@ func TestOrdersBatch3000Timing(t *testing.T) {
 	defer cleanup()
 	// cookieID 是本次性能夹具唯一所属账号。
 	_, cookieID := seedAccount(t, store)
-	// ctx 控制整批写入生命周期。
 	ctx := context.Background()
 	// bargain 使插入包含 true，随后 false 候选必须保持历史 true。
 	bargain := true

@@ -319,7 +319,6 @@ func TestRefreshJobRunnerCancelCloseAndStop(t *testing.T) {
 	}
 	// job 是等待取消的后台任务。
 	job := &RefreshJob{ID: "job-cancel", UserID: 7}
-	// err 保存启动后台任务时的生命周期校验错误。
 	if err := runner.StartJob(context.Background(), job, "token-cancel"); err != nil {
 		t.Fatalf("启动取消任务: %v", err)
 	}
@@ -363,7 +362,6 @@ func TestRefreshJobRunnerRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("构造恢复运行器: %v", err)
 	}
-	// err 保存单轮恢复扫描返回的错误。
 	if err := runner.RunRecovery(context.Background()); err != nil {
 		t.Fatalf("执行恢复扫描: %v", err)
 	}

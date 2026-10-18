@@ -39,19 +39,15 @@ func (f *fetchCapableMTopFake) FetchSoldOrdersPage(context.Context, string, int,
 
 // TestOrderRuntimeNilHooksAndReporting 覆盖运行时回调缺失、补偿记录与持久化失败上报。
 func TestOrderRuntimeNilHooksAndReporting(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// nilRuntime 是空指针运行时。
 	var nilRuntime *OrderRuntime
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := nilRuntime.ManualFullDelivery(ctx, nil); err == nil {
 		t.Fatal("空运行时应拒绝手动发货")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := (&OrderRuntime{}).ManualFullDelivery(ctx, nil); err == nil {
 		t.Fatal("缺回调应拒绝手动发货")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := nilRuntime.RecordReconciliation(ctx, "o", "cid", "k", "m"); err == nil {
 		t.Fatal("空运行时应拒绝补偿记录")
 	}
@@ -81,17 +77,14 @@ func TestOrderRuntimeNilHooksAndReporting(t *testing.T) {
 	refreshed := ""
 	// hooked 测试中的局部对象，承载被测流程的输入、依赖或输出。
 	hooked := NewOrderRuntime(nil, OrderRuntimeHooks{RefreshChatConversations: func(_ context.Context, id string) error { refreshed = id; return nil }}, nil, nil)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := hooked.RefreshChatConversations(ctx, "cid"); err != nil || refreshed != "cid" {
 		t.Fatalf("联系人刷新回调: %q %v", refreshed, err)
 	}
 	// 空明细的平台请求直接拒绝。
 	capable := NewOrderRuntime(nil, OrderRuntimeHooks{Client: func() mtop.Client { return &fetchCapableMTopFake{} }}, nil, nil)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := capable.FetchOrderDetail(ctx, nil, "o"); err == nil {
 		t.Fatal("空凭证应拒绝详情请求")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := capable.FetchSoldOrders(ctx, nil); err == nil {
 		t.Fatal("空凭证应拒绝已售订单请求")
 	}
@@ -109,9 +102,7 @@ func TestOrderRuntimeNilHooksAndReporting(t *testing.T) {
 
 // TestOrderRuntimeConfirmShipmentFailureBranches 覆盖确认发货中凭证为空、客户端缺失、写回冲突及无 Cookie 更新的成功路径。
 func TestOrderRuntimeConfirmShipmentFailureBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// admin 是账号所有者。
@@ -166,9 +157,7 @@ func TestOrderRuntimeConfirmShipmentFailureBranches(t *testing.T) {
 
 // TestOrderRuntimeCookiePersistenceBranches 覆盖订单响应 Cookie 写回的缺存储、读取失败与数据库写入失败路径。
 func TestOrderRuntimeCookiePersistenceBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// admin 是账号所有者。
@@ -188,18 +177,15 @@ func TestOrderRuntimeCookiePersistenceBranches(t *testing.T) {
 	// _, changedSession 是已改写 Jar 的会话。
 	_, changedSession := mtop.WithCookieSnapshot(ctx, []BrowserCookie{{Name: "unb", Value: "1", Domain: ".goofish.com", Path: "/"}})
 	changedSession.ReplaceSnapshot([]BrowserCookie{{Name: "unb", Value: "9", Domain: ".goofish.com", Path: "/"}})
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, _, _, err := bare.persistOrderCookieSession(ctx, latest, changedSession, ""); err == nil {
 		t.Fatal("缺存储应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, _, _, err := bare.persistCurrentOrderCookieSession(ctx, latest, changedSession, "", admin.ID); err == nil {
 		t.Fatal("缺存储应失败")
 	}
 	// missing 是不存在的账号明细，复核读取应失败。
 	missing := latest
 	missing.ID = "missing"
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, _, _, err := runtime.persistCurrentOrderCookieSession(ctx, missing, changedSession, "", admin.ID); err == nil {
 		t.Fatal("读取失败应传播")
 	}
@@ -207,13 +193,11 @@ func TestOrderRuntimeCookiePersistenceBranches(t *testing.T) {
 	if _, err := store.DB.ExecContext(ctx, `CREATE TRIGGER block_cookie_update BEFORE UPDATE ON cookies BEGIN SELECT RAISE(ABORT, 'blocked'); END`); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, _, _, err := runtime.persistCurrentOrderCookieSession(ctx, latest, changedSession, "", admin.ID); err == nil {
 		t.Fatal("会话写回失败应传播")
 	}
 	// _, flatSession 是未变更的扁平会话，平台只返回扁平 Cookie 时走条件写回。
 	_, flatSession := mtop.WithFlatCookieSession(ctx, latest.Value)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, _, _, err := runtime.persistCurrentOrderCookieSession(ctx, latest, flatSession, "unb=1; flat=1", admin.ID); err == nil {
 		t.Fatal("扁平写回失败应传播")
 	}

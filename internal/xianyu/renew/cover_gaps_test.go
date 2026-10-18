@@ -41,17 +41,13 @@ func TestAutoLoginModeFallsThroughToExpired(t *testing.T) {
 
 // TestCallAutoLoginAndLongLoginRequestErrors 覆盖非法端点、请求失败、业务未确认与默认 HTTP 客户端。
 func TestCallAutoLoginAndLongLoginRequestErrors(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := (Service{SilentHasLoginURL: "http://[::1"}).callAutoLogin(ctx, "unb=1", "havana"); err == nil {
 		t.Fatal("非法端点必须报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := (Service{QueryLoginSettingsURL: "http://[::1"}).QueryLongLoginSettings(ctx, "unb=1"); err == nil {
 		t.Fatal("非法查询端点必须报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := (Service{SetLoginSettingsURL: "http://[::1"}).SetLongLoginSettings(ctx, "unb=1", true); err == nil {
 		t.Fatal("非法设置端点必须报错")
 	}
@@ -60,7 +56,6 @@ func TestCallAutoLoginAndLongLoginRequestErrors(t *testing.T) {
 	// closedURL 保存已关闭桩服务的地址，用于制造连接被拒绝。
 	closedURL := closed.URL
 	closed.Close()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := (Service{QueryLoginSettingsURL: closedURL, HTTPClient: &http.Client{}}).QueryLongLoginSettings(ctx, "unb=1"); err == nil {
 		t.Fatal("连接失败必须报错")
 	}
@@ -69,7 +64,6 @@ func TestCallAutoLoginAndLongLoginRequestErrors(t *testing.T) {
 		_, _ = w.Write([]byte(`{"content":{"data":{"success":false}}}`))
 	}))
 	defer rejecting.Close()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := (Service{SetLoginSettingsURL: rejecting.URL}).SetLongLoginSettings(ctx, "unb=1", true); err == nil {
 		t.Fatal("业务未确认必须报错")
 	}

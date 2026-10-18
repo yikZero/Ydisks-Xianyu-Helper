@@ -27,9 +27,7 @@ func (p staticChatSenderProvider) Sender(string) (chatapp.Sender, bool) {
 
 // TestChatReplyDeliverySendReplyWithRealService 覆盖自动回复经真实聊天应用服务发送的成功与不确定结果映射。
 func TestChatReplyDeliverySendReplyWithRealService(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// runtimeSender 是可控制发送错误的账号运行时替身。
@@ -54,15 +52,12 @@ func TestChatReplyDeliverySendReplyWithRealService(t *testing.T) {
 
 // TestChatItemCatalogGuardsAndErrors 覆盖商品目录的依赖缺失、凭证缺失、客户端能力缺失和搜索错误路径。
 func TestChatItemCatalogGuardsAndErrors(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	if NewChatItemCatalog(nil, func() mtop.Client { return nil }, nil) != nil || NewChatItemCatalog(store, nil, nil) != nil {
 		t.Fatal("缺依赖应返回 nil 目录")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := (chatItemCatalog{}).ListChatItems(ctx, "cid", "c", "self", "", 1); !errors.Is(err, chatapp.ErrUnavailable) {
 		t.Fatalf("空存储: %v", err)
 	}
@@ -70,7 +65,6 @@ func TestChatItemCatalogGuardsAndErrors(t *testing.T) {
 	client := &coverageChatItemClient{}
 	// catalog 绑定隔离存储与客户端。
 	catalog := NewChatItemCatalog(store, func() mtop.Client { return client }, nil)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := catalog.ListChatItems(ctx, "missing", "c", "self", "", 1); err == nil {
 		t.Fatal("账号缺失应失败")
 	}
@@ -80,7 +74,6 @@ func TestChatItemCatalogGuardsAndErrors(t *testing.T) {
 	}
 	// 搜索错误原样返回。
 	client.err = errors.New("search failed")
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := catalog.ListChatItems(ctx, "cid", "c", "self", "", 1); !errors.Is(err, client.err) {
 		t.Fatalf("搜索错误: %v", err)
 	}
@@ -90,18 +83,15 @@ func TestChatItemCatalogGuardsAndErrors(t *testing.T) {
 	racing := &racingChatItemClient{store: store}
 	// racingCatalog 测试中的局部对象，承载被测流程的输入、依赖或输出。
 	racingCatalog := NewChatItemCatalog(store, func() mtop.Client { return racing }, nil)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := racingCatalog.ListChatItems(ctx, "cid", "c", "self", "", 1); !errors.Is(err, errChatCredentialChanged) {
 		t.Fatalf("并发变更: %v", err)
 	}
 	racing.err = errors.New("also failed")
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := racingCatalog.ListChatItems(ctx, "cid", "c", "self", "", 1); !errors.Is(err, errChatCredentialChanged) || !errors.Is(err, racing.err) {
 		t.Fatalf("合并错误: %v", err)
 	}
 	// 客户端不支持商品查询。
 	unsupported := NewChatItemCatalog(store, func() mtop.Client { return fakeChatUploadClient{} }, nil)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := unsupported.ListChatItems(ctx, "cid", "c", "self", "", 1); !errors.Is(err, chatapp.ErrChatItemUnavailable) {
 		t.Fatalf("不支持: %v", err)
 	}
@@ -109,7 +99,6 @@ func TestChatItemCatalogGuardsAndErrors(t *testing.T) {
 	if err := store.Cookies.UpdateValueExisting(ctx, "cid", ""); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := catalog.ListChatItems(ctx, "cid", "c", "self", "", 1); err == nil {
 		t.Fatal("空凭证应失败")
 	}
@@ -121,8 +110,7 @@ type racingChatItemClient struct {
 	mtop.Client
 	// store 用于在搜索期间写入新的凭证。
 	store *db.Store
-	// err 是搜索返回的错误。
-	err error
+	err   error
 	// calls 统计调用次数，使每次改写的 Cookie 值都不同。
 	calls int
 }
@@ -136,18 +124,14 @@ func (c *racingChatItemClient) SearchChatItems(ctx context.Context, _, _, _, _ s
 
 // TestChatCredentialRepositoryPersistBranches 覆盖凭证仓储的空依赖、读取失败、平面更新与未变化路径。
 func TestChatCredentialRepositoryPersistBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, _, err := (chatCredentialRepository{}).persistCookieSession(ctx, db.CookiePlatformRuntimeData{ID: "cid"}, nil, ""); !errors.Is(err, chatapp.ErrUnavailable) {
 		t.Fatalf("空存储: %v", err)
 	}
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 绑定隔离存储。
 	repository := chatCredentialRepository{store: store}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, _, err := repository.persistCookieSession(ctx, db.CookiePlatformRuntimeData{ID: "missing"}, nil, ""); err == nil {
 		t.Fatal("账号缺失应失败")
 	}
@@ -174,13 +158,11 @@ func TestChatCredentialRepositoryPersistBranches(t *testing.T) {
 	if _, err := repository.getCookieValue(ctx, "cid"); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := repository.updateCookieValue(ctx, "cid", "unb=1; z=1"); err != nil {
 		t.Fatal(err)
 	}
 	// 数据库关闭后写回失败。
 	cleanup()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, _, err := repository.persistCookieSession(ctx, initial, nil, "unb=1; other=1"); err == nil {
 		t.Fatal("数据库关闭后应失败")
 	}
@@ -188,34 +170,26 @@ func TestChatCredentialRepositoryPersistBranches(t *testing.T) {
 
 // TestChatImageUploaderGuardsAndErrors 覆盖图片上传的依赖缺失、凭证缺失、能力缺失、平台错误和写回冲突。
 func TestChatImageUploaderGuardsAndErrors(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := NewChatImageUploader(nil, nil, nil).UploadChatImage(ctx, "cid", "a.jpg", "image/jpeg", nil); !errors.Is(err, chatapp.ErrUnavailable) {
 		t.Fatalf("空依赖: %v", err)
 	}
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// upload 用给定客户端发起上传。
 	upload := func(client mtop.Client, account string) error {
-		// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 		_, err := NewChatImageUploader(store, func() mtop.Client { return client }, nil).UploadChatImage(ctx, account, "a.jpg", "image/jpeg", []byte("x"))
 		return err
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := upload(fakeChatUploadClient{}, "missing"); err == nil {
 		t.Fatal("账号缺失应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := upload(&coverageChatItemClient{}, "cid"); !errors.Is(err, chatapp.ErrUnavailable) {
 		t.Fatalf("不支持上传: %v", err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := upload(fakeChatUploadClient{err: errors.New("upload failed")}, "cid"); err == nil {
 		t.Fatal("平台错误应返回")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := upload(fakeChatUploadClient{}, "cid"); !errors.Is(err, chatapp.ErrSend) {
 		t.Fatalf("空上传结果: %v", err)
 	}
@@ -223,15 +197,12 @@ func TestChatImageUploaderGuardsAndErrors(t *testing.T) {
 	conflict := fakeChatUploadClient{upload: &mtop.ChatImageUpload{URL: "u", UpdatedCookies: "unb=1; new=1"}, beforeReturn: func() {
 		_ = store.Cookies.UpdateValueExisting(ctx, "cid", "unb=1; raced=1")
 	}}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := upload(conflict, "cid"); !errors.Is(err, errChatCredentialChanged) {
 		t.Fatalf("写回冲突: %v", err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := store.Cookies.UpdateValueExisting(ctx, "cid", ""); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := upload(fakeChatUploadClient{}, "cid"); err == nil {
 		t.Fatal("空凭证应失败")
 	}
@@ -239,10 +210,8 @@ func TestChatImageUploaderGuardsAndErrors(t *testing.T) {
 
 // TestChatItemCatalogUpdateRuntimeCookie 覆盖商品目录把刷新凭证同步到在线运行时的各分支。
 func TestChatItemCatalogUpdateRuntimeCookie(t *testing.T) {
-	// ctx、cancel 是账号运行时的生命周期上下文。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// 无管理器：无副作用。
@@ -252,7 +221,6 @@ func TestChatItemCatalogUpdateRuntimeCookie(t *testing.T) {
 	// catalog 绑定管理器。
 	catalog := chatItemCatalog{manager: manager}
 	catalog.updateRuntimeCookie(ctx, "missing", "unb=1")
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := manager.Start(ctx, "cid", "unb=1; _m_h5_tk=tk;"); err != nil {
 		t.Fatal(err)
 	}

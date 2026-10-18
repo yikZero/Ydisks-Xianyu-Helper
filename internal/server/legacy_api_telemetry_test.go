@@ -77,7 +77,6 @@ func TestLegacyAPITelemetryDistinguishesVersionedAndSPARoutes(t *testing.T) {
 func TestLegacyAPIRequestCoverage(t *testing.T) {
 	// cases 保存各类历史业务与认证请求的遥测预期。
 	cases := []struct {
-		// name 是子测试名称，包含方法与路径便于失败定位。
 		name string
 		// method 是当前测试请求的方法。
 		method string

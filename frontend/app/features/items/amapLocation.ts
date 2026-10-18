@@ -78,7 +78,7 @@ interface AMapDistrictSearch {
 
 interface AMapAPI {
 // PlaceSearch 表示PlaceSearch。
-    PlaceSearch: new (options: { /* city 是搜索限定的高德城市或区县编码。 */ city?: string; /* citylimit 是是否强制限定搜索区域。 */ citylimit?: boolean; /* extensions 表示extensions。 */ extensions: 'all'; /* pageSize 表示pageSize。 */ pageSize: number }) => AMapPlaceSearch;
+    PlaceSearch: new (options: { /* city 是搜索限定的高德城市或区县编码。 */ city?: string; /* citylimit 是是否强制限定搜索区域。 */ citylimit?: boolean; extensions: 'all'; pageSize: number }) => AMapPlaceSearch;
 // DistrictSearch 是高德行政区划查询插件构造器。
     DistrictSearch: new (options: { /* subdistrict 是返回直接下级行政区的层级数。 */ subdistrict: number; /* extensions 是返回基础行政区字段。 */ extensions: 'base' }) => AMapDistrictSearch;
 }
@@ -110,24 +110,24 @@ declare global {
   }
 }
 
-let amapLoadPromise: Promise<AMapAPI> | null = null; /* amapLoadPromise 表示amapLoadPromise。 */
+let amapLoadPromise: Promise<AMapAPI> | null = null;
 
 const configuredAmapKey = (): string => {
-  const key = import.meta.env.VITE_AMAP_JS_KEY?.trim(); /* key 表示key。 */
+  const key = import.meta.env.VITE_AMAP_JS_KEY?.trim();
   return key || DEFAULT_AMAP_JS_KEY;
-}; /* configuredAmapKey 表示configuredAmapKey。 */
+};
 
 const loadAMap = (): Promise<AMapAPI> => {
   if (window.AMap) return Promise.resolve(window.AMap);
   if (amapLoadPromise) return amapLoadPromise;
 
   amapLoadPromise = new Promise<AMapAPI>((resolve, reject) => {
-    const existing = document.getElementById(AMAP_SCRIPT_ID) as HTMLScriptElement | null; /* existing 表示existing。 */
-    const script = existing || document.createElement('script'); /* script 表示script。 */
+    const existing = document.getElementById(AMAP_SCRIPT_ID) as HTMLScriptElement | null;
+    const script = existing || document.createElement('script');
     const cleanup = () => {
       window.__ydisksAmapLoaded = undefined;
       window.clearTimeout(timeout);
-    }; /* cleanup 表示cleanup。 */
+    };
     const finish = () => {
       if (window.AMap) {
         cleanup();
@@ -136,7 +136,7 @@ const loadAMap = (): Promise<AMapAPI> => {
         cleanup();
         reject(new Error('高德地图 API 加载完成但未找到 AMap 对象'));
       }
-    }; /* finish 表示finish。 */
+    };
     const timeout = window.setTimeout(() => {
       cleanup();
       reject(new Error('高德地图 API 加载超时，请检查网络或 VITE_AMAP_JS_KEY 配置'));
@@ -157,14 +157,14 @@ const loadAMap = (): Promise<AMapAPI> => {
   } /* 失败时清空单例 Promise，允许后续调用重新加载脚本。 */);
 
   return amapLoadPromise;
-}; /* loadAMap 表示loadAMap。 */
+};
 
-const validCoordinate = (value: number): boolean => Number.isFinite(value) && value !== 0; /* validCoordinate 表示validCoordinate。 */
+const validCoordinate = (value: number): boolean => Number.isFinite(value) && value !== 0;
 
 // 字段映射与闲鱼网页版发布页一致：adcode → divisionId，name → poi，pname/cityname/adname → 行政区。
 export const amapPOIToPublishLocation = (poi: AMapPOI): PublishLocation | null => {
-  const longitude = Number(poi.location?.lng); /* longitude 表示longitude。 */
-  const latitude = Number(poi.location?.lat); /* latitude 表示latitude。 */
+  const longitude = Number(poi.location?.lng);
+  const latitude = Number(poi.location?.lat);
   const location: PublishLocation = {
     area: String(poi.adname || '').trim(),
     city: String(poi.cityname || '').trim(),
@@ -174,7 +174,7 @@ export const amapPOIToPublishLocation = (poi: AMapPOI): PublishLocation | null =
     poi_id: String(poi.id || '').trim(),
     poi_name: String(poi.name || '').trim(),
     province: String(poi.pname || '').trim(),
-  }; /* location 表示location。 */
+  };
   if (!location.division_id || !location.province || !location.city || !location.poi_id || !location.poi_name) {
     return null;
   }
@@ -184,11 +184,12 @@ export const amapPOIToPublishLocation = (poi: AMapPOI): PublishLocation | null =
   return location;
 };
 
+// getPublishLocations 根据经纬度查询可用于商品发布的附近地点列表；坐标无效时抛错。
 export const getPublishLocations = async (longitude: number, latitude: number, options: PublishLocationRequestOptions = {}): Promise<PublishLocation[]> => {
   if (!validCoordinate(longitude) || !validCoordinate(latitude) || longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
     throw new Error('经纬度无效');
   }
-  const amap = await loadAMap(); /* amap 表示amap。 */
+  const amap = await loadAMap();
   return new Promise<PublishLocation[]>((resolve, reject) => {
     // settled 标记本次查询是否已经结束，阻止超时、取消和 SDK 回调重复收口。
     let settled = false;
@@ -211,7 +212,7 @@ export const getPublishLocations = async (longitude: number, latitude: number, o
       return;
     }
     options.signal?.addEventListener('abort', abortSearch, { once: true });
-    const placeSearch = new amap.PlaceSearch({ extensions: 'all', pageSize: 10 }); /* placeSearch 表示placeSearch。 */
+    const placeSearch = new amap.PlaceSearch({ extensions: 'all', pageSize: 10 });
     placeSearch.searchNearBy('', [longitude, latitude], 1_000, (status, result) => {
       if (settled) return;
       if (status !== 'complete') {
@@ -229,7 +230,7 @@ export const getPublishLocations = async (longitude: number, latitude: number, o
       finish(/* searchSuccessResolveAction 将已过滤的有效地点列表交给调用方。 */ () => resolve(locations));
     } /* 搜索完成后将地点结果交给调用方并结束本次高德回调。 */);
   } /* 高德回调只处理当前请求，组件卸载后由 cleanup 移除监听。 */);
-}; /* getPublishLocations 表示getPublishLocations。 */
+};
 
 // PublishDistrictRequestOptions 控制行政区查询的取消和最长等待时间。
 export interface PublishDistrictRequestOptions {

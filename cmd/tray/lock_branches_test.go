@@ -52,7 +52,6 @@ func TestAcquireTrayInstanceReportsDirectoryFailure(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		blocker = filepath.Join(home, "Library")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.WriteFile(blocker, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +104,6 @@ func TestConfigureTrayLoggerFallsBackWhenDirectoryUnavailable(t *testing.T) {
 	// home 是伪造主目录，Library 被文件占用使目录创建失败。
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.WriteFile(filepath.Join(home, "Library"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}

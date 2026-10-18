@@ -68,7 +68,7 @@ const stubContractFetch = (fetchMock: typeof fetch): void => {
 };
 
 test('updateSystemSettings uses one atomic bulk request', async () => {
-	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
 	stubContractFetch(fetchMock);
 	await updateSystemSettings({ theme_color: 'blue', renewal_log_retention_days: 15 });
 	expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -132,7 +132,7 @@ test('health API exposes build metadata through the request boundary', async () 
   // fetchMock 是健康检查 API 的请求替身。
   const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ version: '1.2.3', commit: 'abc123' }));
   stubContractFetch(fetchMock);
-  const controller = new AbortController(); /* controller 表示controller。 */
+  const controller = new AbortController();
 
   await expect(getHealth({ signal: controller.signal })).resolves.toEqual({ version: '1.2.3', commit: 'abc123' });
   expect(fetchMock).toHaveBeenCalledWith('/health', expect.objectContaining({ method: 'GET', signal: expect.any(AbortSignal) }));
@@ -200,7 +200,7 @@ test('账号自动任务 API 转发外部取消信号', async () => {
   stubContractFetch(fetchMock);
   // controller 是 AccountAutomation feature Hook 使用的请求控制器。
   const controller = new AbortController();
-  const settings = { account_id: 'a1', auto_rate_enabled: true, rate_content: '交易愉快', auto_polish_enabled: false, polish_time: '03:00' }; /* settings 表示settings。 */
+  const settings = { account_id: 'a1', auto_rate_enabled: true, rate_content: '交易愉快', auto_polish_enabled: false, polish_time: '03:00' };
   await getAccountTaskSettings('a1', { signal: controller.signal });
   await updateAccountTaskSettings('a1', settings, { signal: controller.signal });
   await runAccountTask('a1', 'auto_rate', { signal: controller.signal });
@@ -210,7 +210,7 @@ test('账号自动任务 API 转发外部取消信号', async () => {
 } /* 测试回调验证：账号自动任务 API 转发外部取消信号。 */);
 
 test('getItemPublishBatches unwraps persisted batch list', async () => {
-	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ batches: [{ id: 'batch-1', status: 'running' }] })); /* fetchMock 表示fetchMock。 */
+	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ batches: [{ id: 'batch-1', status: 'running' }] }));
 	stubContractFetch(fetchMock);
 	await expect(getItemPublishBatches(10)).resolves.toEqual([{ id: 'batch-1', status: 'running' }]);
 	expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/publish-batches?limit=10', expect.objectContaining({ credentials: 'include' }));
@@ -233,7 +233,7 @@ test('order refresh uses authenticated JSON and never uploads orders', async () 
 	const fetchMock = vi.fn()
 		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-1', status: 'running' }))
 		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-1', status: 'succeeded', result: { partial_failure: false, message: '同步完成', summary: { discovered: 0, list_updated: 0, soft_deleted: 0, detail_total: 0, total: 0, updated: 0, no_change: 0, failed: 0 }, results: [] } }))
-		.mockResolvedValueOnce(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+		.mockResolvedValueOnce(jsonResponse({ success: true }));
 	stubContractFetch(fetchMock);
 	await syncOrders('acc1', 'pending_ship');
 	expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/v1/orders/refresh', expect.objectContaining({ method: 'POST', credentials: 'include', body: JSON.stringify({ cookie_id: 'acc1', status: 'pending_ship' }) }));
@@ -244,7 +244,7 @@ test('order refresh uses authenticated JSON and never uploads orders', async () 
 test('syncOrders surfaces failed persisted job status', async () => {
 	const fetchMock = vi.fn()
 		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-failed', status: 'running' }))
-		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-failed', status: 'failed', error_message: '平台会话已过期' })); /* fetchMock 表示fetchMock。 */
+		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-failed', status: 'failed', error_message: '平台会话已过期' }));
 	stubContractFetch(fetchMock);
 	await expect(syncOrders()).rejects.toThrow('平台会话已过期');
 } /* 测试回调验证：syncOrders surfaces failed persisted job status。 */);
@@ -253,7 +253,7 @@ test('syncOrders aborts while waiting for persisted job status', async () => {
 	const fetchMock = vi.fn()
 		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-running', status: 'running' }))
 		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-running', status: 'running' }))
-		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-running', status: 'cancelled' })); /* fetchMock 表示fetchMock。 */
+		.mockResolvedValueOnce(jsonResponse({ success: true, job_id: 'job-running', status: 'cancelled' }));
 	stubContractFetch(fetchMock);
 	// controller 控制订单刷新轮询的取消信号。
 	const controller = new AbortController();
@@ -295,7 +295,7 @@ test('syncOrders reports a timeout only after cancellation and final terminal re
 } /* 测试回调验证：syncOrders reports a timeout only after cancellation and final terminal read remain non-terminal。 */);
 
 test('cancelOrderRefreshJob sends a user-scoped delete command', async () => {
-	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, job_id: 'job-cancel', status: 'cancelled' })); /* fetchMock 表示fetchMock。 */
+	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, job_id: 'job-cancel', status: 'cancelled' }));
 	stubContractFetch(fetchMock);
 	await expect(cancelOrderRefreshJob('job-cancel')).resolves.toEqual({ success: true, job_id: 'job-cancel', status: 'cancelled' });
 	expect(fetchMock).toHaveBeenCalledWith('/api/v1/orders/refresh/job-cancel', expect.objectContaining({ method: 'DELETE', credentials: 'include' }));
@@ -316,7 +316,7 @@ test('getOrders normalizes backend order fields', async () => {
   const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
     orders: [{ order_id: 'o1', order_status: 'shipped', quantity: '2' }],
     total: 1,
-  })); /* fetchMock 表示fetchMock。 */
+  }));
   stubContractFetch(fetchMock);
   const result = await getOrders(undefined, 'all', 1, 20, ' buyer '); /* result 表示处理结果。 */
   expect(result.data[0]).toMatchObject({ id: 'o1', status: 'shipped', quantity: 2 });
@@ -412,7 +412,7 @@ test('getShippingRulesPage sends filters and preserves pagination metadata', asy
     page_size: 20,
     total_pages: 2,
     trigger_counts: { order_paid: 8, buyer_reviewed: 7, review_missing_timeout: 6 },
-  })); /* fetchMock 表示fetchMock。 */
+  }));
   stubContractFetch(fetchMock);
 
   const result = await getShippingRulesPage({
@@ -441,7 +441,7 @@ test('getShippingRulesPage sends filters and preserves pagination metadata', asy
 test('getValidOrders accepts wrapped responses', async () => {
 	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
     orders: [{ order_id: 'o2', order_status: 'completed', quantity: '3' }],
-	})); /* fetchMock 表示fetchMock。 */
+	}));
 	stubContractFetch(fetchMock);
 	vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-480);
   const result = await getValidOrders({ start_date: '2026-01-01', end_date: '2026-01-02' }); /* result 表示处理结果。 */
@@ -454,7 +454,7 @@ test('getValidOrders accepts wrapped responses', async () => {
 } /* 测试回调验证：getValidOrders accepts wrapped responses。 */);
 
 test('getOrderAnalytics sends the browser timezone offset', async () => {
-	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ revenue_stats: {}, daily_stats: [], status_stats: [], city_stats: [] })); /* fetchMock 表示fetchMock。 */
+	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ revenue_stats: {}, daily_stats: [], status_stats: [], city_stats: [] }));
 	stubContractFetch(fetchMock);
 	vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-330);
 	await getOrderAnalytics({ start_date: '2026-01-01', end_date: '2026-01-02' });
@@ -487,7 +487,7 @@ test('paid orders are normalized to pending shipment', async () => {
 } /* 测试回调验证：paid orders are normalized to pending shipment。 */);
 
 test('completeQRVerification sends only the immutable target account', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, account_id: 'acc1' })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, account_id: 'acc1' }));
   stubContractFetch(fetchMock);
   await completeQRVerification('session-1', 'acc1');
   expect(fetchMock).toHaveBeenCalledWith('/api/v1/qr-login/complete-verification/session-1', expect.objectContaining({
@@ -497,7 +497,7 @@ test('completeQRVerification sends only the immutable target account', async () 
 } /* 测试回调验证：completeQRVerification sends only the immutable target account。 */);
 
 test('deleteItemPublishBatch removes an abandoned preview', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
   await deleteItemPublishBatch('preview-1');
   expect(fetchMock).toHaveBeenCalledWith('/api/v1/items/publish-batches/preview-1', expect.objectContaining({
@@ -507,7 +507,7 @@ test('deleteItemPublishBatch removes an abandoned preview', async () => {
 } /* 测试回调验证：deleteItemPublishBatch removes an abandoned preview。 */);
 
 test('publishItem allows virtual publishing without an optional location', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
   await publishItem({
     cookie_id: 'acc1',
@@ -553,7 +553,7 @@ test('getItems normalizes multi-spec flags from backend values', async () => {
 } /* 测试回调验证：getItems normalizes multi-spec flags from backend values。 */);
 
 test('getItems forwards the selected account filter', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse([])); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse([]));
   stubContractFetch(fetchMock);
 
   await getItems('account-2');
@@ -570,7 +570,7 @@ test('getSystemSettings normalizes numeric renewal retention', async () => {
     renewal_log_retention_days: 'invalid',
   })));
 
-  const settings = await getSystemSettings(); /* settings 表示settings。 */
+  const settings = await getSystemSettings();
   expect(settings.ai_model).toBe('qwen-plus');
   expect(settings.renewal_log_retention_days).toBe(10);
 } /* 测试回调验证：getSystemSettings normalizes numeric renewal retention。 */);
@@ -591,7 +591,7 @@ test('getSystemSettings keeps only sensitive configuration markers', /* 当前�
 });
 
 test('logout calls backend session invalidation route', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await logout();
@@ -630,7 +630,7 @@ test('account cookie APIs include login_method when provided', async () => {
 } /* 测试回调验证：account cookie APIs include login_method when provided。 */);
 
 test('account editor settings use one aggregate request', async () => {
-	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+	const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
 	stubContractFetch(fetchMock);
 	await updateAccountSettings('acc1', {
 	  remark: 'main', auto_confirm: false, pause_duration: 5,
@@ -716,7 +716,7 @@ test('getAccountDetails 归一化头像地址并保留非法地址', /* 当前�
 });
 
 test('updateAccountLoginInfo sends exactly provided fields', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await updateAccountLoginInfo('acc1', { username: 'login-user', show_browser: false });
@@ -731,7 +731,7 @@ test('updateAccountLoginInfo sends exactly provided fields', async () => {
 } /* 测试回调验证：updateAccountLoginInfo sends exactly provided fields。 */);
 
 test('updateAccountLoginInfo can request explicit password clearing', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await updateAccountLoginInfo('acc1', { username: 'login-user', clear_password: true, show_browser: false });
@@ -743,7 +743,7 @@ test('updateAccountLoginInfo can request explicit password clearing', async () =
 } /* 测试回调验证：updateAccountLoginInfo can request explicit password clearing。 */);
 
 test('updateItem sends only the fields selected by the editor', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await updateItem('acc1', 'item1', { item_title: '改名商品' });
@@ -760,7 +760,7 @@ test('password login service uses upstream-compatible routes', async () => {
   const fetchMock = vi.fn()
     .mockResolvedValueOnce(jsonResponse({ success: true, session_id: 'sid', status: 'processing' }))
     .mockResolvedValueOnce(jsonResponse({ status: 'success', account_id: 'acc1', cookie_count: 2 }))
-    .mockResolvedValueOnce(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+    .mockResolvedValueOnce(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await passwordLogin({ account_id: 'acc1', account: 'u', password: 'p' });
@@ -774,7 +774,7 @@ test('password login service uses upstream-compatible routes', async () => {
     password: 'p',
   });
 
-  const status = await checkPasswordLoginStatus('sid'); /* status 表示status。 */
+  const status = await checkPasswordLoginStatus('sid');
   expect(status.status).toBe('success');
 	  expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/v1/password-login/check/sid', expect.objectContaining({ method: 'GET' }));
 
@@ -789,7 +789,7 @@ test('账号编辑子模块请求支持取消过期响应', async () => {
     .mockResolvedValueOnce(jsonResponse({ ai_enabled: true }))
     .mockResolvedValueOnce(jsonResponse({ success: true, session_id: 'sid' }));
   stubContractFetch(fetchMock);
-  const controller = new AbortController(); /* controller 表示controller。 */
+  const controller = new AbortController();
 
   await getLongLoginSettings('acc1', { signal: controller.signal });
   await getAccountAISettings('acc1', { signal: controller.signal });
@@ -924,7 +924,7 @@ test('getReplyRules 归一化多选关联商品并回退兼容单值', /* 当前
   const fetchMock = vi.fn().mockResolvedValue(jsonResponse([
     { id: 1, keyword: '多选', reply: '多选回复', type: 'text', item_id: 'item-1', item_ids: ['item-1', ' item-2 ', 'item-1'] },
     { id: 2, keyword: '旧单值', reply: '旧回复', type: 'text', item_id: 'item-9' },
-  ])); /* fetchMock 表示fetchMock。 */
+  ]));
   stubContractFetch(fetchMock);
 
   const rules = await getReplyRules('acc1'); /* rules 表示规则集合。 */
@@ -966,7 +966,7 @@ test('默认回复 API 补齐空字段默认值', /* 当前回调验证默认回
 });
 
 test('updateReplyRule preserves keyword image metadata when saving text edits', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await updateReplyRule({ id: '42', keyword: '发货', reply_content: '稍后安排', item_id: 'item-1' }, 'acc1');
@@ -1010,7 +1010,7 @@ test('createReplyRule keeps multi-select items in one rule request', async () =>
 } /* 测试回调验证：新建多选规则只提交一次请求。 */);
 
 test('updateReplyRule clears stale content when switching reply type', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await updateReplyRule({ id: '42', keyword: '发货', type: 'image', image_url: 'https://img.example/new.png' }, 'acc1');
@@ -1020,7 +1020,7 @@ test('updateReplyRule clears stale content when switching reply type', async () 
 } /* 测试回调验证：updateReplyRule clears stale content when switching reply type。 */);
 
 test('deleteReplyRule deletes one stable keyword row instead of replacing the list', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await deleteReplyRule('42', 'acc1');
@@ -1032,7 +1032,7 @@ test('deleteReplyRule deletes one stable keyword row instead of replacing the li
 } /* 测试回调验证：deleteReplyRule deletes one stable keyword row instead of replacing the list。 */);
 
 test('createNotificationChannel persists email recipient as to_email config', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await createNotificationChannel({
@@ -1056,7 +1056,7 @@ test('createNotificationChannel persists email recipient as to_email config', as
 } /* 测试回调验证：createNotificationChannel persists email recipient as to_email config。 */);
 
 test('createNotificationChannel allows email channel to rely on system SMTP settings', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await createNotificationChannel({
@@ -1075,7 +1075,7 @@ test('createNotificationChannel allows email channel to rely on system SMTP sett
 } /* 测试回调验证：createNotificationChannel allows email channel to rely on system SMTP settings。 */);
 
 test('updateNotificationChannel supports partial enabled updates', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
   stubContractFetch(fetchMock);
 
   await updateNotificationChannel('7', { enabled: false });
@@ -1149,7 +1149,7 @@ test('通知事件字段支持 JSON 数组和分隔符格式', /* 当前回调�
 });
 
 test('updateShippingRule posts buyer reviewed gift payload to automation-rules', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, id: 1 })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, id: 1 }));
   stubContractFetch(fetchMock);
 
   await updateShippingRule({
@@ -1187,7 +1187,7 @@ test('updateShippingRule posts buyer reviewed gift payload to automation-rules',
 } /* 测试回调验证：updateShippingRule posts buyer reviewed gift payload to automation-rules。 */);
 
 test('updateShippingRule posts every matching card action before confirm shipment', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, id: 3 })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, id: 3 }));
   stubContractFetch(fetchMock);
 
   await updateShippingRule({
@@ -1304,7 +1304,7 @@ test('模板绑定读取后不修改直接保存时完成 variable_key 到 key �
 });
 
 test('updateShippingRule preserves text actions while editing card variants', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, id: 4 })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, id: 4 }));
   stubContractFetch(fetchMock);
 
   await updateShippingRule({
@@ -1326,7 +1326,7 @@ test('updateShippingRule preserves text actions while editing card variants', as
 } /* 测试回调验证：updateShippingRule preserves text actions while editing card variants。 */);
 
 test('updateShippingRule posts review request text action without card requirement', async () => {
-  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, id: 2 })); /* fetchMock 表示fetchMock。 */
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, id: 2 }));
   stubContractFetch(fetchMock);
 
   await updateShippingRule({

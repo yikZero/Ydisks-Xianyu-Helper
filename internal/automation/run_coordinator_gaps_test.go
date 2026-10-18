@@ -30,7 +30,6 @@ type coordGap struct {
 // newCoordGap 创建 send_card + confirm_shipment 规则及 running 运行，exec 决定每个动作的外部结果。
 func newCoordGap(t *testing.T, exec func(context.Context, Task, db.AutomationAction) (actionExecutionResult, error)) *coordGap {
 	t.Helper()
-	// store、cleanup 是隔离数据库及关闭函数。
 	store, cleanup := newAutomationTestStore(t)
 	t.Cleanup(cleanup)
 	// admin、adminErr 是规则归属用户。
@@ -72,7 +71,6 @@ func okExec(_ context.Context, _ Task, action db.AutomationAction) (actionExecut
 
 // TestExecuteRunActionLoopGapBranches 覆盖动作循环的延迟、检查点、隔离写入失败与门禁分支。
 func TestExecuteRunActionLoopGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// abortReview 让运行进入 needs_review 的写入失败，模拟人工核对状态无法落库。
 	const abortReview = `CREATE TRIGGER gap_abort_review BEFORE UPDATE ON automation_runs WHEN NEW.status='needs_review' BEGIN SELECT RAISE(ABORT, 'forced review write failure'); END`
@@ -209,7 +207,6 @@ func TestExecuteRunActionLoopGapBranches(t *testing.T) {
 
 // TestExecuteRuleGapBranches 覆盖 executeRule 的跳过、恢复、部分成功隔离与求评价计数失败分支。
 func TestExecuteRuleGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// abortReview 让运行进入 needs_review 的写入失败。
 	const abortReview = `CREATE TRIGGER gap_abort_review BEFORE UPDATE ON automation_runs WHEN NEW.status='needs_review' BEGIN SELECT RAISE(ABORT, 'forced review write failure'); END`

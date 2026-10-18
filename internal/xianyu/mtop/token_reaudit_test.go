@@ -57,7 +57,6 @@ func TestTokenRefreshForLoginStatusAndOrderDetail(t *testing.T) {
 				client := &ClientImpl{HTTPClient: server.Client(), LoginUserURL: server.URL + "/login", OrderDetailURL: server.URL + "/order", TokenURL: server.URL + "/token"}
 				// ctx、session 保存跨业务与 Token 刷新请求共享的 Cookie 状态。
 				ctx, session := WithFlatCookieSession(context.Background(), "unb=1; _m_h5_tk=old_1")
-				// err 保留当前入口最终返回的错误分类。
 				var err error
 				if operation == "login" {
 					_, err = client.CheckLoginStatusContext(ctx, "")

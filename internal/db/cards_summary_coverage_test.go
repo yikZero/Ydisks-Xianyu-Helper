@@ -136,10 +136,8 @@ func TestCardSummaryRetryIdempotencyScope(t *testing.T) {
 
 // TestCardSummaryRepositoryPaths 验证卡券完整读取和脱敏摘要读取不会混淆敏感 API 模板。
 func TestCardSummaryRepositoryPaths(t *testing.T) {
-	// store、cleanup 提供迁移后的 SQLite 测试数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID 保存卡券所属用户主键。
 	userID, _ := seedAccount(t, store)

@@ -24,7 +24,6 @@ import (
 )
 
 // 默认 UA、语言、时区与视口。
-// defaultW 用于本次流程后续判断的defaultW
 const (
 	defaultW       = 1920
 	defaultH       = 1080
@@ -91,16 +90,13 @@ func captchaBrowserProxy() string {
 	}
 }
 
-// chromiumExecutablePath 封装chromiumExecutable路径业务协调。
 func chromiumExecutablePath() *string {
-	if // path 用于本次流程后续判断的路径
-	path := strings.TrimSpace(os.Getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")); path != "" {
+	if path := strings.TrimSpace(os.Getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")); path != "" {
 		return playwright.String(path)
 	}
 	return nil
 }
 
-// skipPlaywrightBrowserDownload 封装skipPlaywright浏览器Download业务协调。
 func skipPlaywrightBrowserDownload() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"))) {
 	case "1", "true", "yes", "on":
@@ -110,54 +106,42 @@ func skipPlaywrightBrowserDownload() bool {
 	}
 }
 
-// packagedPlaywrightRuntimeReady 封装packagedPlaywrightRuntimeReady业务协调。
 func packagedPlaywrightRuntimeReady() bool {
-	// driverDir 用于本次流程后续判断的driverDir
 	driverDir := strings.TrimSpace(os.Getenv("PLAYWRIGHT_DRIVER_PATH"))
 	if driverDir == "" {
 		return false
 	}
-	// nodeReady 用于本次流程后续判断的nodeReady
 	nodeReady := false
-	if // nodePath 用于本次流程后续判断的node路径
-	nodePath := strings.TrimSpace(os.Getenv("PLAYWRIGHT_NODEJS_PATH")); nodePath != "" {
-		// err 用于本次流程后续判断的err
+	if nodePath := strings.TrimSpace(os.Getenv("PLAYWRIGHT_NODEJS_PATH")); nodePath != "" {
 		_, err := os.Stat(nodePath)
 		nodeReady = err == nil
 	} else {
-		// nodeName 用于本次流程后续判断的node名称
 		nodeName := "node"
 		if runtime.GOOS == "windows" {
 			nodeName = "node.exe"
 		}
-		// err 用于本次流程后续判断的err
 		_, err := os.Stat(filepath.Join(driverDir, nodeName))
 		nodeReady = err == nil
 	}
 	if !nodeReady {
 		return false
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := os.Stat(filepath.Join(driverDir, "package", "cli.js")); err != nil {
+	if _, err := os.Stat(filepath.Join(driverDir, "package", "cli.js")); err != nil {
 		return false
 	}
 	if strings.TrimSpace(os.Getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")) != "" {
 		return true
 	}
-	// browserDir 用于本次流程后续判断的浏览器Dir
 	browserDir := strings.TrimSpace(os.Getenv("PLAYWRIGHT_BROWSERS_PATH"))
 	if browserDir == "" {
 		return false
 	}
-	// matches、err 用于本次流程后续判断的matches、err
 	matches, err := filepath.Glob(filepath.Join(browserDir, "chromium-*"))
 	if err != nil {
 		return false
 	}
-	// match 表示当前遍历过程中的match
 	for _, match := range matches {
-		if // info、statErr 用于本次流程后续判断的info、statErr
-		info, statErr := os.Stat(match); statErr == nil && info.IsDir() {
+		if info, statErr := os.Stat(match); statErr == nil && info.IsDir() {
 			return true
 		}
 	}
@@ -222,7 +206,6 @@ type Manager struct {
 	tokenCaptchaFallbackFn tokenCaptchaEngineFunc
 }
 
-// poolEntry 用于本次流程后续判断的poolEntry
 type poolEntry struct {
 	cookieID              string
 	browser               playwright.Browser
@@ -408,14 +391,12 @@ func (m *Manager) ensureLifecycleCond() {
 	m.lifecycleMu.Unlock()
 }
 
-// accountRenewLock 封装账号Renew锁业务协调。
 func (m *Manager) accountRenewLock(cookieID string) *sync.Mutex {
 	m.renewMu.Lock()
 	defer m.renewMu.Unlock()
 	if m.renewLocks == nil {
 		m.renewLocks = make(map[string]*sync.Mutex)
 	}
-	// lock 用于本次流程后续判断的锁
 	lock := m.renewLocks[cookieID]
 	if lock == nil {
 		lock = &sync.Mutex{}
@@ -424,7 +405,6 @@ func (m *Manager) accountRenewLock(cookieID string) *sync.Mutex {
 	return lock
 }
 
-// acquireRenewSlot 封装acquireRenewSlot业务协调。
 func (m *Manager) acquireRenewSlot(ctx context.Context) (func(), error) {
 	if m.renewSlots == nil {
 		m.renewSlots = make(chan struct{}, 3)
@@ -544,5 +524,3 @@ func (m *Manager) InitializeContext(ctx context.Context) error {
 	defer m.endOperation()
 	return m.initContext(ctx)
 }
-
-// detectBrowserFingerprint 封装detect浏览器Fingerprint业务协调。

@@ -29,9 +29,7 @@ func requireAllFail(t *testing.T, errs map[string]error) {
 
 // TestOrderRepositoryPropagatesDatabaseFailures 验证订单仓储在数据库不可用时的全部入口都返回错误。
 func TestOrderRepositoryPropagatesDatabaseFailures(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是随后关闭的隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	cleanup()
 	// repository 绑定已关闭数据库。
@@ -67,7 +65,6 @@ func TestOrderRepositoryPropagatesDatabaseFailures(t *testing.T) {
 
 // TestOrderRepositoryGuardsAndConstructors 验证订单仓储的构造保护、事务保护与空批次快速返回。
 func TestOrderRepositoryGuardsAndConstructors(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	if NewOrderRepository(nil) != nil || NewOrderRepository(&db.Store{}) != nil {
 		t.Fatal("缺依赖应返回 nil 仓储")
@@ -77,31 +74,25 @@ func TestOrderRepositoryGuardsAndConstructors(t *testing.T) {
 	}
 	// bare 是没有写入 Unit of Work 的仓储。
 	bare := OrderRepository{store: &db.Store{}}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := bare.WithTransaction(ctx, func(orderapp.Writer) error { return nil }); err == nil {
 		t.Fatal("缺 Unit of Work 应失败")
 	}
-	// store、cleanup 是完整隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是完整装配的仓储。
 	repository := OrderRepository{store: store}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := repository.WithTransaction(ctx, nil); err == nil {
 		t.Fatal("空工作函数应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := repository.BatchUpsertOrders(ctx, nil); err != nil {
 		t.Fatalf("空批次应直接成功: %v", err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := bare.BatchUpsertOrders(ctx, []orderapp.RefreshOrderWrite{{OrderID: "o"}}); err == nil {
 		t.Fatal("缺 Unit of Work 的批量写入应失败")
 	}
 	if refreshJobFromDB(nil) != nil {
 		t.Fatal("空任务应转换为 nil")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := repository.Get(ctx, 1, "missing"); !errors.Is(err, orderapp.ErrRefreshJobNotFound) {
 		t.Fatalf("缺失任务: %v", err)
 	}
@@ -109,9 +100,7 @@ func TestOrderRepositoryGuardsAndConstructors(t *testing.T) {
 
 // TestAutomationRepositoryPropagatesDatabaseFailures 验证自动化规则仓储在数据库不可用时返回错误。
 func TestAutomationRepositoryPropagatesDatabaseFailures(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是随后关闭的隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	cleanup()
 	// repository 绑定已关闭数据库。
@@ -140,20 +129,16 @@ func TestAutomationRepositoryPropagatesDatabaseFailures(t *testing.T) {
 
 // TestAnalyticsRepositoryPropagatesDatabaseFailures 验证统计仓储在数据库不可用时返回错误，并覆盖时间范围过滤分支。
 func TestAnalyticsRepositoryPropagatesDatabaseFailures(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是随后关闭的隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 绑定当前数据库。
 	repository := NewAnalyticsRepository(store)
 	// filter 带起止时间，覆盖时间范围条件拼接。
 	filter := analyticsapp.Filter{UserID: 1, StartAt: "2000-01-01 00:00:00", EndBefore: "2100-01-01 00:00:00"}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := repository.QueryDaily(ctx, filter); err != nil {
 		t.Fatalf("时间范围查询: %v", err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := (&AnalyticsRepository{}).AvailableCardStock(ctx, 1); !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("缺卡券存储: %v", err)
 	}
@@ -174,7 +159,6 @@ func TestAnalyticsRepositoryPropagatesDatabaseFailures(t *testing.T) {
 
 // TestCardsRepositoryRejectsUnconfiguredAndFailsClosed 验证卡券仓储未装配与数据库关闭时的错误传播。
 func TestCardsRepositoryRejectsUnconfiguredAndFailsClosed(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// calls 调用卡券仓储全部入口并收集错误。
 	calls := func(repository *CardsRepository) map[string]error {
@@ -192,7 +176,6 @@ func TestCardsRepositoryRejectsUnconfiguredAndFailsClosed(t *testing.T) {
 		return errs
 	}
 	requireAllFail(t, calls(NewCardsRepository(nil)))
-	// store、cleanup 是随后关闭的隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	cleanup()
 	requireAllFail(t, calls(NewCardsRepository(store)))
@@ -200,9 +183,7 @@ func TestCardsRepositoryRejectsUnconfiguredAndFailsClosed(t *testing.T) {
 
 // TestNotificationRepositoriesPropagateDatabaseFailures 验证通知渠道与不确定通知仓储在数据库不可用时返回错误。
 func TestNotificationRepositoriesPropagateDatabaseFailures(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是随后关闭的隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	cleanup()
 	// channels 是渠道仓储。
@@ -229,7 +210,6 @@ func TestNotificationRepositoriesPropagateDatabaseFailures(t *testing.T) {
 	_, errs["ListUncertainForAdmin"] = uncertain.ListUncertainForAdmin(ctx, 10)
 	_, errs["CountUncertainForAdmin"] = uncertain.CountUncertainForAdmin(ctx)
 	requireAllFail(t, errs)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := normalizeNotificationRepositoryError(db.ErrForbidden); !errors.Is(err, notificationsapp.ErrChannelForbidden) {
 		t.Fatalf("Forbidden 映射: %v", err)
 	}
@@ -237,9 +217,7 @@ func TestNotificationRepositoriesPropagateDatabaseFailures(t *testing.T) {
 
 // TestKeywordRepositoryDatabaseFailuresAfterAuthorization 验证账号归属通过后，关键词与商品回复表故障被向上传播。
 func TestKeywordRepositoryDatabaseFailuresAfterAuthorization(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// admin 是账号 cid 的所有者，归属校验会通过。
@@ -251,7 +229,6 @@ func TestKeywordRepositoryDatabaseFailuresAfterAuthorization(t *testing.T) {
 	repository := NewKeywordRepository(store)
 	// table 是需要删除以制造查询故障的业务表。
 	for _, table := range []string{"keywords", "item_replay"} {
-		// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 		if _, err := store.DB.ExecContext(ctx, "DROP TABLE "+table); err != nil {
 			t.Fatal(err)
 		}
@@ -271,20 +248,16 @@ func TestKeywordRepositoryDatabaseFailuresAfterAuthorization(t *testing.T) {
 	if _, err := repository.List(ctx, admin.ID, "no-such"); !errors.Is(err, keywordsapp.ErrNotFound) {
 		t.Fatalf("不存在账号: %v", err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := repository.List(ctx, admin.ID+100, "cid"); !errors.Is(err, keywordsapp.ErrForbidden) {
 		t.Fatalf("他人账号: %v", err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := repository.List(ctx, admin.ID, ""); !errors.Is(err, keywordsapp.ErrInvalidInput) {
 		t.Fatalf("空账号: %v", err)
 	}
 	cleanup()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := repository.List(ctx, admin.ID, "cid"); err == nil {
 		t.Fatal("数据库关闭后归属查询应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := repository.ListItemReplies(ctx, admin.ID); err == nil {
 		t.Fatal("数据库关闭后账号列表应失败")
 	}
@@ -292,7 +265,6 @@ func TestKeywordRepositoryDatabaseFailuresAfterAuthorization(t *testing.T) {
 
 // TestDefaultReplyAndDeliveryTemplateRepositoriesFailClosed 验证默认回复与发货模板仓储在未装配和数据库故障时返回错误。
 func TestDefaultReplyAndDeliveryTemplateRepositoriesFailClosed(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// defaultCalls 调用默认回复仓储全部入口。
 	defaultCalls := func(repository *DefaultReplyRepository) map[string]error {
@@ -319,7 +291,6 @@ func TestDefaultReplyAndDeliveryTemplateRepositoriesFailClosed(t *testing.T) {
 	}
 	requireAllFail(t, defaultCalls(NewDefaultReplyRepository(nil)))
 	requireAllFail(t, templateCalls(NewDeliveryTemplateRepository(nil)))
-	// store、cleanup 是随后关闭的隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	cleanup()
 	requireAllFail(t, defaultCalls(NewDefaultReplyRepository(store)))

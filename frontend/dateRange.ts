@@ -7,25 +7,27 @@ export type DateRange = {
     endDate: string;
 };
 
+// formatLocalDate 按本地时区把日期格式化为 YYYY-MM-DD。
 export const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear(); /* year 表示year。 */
-  const month = String(date.getMonth() + 1).padStart(2, '0'); /* month 表示month。 */
-  const day = String(date.getDate()).padStart(2, '0'); /* day 表示day。 */
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}; /* formatLocalDate 表示formatLocalDate。 */
+};
 
 const addDays = (date: Date, days: number): Date => {
-  const next = new Date(date); /* next 表示next。 */
+  const next = new Date(date);
   next.setHours(12, 0, 0, 0);
   next.setDate(next.getDate() + days);
   return next;
-}; /* addDays 表示addDays。 */
+};
 
 const rangeEndingAt = (end: Date, days: number): DateRange => ({
   startDate: formatLocalDate(addDays(end, -(days - 1))),
   endDate: formatLocalDate(end),
-}); /* rangeEndingAt 表示rangeEndingAt。 */
+});
 
+// getDateRange 把看板时间范围选项换算为起止日期；custom 使用传入日期，开始晚于结束时抛错。
 export const getDateRange = (
   range: TimeRange,
   now = new Date(),
@@ -41,14 +43,15 @@ export const getDateRange = (
   if (range === 'yesterday') {
     return rangeEndingAt(addDays(now, -1), 1);
   }
-  const days = range === '3days' ? 3 : range === '30days' ? 30 : range === 'today' ? 1 : 7; /* days 表示days。 */
+  const days = range === '3days' ? 3 : range === '30days' ? 30 : range === 'today' ? 1 : 7;
   return rangeEndingAt(now, days);
-}; /* getDateRange 表示getDateRange。 */
+};
 
+// getPreviousDateRange 返回与当前范围等长、紧邻其之前的对比时间范围。
 export const getPreviousDateRange = (current: DateRange): DateRange => {
-  const start = new Date(`${current.startDate}T12:00:00`); /* start 表示start。 */
-  const end = new Date(`${current.endDate}T12:00:00`); /* end 表示end。 */
-  const dayCount = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1; /* dayCount 表示dayCount。 */
-  const previousEnd = addDays(start, -1); /* previousEnd 表示previousEnd。 */
+  const start = new Date(`${current.startDate}T12:00:00`);
+  const end = new Date(`${current.endDate}T12:00:00`);
+  const dayCount = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  const previousEnd = addDays(start, -1);
   return rangeEndingAt(previousEnd, dayCount);
-}; /* getPreviousDateRange 表示getPreviousDateRange。 */
+};

@@ -12,10 +12,8 @@ import (
 
 // TestMigratePendingAutomationSKURules 验证历史规则规格规范化、无效规则停用和重复迁移幂等。
 func TestMigratePendingAutomationSKURules(t *testing.T) {
-	// store、cleanup 保存迁移测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存迁移测试共用上下文。
 	ctx := context.Background()
 	// admin、err 保存测试用户创建结果。
 	if _, err := store.Users.Create(ctx, "admin", "admin@example.com", "pw"); err != nil {
@@ -173,7 +171,6 @@ func TestMigrateLegacyAutomationSKUSchema(t *testing.T) {
 		t.Fatalf("打开旧数据库失败: %v", openErr)
 	}
 	defer database.Close()
-	// ctx 保存旧库升级测试共用上下文。
 	ctx := context.Background()
 	// err 保存 Goose 方言设置错误。
 	if err := goose.SetDialect("sqlite3"); err != nil {
@@ -229,10 +226,8 @@ func TestMigrateLegacyAutomationSKUSchema(t *testing.T) {
 
 // TestAutomationMatchOnlyReturnsReadySKURules 验证待迁移和待重配规则不会进入自动发货匹配结果。
 func TestAutomationMatchOnlyReturnsReadySKURules(t *testing.T) {
-	// store、cleanup 保存隔离的自动化规则测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存规则匹配测试共用上下文。
 	ctx := context.Background()
 	// user、err 保存测试用户及创建错误。
 	user, err := store.Users.Create(ctx, "sku-match-admin", "sku-match@example.com", "password")

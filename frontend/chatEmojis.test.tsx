@@ -14,7 +14,7 @@ describe('official Xianyu emoji mapping', () => {
     for (const [, url] /* [, url] 表示请求地址。 */ of xianyuEmojis) {
       expect(url).toMatch(/^https:\/\/img\.alicdn\.com\//);
     }
-    const html = renderToStaticMarkup(<>{renderXianyuText('你好[捂脸哭][送花]')}</>); /* html 表示html。 */
+    const html = renderToStaticMarkup(<>{renderXianyuText('你好[捂脸哭][送花]')}</>);
     expect(html).toContain('你好');
     expect(html).toContain('alt="[捂脸哭]"');
     expect(html).toContain('alt="[送花]"');

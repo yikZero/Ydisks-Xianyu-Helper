@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestTemplateFindingsInGoFile 验证模板审计器会定位阶段 10 禁止的占位注释，并忽略正常业务说明。
+// TestTemplateFindingsInGoFile 验证模板审计器会定位禁止的占位注释，并忽略正常业务说明。
 func TestTemplateFindingsInGoFile(t *testing.T) {
 	// root 是承载独立 Go 源码夹具的临时目录。
 	root := t.TempDir()
@@ -26,6 +26,12 @@ var count int
 var callback = func() {}
 // accountID 是所有权校验通过后的非敏感账号标识。
 var accountID string
+// state 用于本次流程后续判断的状态
+var state string
+// item 表示当前遍历过程中的item
+var item string
+// Run 封装Run业务协调。
+func Run() {}
 `
 	// err 是创建临时夹具时的文件系统错误。
 	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
@@ -36,8 +42,8 @@ var accountID string
 	if err != nil {
 		t.Fatalf("templateFindingsInGoFile error: %v", err)
 	}
-	if len(findings) != 5 {
-		t.Fatalf("模板记录数=%d，want 5: %+v", len(findings), findings)
+	if len(findings) != 8 {
+		t.Fatalf("模板记录数=%d，want 8: %+v", len(findings), findings)
 	}
 	// expectedKinds 是每种模板规则应至少命中一次的类别集合。
 	expectedKinds := map[string]bool{
@@ -46,6 +52,9 @@ var accountID string
 		"泛化错误说明":   false,
 		"泛化数量说明":   false,
 		"泛化回调职责":   false,
+		"后续判断占位":   false,
+		"遍历变量占位":   false,
+		"业务协调占位":   false,
 	}
 	// finding 是当前待核验的模板扫描记录。
 	for _, finding := range findings {

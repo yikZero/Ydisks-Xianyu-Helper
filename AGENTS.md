@@ -1,433 +1,154 @@
 # AGENTS.md
 
-## Repository shape
+闲鱼多账号助手：Go 后端 + React/Vite 前端，前端构建产物嵌入 Go 二进制。
+本文只保留改代码时必须知道的事实和不可破坏的规则；细节见 `docs/`。
 
-The active application contains:
+## 目录
 
-- `cmd/server/` — server entrypoint, administrator bootstrap (`/initialize` and `-init-admin`), and HTTP server.
-- `cmd/init-admin/` — interactive administrator initialization CLI.
-- `cmd/dbverify/` — migration + core CRUD verification tool across SQLite/MySQL/Postgres.
-- `internal/server/` — chi HTTP API and SPA serving.
-- `internal/adapter/` — wiring layer that implements `engine.Handler` and `automation.OrderDetailFetcher` (system events → automation center, order-detail fetch → browser, protocol-level credential renewal, account alerts → notifier).
-- `internal/account/` — enabled-account supervisor.
-- `internal/engine/` — per-account runtime, replies, and delivery behavior.
-- `internal/automation/` — unified automation center (paid delivery, review gifts, review requests) + scheduler.
-- `internal/xianyu/` — MTOP, WebSocket, QR login, and protocol code.
-- `internal/browser/` — in-process Chromium automation through playwright-go.
-- `internal/db/` — multi-database access (SQLite/MySQL/Postgres) with embedded Goose migrations per dialect.
-- `frontend/` — active React/Vite source.
-- `internal/webui/static/` — embedded frontend build output.
+- `cmd/server/` — 服务入口、管理员初始化（`/initialize` 与 `-init-admin`）。`cmd` 只做配置、依赖构造和生命周期，不写业务。
+- `cmd/init-admin/`、`cmd/dbverify/`、`cmd/tray/`、`cmd/browser-install/` — 运维与桌面辅助程序。
+- `internal/server/` — chi HTTP API 与 SPA 静态资源（只做 transport）。
+- `internal/application/` — 应用服务：用例编排、鉴权、事务边界。
+- `internal/adapter/` — 装配层，把 engine/automation 的接口接到数据库、浏览器、平台和通知。
+- `internal/account/` — 已启用账号的运行时监管。
+- `internal/engine/` — 单账号 WebSocket 运行时、关键词/AI 回复、消息分发。
+- `internal/automation/` — 自动化中心：付款发货、砍价免拼、评价赠品、求评价、兜底调度。
+- `internal/xianyu/` — 平台协议：MTOP 签名请求、WebSocket、扫码登录、Cookie。
+- `internal/browser/` — playwright-go 驱动的进程内 Chromium（验证、订单详情兜底）。
+- `internal/db/` — SQLite/MySQL/PostgreSQL 访问、仓储实现、按方言的 Goose 迁移。
+- `frontend/` — React 源码；`internal/webui/static/` 是构建产物，不要手改。
+- `api/openapi.yaml` — `/api/v1/**` 与 `/health` 的唯一 HTTP 契约。
 
-## Common commands
+## 常用命令
 
 ```bash
-cd /Users/christ/Workspace/git/xianyu/Ydisks-Xianyu-Helper
+make build            # go build ./cmd/server
+make test             # go test ./...
+make vet / make lint  # go vet / golangci-lint
+make comments         # 注释检查
+make api-check        # OpenAPI 与路由、生成类型的一致性
+make architecture     # 包依赖边界检查
+make check            # 提交前全套：fmt + architecture + api-check + vet + lint + test + comments
+make smoke            # 构建并启动真实二进制做 HTTP 冒烟（临时 SQLite）
+make frontend         # 构建前端到 internal/webui/static
 
-make build      # go build ./cmd/server
-make test       # go test ./...
-make test-server       # go test ./internal/server
-make test-server-race  # server 生命周期与凭证并发 smoke race
-make smoke      # 构建并启动真实二进制，经 HTTP 验证健康/初始化/登录/核心列表/前端首页/优雅退出（临时 SQLite）
-make vet        # go vet ./...
-make lint       # golangci-lint run ./... (0 issues baseline)
-make check      # fmt + architecture + API contract + vet + lint + test + comments
-make cover      # Go 全量覆盖率（默认不启动 Chromium）
-make cover-browser # 本地 Chromium 页面与 CDP 覆盖率
-make cover-frontend # 前端 V8 覆盖率（文本/JSON/HTML）
-make frontend   # build frontend into internal/webui/static
+go test ./internal/server -run TestName -v   # 单个测试
 ```
 
-Run the server (SQLite by default; MySQL/Postgres via `-db-url` or `DATABASE_URL`):
+运行（默认 SQLite，MySQL/Postgres 用 `-db-url` 或 `DATABASE_URL`）：
 
 ```bash
 go run ./cmd/server -db data/xianyu_data.db -addr :59188
-DATABASE_URL="mysql://user:pass@tcp(host:3306)/db" go run ./cmd/server -addr :59188
+go run ./cmd/server -init-admin -db data/xianyu_data.db -admin-password '...'   # 重置管理员
 ```
 
-On a new database, open the management page after starting the server. The first-run page accepts
-and confirms an administrator password, creates the `admin` user, and signs the user in automatically.
-The CLI bootstrap remains available for headless or operational environments.
+新数据库启动后打开管理页面完成首次初始化。除非用户明确要求或确认 Chromium 不可用，不要加 `-no-browser`。
 
-Disable browser automation only when the user explicitly requests it or explicitly confirms that Chromium is unavailable. Unless the user gives that direction, agents MUST NOT add `-no-browser` when starting the server:
+前端开发：`cd frontend && npm install && npm run dev`，Vite 代理后端到 `localhost:59188`。
+改了前端源码后要 `npm run build`，让嵌入资源保持最新。
 
-```bash
-go run ./cmd/server -db data/xianyu_data.db -addr :59188 -no-browser
-```
+## 不可破坏的业务规则
 
-Initialize or reset the administrator:
+### 商品列表协议
 
-```bash
-go run ./cmd/server -init-admin -db data/xianyu_data.db -admin-password '...'
-```
+商品列表接口在账号没有在售商品时，成功响应可能省略 `cardList`。**缺少 `cardList` 按空列表处理，不是错误**，
+全量同步应正常完成。只有 `cardList` 存在但类型不对，或其他字段明确表示失败时才算异常。相关测试必须覆盖“成功且省略 `cardList`”。
 
-Verify a database (migration + CRUD across dialects):
+### 自动发货与砍价免拼顺序
 
-```bash
-go run ./cmd/dbverify "mysql://user:pass@tcp(host:3306)/db"
-```
+自动化交易流程由 WebSocket 系统消息驱动；按订单状态扫描的调度器只是丢消息后的兜底，不能抢跑或推断 WebSocket 阶段。
 
-Run a focused test:
+四条发货分支：
 
-```bash
-go test ./internal/server -run TestName -v
-go test ./internal/db -run TestMigrate -v
-```
+1. **常规**：付款 WS → 拉取订单金额、数量、规格 → 匹配发卡/模板动作 → 发卡成功 → 按“自动确认发货”开关确认发货。
+2. **多规格**：同上，但只执行与订单完整 SKU 组合完全匹配的动作，不按部分规格或金额猜测。
+3. **二人小刀，未开自动免拼**：忽略“我已小刀，待刀成”；收到“我已成功小刀，待发货”后按常规顺序发卡、确认。
+4. **二人小刀，开启自动免拼**：“待刀成”WS 只调用一次免拼接口，此时严禁发卡、发模板或确认发货；
+   必须等“待发货”WS 到达后才发卡，发卡成功后才允许确认发货。
 
-Cross-database regression (requires Docker containers or external DBs):
+- 免拼不是确认发货的替代；确认发货不得因订单是砍价订单而改调免拼接口。
+- 兜底任务只能依据已持久化的阶段事实补做未完成的动作，不得调用免拼接口。砍价订单只有已记录免拼成功或已收到“待发货”阶段后才可补发卡和确认。
+- 恢复历史失败运行前必须重新核对：运行来源合法、订单仍是 `pending_ship`、订单归属账号未变、账号仍开启自动发货。
+  订单已取消/完成/发货则取消旧运行；事实缺失、快照不一致或外部结果不确定时停止自动重放，并发送“需要人工处理”通知。
+- 账号开关命名：`auto_confirm` = 付款后**自动发货**总开关；`auto_consign` = 发卡成功后**自动确认发货**；`auto_bargain` = 自动免拼。
 
-```bash
-TEST_MYSQL_URL="mysql://root:pass@tcp(host:3306)/db" \
-TEST_POSTGRES_URL="postgres://user:pass@host:5432/db" \
-go test ./internal/db -run TestMultiDB -v
-```
+## 冻结的滑块验证码逻辑
 
-Build the frontend:
+滑块/CAPTCHA 实现已在生产冻结，行为定义见 `docs/slider-captcha-frozen-spec.md`。除非用户在当前任务中明确要求，
+不要修改（包括重构、格式化、改选择器/轨迹/时序/重试/Cookie 合并/浏览器参数，或通过修改调用方间接改变其行为）：
 
-```bash
-cd /Users/christ/Workspace/git/xianyu/Ydisks-Xianyu-Helper/frontend
-npm install
-npm run build
-```
-
-Run the frontend development server:
-
-```bash
-npm run dev
-```
-
-Vite proxies backend routes to `localhost:59188`. Production builds are written to `internal/webui/static/` and embedded by the Go server.
-
-## 闲鱼商品列表协议约束
-
-闲鱼商品列表接口在账号没有在售商品时，成功响应可能省略 `cardList` 字段；**缺少 `cardList` 不是异常，也不是不完整响应**，必须按空商品列表处理并允许全量同步正常完成。本协议事实不得在代码审查、测试或后续重构中被改写为“缺少 `cardList` 即报错”。只有平台明确返回 `cardList` 且其值类型不符合接口协议，或其他字段明确表明响应失败时，才按异常处理。涉及该字段的测试必须覆盖成功且省略 `cardList` 的空列表场景。
-
-## 砍价免拼与自动发货顺序（不可变业务规则）
-
-所有自动化交易流程以 WebSocket 系统消息驱动；按订单状态扫描的调度器只可作为丢失消息后的兜底，绝不能抢跑或推断 WebSocket 阶段。砍价订单必须严格按以下顺序执行：
-
-1. 收到“我已小刀，待刀成”时，只读取账号管理中的独立“自动免拼”开关；开关开启才调用免拼接口。此阶段严禁发卡、发送发货模板或确认发货。
-2. 收到“我已成功小刀，待发货”时，才进入付款后自动发货规则并执行发卡或发货模板。自动免拼开关关闭不阻止已经到达该阶段的订单发卡。
-3. 发卡或发货模板成功后，才可按账号“自动确认发货”开关调用普通确认发货接口。发卡是自动确认发货前的最后一步；免拼不是确认发货的替代分支，确认发货不得因为订单是砍价订单而改调免拼接口。
-
-兜底任务只能根据订单已持久化的阶段事实恢复尚未完成的动作：普通待发货订单可补触发付款后发货；砍价订单只有在已记录免拼成功或已收到最终“待发货”阶段后才可补发卡及确认发货。兜底任务不得调用免拼接口，也不得抢在 WebSocket 阶段确认之前发卡、发货或触发其他自动化行为。
-
-自动发货必须按以下四条可测试分支理解，不能把“商品类型”和“免拼阶段”混成同一个判断：
-
-1. 常规发货：付款 WebSocket → 获取订单金额、数量和规格 → 匹配常规发卡/模板动作 → 发卡成功 → 按“自动确认发货”开关确认发货。
-2. 多规格发货：付款 WebSocket → 获取订单完整 SKU 组合 → 只执行完整匹配该组合的发卡/模板动作 → 发卡成功 → 按“自动确认发货”开关确认发货；不得按部分规格或待获取金额猜测规则。
-3. 二人小刀普通发货：未开启“自动免拼”时，不处理“待刀成”阶段；收到“我已成功小刀，待发货”后执行与常规发货相同的发卡和确认顺序。
-4. 二人小刀免拼发货：开启“自动免拼”时，“待刀成” WebSocket 只执行一次免拼；必须等待“我已成功小刀，待发货” WebSocket 后才发卡，发卡成功后才允许确认发货。
-
-历史失败运行的恢复也属于兜底，执行任何发卡、模板或确认发货前必须重新核对：运行最初来自 WebSocket 或合法待发货兜底、订单当前仍是 `pending_ship`、订单归属账号未变化、账号仍开启自动发货。订单已取消、完成或已发货时取消旧运行；订单事实缺失、快照身份不一致或外部结果不确定时停止自动重放并发送“需要人工处理”通知。所有进入 `needs_review` 或等价人工处理状态的自动化路径都必须发送该独立通知类别；原自动化类别订阅保持兼容接收。
-
-## Mandatory refactoring governance — DO NOT SKIP
-
-The repository is following the authoritative long-term plan in
-`docs/architecture/refactoring-master-plan.md`. Before changing Go package boundaries, HTTP APIs, database
-access, account credentials, application wiring, React page structure, tests, CI or compatibility behavior,
-agents MUST read all of:
-
-- `docs/architecture/refactoring-master-plan.md`
-- `docs/architecture/dependency-rules.md`
-- `docs/architecture/comment-standard.md`
-- `docs/slider-captcha-frozen-spec.md` when credentials, login, engine, account, server or browser call paths are involved
-
-The authoritative schedule has exactly six formal phases and is defined only by
-`docs/architecture/refactoring-master-plan.md`. Before editing, read its state table. Do not infer a phase from
-old commits, a document heading, implementation that happened to land early, or a historical completion claim.
-
-Each phase is one task, one review unit and one final Chinese commit. A phase may change every package, feature,
-test, gate and document required by its stated scope. Agents MUST NOT split it into vertical slices, milestones,
-separately delivered subtasks, independent PRs, or intermediate commits. The worktree may be temporarily
-non-compiling only while the single phase is in progress; its final commit must compile, start, pass every listed
-verification and have complete evidence recorded once in `refactoring-progress.md`.
-
-The complete architecture-gate catalog is established before production migration. `tools/architecturecheck`
-reads the single current phase from the master plan, activates that phase and every earlier gate, and fails when
-the phase state is missing or ambiguous. After phase six is complete, every gate remains permanently active.
-Agents must not defer gate design to phase six, enable a future phase
-early, or bypass an active gate with a whitelist, baseline, ignored path or warning-only result.
-
-Do not use a large phase change to hide unfinished branches, error paths or unverified behavior. Do not weaken,
-skip or delete tests; reformat or rename unrelated code; upgrade unrelated dependencies; delete coverage; expand
-a compatibility whitelist; or change frozen CAPTCHA behavior. Preserve unrelated working-tree changes.
-
-Compatibility adapters remain until every known caller has migrated and contract tests prove removal. Emergency
-bug or security fixes may precede the plan only when narrowly scoped and recorded in the master plan.
-
-## Mandatory Chinese comments for all functions and variables
-
-`docs/architecture/comment-standard.md` is authoritative. This requirement is intentionally stricter than
-normal Go exported-symbol documentation rules and applies to Go, TypeScript and TSX production and test code.
-
-Agents MUST:
-
-- add accurate Chinese comments for every new or modified function, method, anonymous function, parameter,
-  return value, package/module variable, constant, field, local variable, short declaration, loop variable,
-  callback parameter, React state value, setter, ref and memoized value;
-- explain all variables in a multi-variable declaration in one nearby comment when appropriate;
-- explain business meaning, input/output semantics, units, lifecycle, ownership, cancellation, concurrency,
-  sensitivity or compatibility constraints instead of translating the identifier or restating syntax;
-- update comments in the same change whenever behavior or ownership changes;
-- clear historical comment-baseline entries for every file or logical unit materially refactored;
-- keep generated code, third-party code and `internal/webui/static` out of manual comment backfills.
-
-Automated checks can prove only presence and Chinese text. Reviewers and agents remain responsible for semantic
-accuracy. Placeholder comments such as “err 表示错误” or “count 表示数量” are forbidden. Comments must never
-contain real Cookie, Token, password, SMTP credential or production secret values.
-
-Until the historical baseline is removed, untouched legacy declarations may remain exempt, but no task may add
-new debt or use the baseline to exempt newly created or semantically modified declarations.
-
-Run `make comments` (or `go run ./tools/commentlint -mode check -root . -baseline .commentlint/go-baseline.json`
-and `npm --prefix frontend run comments:check`) for the mandatory AST presence gate. Baseline regeneration is a
-reviewed maintenance operation only: use `make comments-baseline` after clearing the affected file's historical
-debt and record the scope in `docs/architecture/refactoring-master-plan.md`.
-
-## Mandatory coverage policy
-
-- Every new or modified deterministic function, branch and error path MUST have a focused test. Prefer injected
-  dependencies, local `httptest` servers, in-memory databases and local Playwright pages over real platform calls.
-- Run `make cover` for the ordinary Go baseline, `make cover-browser` when Chromium is available, and
-  `make cover-frontend` for the React/Vite V8 report. Coverage reports are verification artifacts and MUST NOT be
-  committed (`cover*.out` and `frontend/coverage/` remain generated files).
-- Do not exclude production business files, lower thresholds, mark business code as ignored, or weaken assertions
-  merely to improve a percentage. Per the current user requirement, pure React UI components are outside the business
-  coverage target and may be excluded by the frontend coverage configuration; their business behavior must remain in
-  tested Hook/state/service modules. Any remaining uncovered business code must be classified in the plan as
-  deterministic work, environment-only work, or real-account/external-platform work.
-- Tests may skip only behavior that genuinely requires a real account, private platform state, or an unavailable
-  external service. Local browser behavior, error handling, cancellation, lifecycle, parsing and UI state transitions
-  MUST use deterministic fixtures and remain covered.
-- A coverage claim MUST include the command, whether `RUN_BROWSER_INTEGRATION=1` was used, the Go and frontend
-  statement percentages, and the exact real-account/external-platform exceptions.
-
-## Mandatory target dependency boundaries
-
-`docs/architecture/dependency-rules.md` is authoritative. During migration, existing violations may remain only
-until their recorded phase is completed; agents MUST NOT add new violations.
-
-- `cmd` handles configuration, dependency construction, signals and lifecycle only; no new business rules, SQL,
-  HTTP handlers or protocol parsing belong there.
-- `internal/server` is the HTTP/SPA transport. Do not add new direct `Store.DB`, transaction, MTOP, browser,
-  credential-renewal, business-worker or platform-session logic. New use cases go through application services.
-- Application services own use-case orchestration, authorization and transaction boundaries and must not depend
-  on `net/http`, chi or frontend compatibility fields.
-- Interfaces are defined by consumers and kept minimal. Do not add a service locator, universal repository
-  interface or runtime setter for a required dependency.
-- `internal/db` owns SQL, dialects, migrations, encryption-at-rest and repository implementations. It must not
-  import upper layers or decide HTTP responses.
-- `internal/xianyu` and `internal/browser` own platform and browser implementation. They must not write business
-  data directly, decide automation rules or depend on the HTTP/application layer.
-- `internal/engine` and `internal/automation` must remain independent of Server. New mutable concurrent state
-  requires explicit ownership, lock, Context, goroutine and shutdown documentation plus focused tests.
-- Cross-repository atomic work belongs behind an application-level Unit of Work. New handlers must not call
-  `BeginTx` directly.
-
-## Mandatory sensitive-data boundaries
-
-- Account summaries and ownership checks MUST NOT read or decrypt Cookie, Token, password or encrypted metadata.
-- Platform credentials and password-login secrets use separate models and purpose-specific repository methods.
-- Sensitive persistence models MUST NOT be serialized as HTTP responses or frontend state.
-- Logs, notifications, API errors and test failure output MUST NOT contain plaintext credentials.
-- New ownership checks return existence/non-sensitive identity rather than maps of decrypted Cookie values.
-- Do not hold credential locks across slow external I/O unless an authoritative protocol invariant explicitly
-  requires it and the lock order is documented and tested.
-- **Sole documented exception (API card editor):** `GET /api/v1/cards/{card_id}/api-editor` may return the
-  owner's saved API-card request template (headers, query parameters and body, including third-party API keys) so
-  the owner can review and edit it. This exception was explicitly approved by the project owner and is limited to
-  that one endpoint. It requires: login plus card-ownership and `type=api` checks, `Cache-Control: no-store`,
-  no values in ordinary card lists/details, logs, notifications or error messages, secret-bearing inputs masked by
-  default in the UI, and the draft cleared when the dialog closes or the card switches. It is not a precedent: any
-  other endpoint that would return a stored secret still needs its own recorded approval.
-
-## Mandatory HTTP API constraints
-
-- New APIs use the `/api/v1` prefix unless the current task is an explicit compatibility fix.
-- New request and response bodies use named DTOs. Do not add anonymous handler request structs, dynamic
-  `map[string]any` response contracts or direct DB-model serialization.
-- New failures use the unified error envelope and correct HTTP status. Do not add HTTP 200 + `success:false` or
-  new `detail`/`msg`/`error` aliases.
-- DB models, domain models and transport DTOs remain distinct. Compatibility normalization belongs only at the
-  transport adapter boundary.
-- Route-prefix changes require `frontend/vite.config.ts`, frontend API callers, contract tests and embedded assets
-  to be updated together.
-- `api/openapi.yaml` is the only contract source for `/api/v1/**` and `/health`; every new versioned operation must
-  update the specification, regenerate `frontend/shared/api-contract/generated/schema.ts`, and add a real handler
-  contract test before a feature can call it. Generated types are read-only, and feature UI models must remain behind
-  their own API adapters.
-
-## Mandatory React constraints
-
-- New frontend code follows `app -> features -> shared`; a feature must not import another feature's internal
-  files, and shared code must not import features.
-- React components must not call `fetch` or `axios` directly. Use the shared HTTP client through a feature API
-  adapter; keep domain normalization out of the generic client.
-- Do not store derivable values in state. Put user-triggered side effects in event handlers, split effects with
-  different dependencies, and use functional state updates when the next value depends on the previous value.
-- Every async effect or request must define cancellation or latest-generation behavior so stale responses cannot
-  replace current state. Independent requests should start in parallel.
-- Do not add memoization without a concrete expensive calculation or stable-child-prop reason. Do not define
-  child components inside parent components.
-- Keep server data, form state and transient UI state separate. Heavy pages and heavy optional dependencies use
-  route/feature-level lazy loading where practical.
-- New or materially changed user flows require behavior tests for success, failure, cancellation, switching and
-  stale responses. Source-string tests are reserved for static architecture rules.
-- Generated API types are read-only; feature adapters convert transport DTOs to UI models.
-- Feature code must not import the generated schema directly, restore `transport.ts`, or import legacy
-  `get/post/put/del/postForm`; only the shared contract runtime may call `fetch`.
-
-## Mandatory database, transaction and multi-dialect constraints
-
-- Do not expose new raw `*sql.DB` access to upper layers. Add narrow repository methods or an explicit Unit of
-  Work instead.
-- SQL row structs, persistence models, domain models and HTTP DTOs must not be collapsed into one convenience
-  type when they have different sensitivity or ownership.
-- Every migration keeps SQLite, MySQL and PostgreSQL numbering and final schema aligned.
-- Database behavior changes require focused SQLite tests and, when available, MySQL/Postgres regression or
-  `cmd/dbverify` evidence.
-- Repository/package splitting is permitted only after consumer interfaces and transaction boundaries are clear;
-  directory count is not a goal and package cycles must not be hidden behind globals or reflection.
-
-## Mandatory lifecycle and concurrency constraints
-
-- Background goroutines require a documented owner, Context source, cancellation path and Wait/Join path.
-- Start methods must not make partially constructed objects observable. Stop/Close must be idempotent when the
-  component contract allows repeated shutdown.
-- The sender closes a channel unless a more specific documented ownership rule applies.
-- Do not perform uncontrolled network, browser or user-wait I/O while holding a mutex.
-- Types with concurrent use must document which locks protect which fields and the allowed lock order.
-- Required dependencies are constructor inputs and validated before Start; mutable setters are only for optional
-  runtime configuration or isolated tests and must not create an invalid intermediate production state.
-
-## Desktop packaging and service behavior
-
-The application defaults to port `59188`; commands using `-addr :59188` listen on all interfaces. Desktop
-packages explicitly bind the server to `127.0.0.1:59188` and keep the server and tray as separate processes:
-
-- Windows installs the `YdisksXianyuHelper` Windows Service and starts `xianyu-tray.exe` for the current
-  user. The installer grants the interactive user only service status/start/stop rights, so tray service
-  actions do not launch UAC prompts after installation. Service configuration and deletion remain admin-only.
-- macOS registers `com.ydisks.xianyu-helper.server` and `com.ydisks.xianyu-helper.tray` LaunchAgents.
-  The app is `/Applications/Ydisks闲鱼助手/Ydisks闲鱼助手.app`, and the tray executable is named
-  `Ydisks闲鱼助手` with `LSUIElement=true` so it does not appear in the Dock.
-- Linux packages are architecture-specific tar archives. `install.sh` must run as root on a native matching
-  architecture, installs `ydisks-xianyu-helper.service`, and keeps data in `/var/lib/ydisks-xianyu-helper`.
-
-All desktop packages contain the matching Playwright driver, Chromium and headless shell. Do not add a
-Debian Chromium package or download a second browser during installation. The Docker final image uses
-`node:24-trixie-slim`, copies the cached runtime prepared by CI, installs only the Chromium system libraries
-through the bundled Playwright driver, and clears apt indexes and temporary caches in the same image layer.
-The desktop CI workflow runs on `main` and `dev`; formal desktop builds are invoked by the unified
-`release.yml` workflow for `v*.*.*` version tags. Linux amd64 and arm64 jobs use native GitHub-hosted runners and
-must not use QEMU or cross-architecture emulation. Docker publishing also builds each architecture on its native
-runner: branch builds publish `main` or `dev` plus a full-commit `sha-*` tag, while formal builds publish semantic
-version tags, `latest`, and the full-commit `sha-*` tag only after the `production-release` Environment approval.
-Version tags create a GitHub Release containing all platform packages and SHA-256 checksums. Never publish a Docker
-manifest until Go/frontend tests, an actual Chromium launch, and the packaged server health check have passed for
-every architecture.
-
-The tray state machine is shared by Windows and macOS: it serializes actions, shows transition states,
-waits for a healthy `/health` response after start/restart, waits for the endpoint to become unreachable
-after stop, and stops the server before exiting. The tray also provides an “Open log directory” action.
-
-Desktop first-run initialization is done in the web UI at `http://127.0.0.1:59188`; users enter and confirm
-the initial administrator password. `-init-admin` remains an operational/headless fallback, while Docker
-Compose uses `XIANYU_ADMIN_PASSWORD` for non-interactive initialization.
-
-## macOS 本地安装包构建
-
-macOS 安装包必须通过 `packaging/macos/build-pkg.sh` 构建，禁止手工复制 Chromium、Playwright
-driver 或 headless shell 到 `dist`。打包脚本会检查目标架构的 runtime；runtime 不完整时自动调用
-`packaging/macos/prepare-runtime.sh`，从本机 Playwright 缓存整理出与 driver 匹配的 Chromium
-和 Chromium headless shell。
-
-本机 arm64 打包流程：
-
-```bash
-npm ci --prefix frontend
-npm run build --prefix frontend
-mkdir -p dist/macos/arm64
-go build -trimpath -ldflags='-s -w' -o dist/macos/arm64/xianyu-server ./cmd/server
-go build -trimpath -ldflags='-s -w' -o dist/macos/arm64/browser-install ./cmd/browser-install
-go build -trimpath -ldflags='-s -w' -o dist/macos/arm64/xianyu-tray ./cmd/tray
-packaging/macos/build-pkg.sh 0.0.0-local "$PWD/dist/macos" arm64
-```
-
-`prepare-runtime.sh` 默认读取：
-
-- `~/Library/Caches/ms-playwright-go`：Playwright Go driver
-- `~/Library/Caches/ms-playwright`：Chromium 与 `chromium_headless_shell`
-
-如果本机缓存尚未准备好，先运行编译出的 `browser-install`；不要只复制
-`chromium-<revision>`，服务启动还需要同版本的 `chromium_headless_shell-<revision>`。打包前必须确认
-服务能使用包内 runtime 启动并访问健康检查；可用临时端口验证：
-
-```bash
-runtime_app="$PWD/dist/macos/pkgroot-arm64/Applications/Ydisks闲鱼助手/Ydisks闲鱼助手.app"
-mkdir -p /tmp/ydisks-local-data
-"$runtime_app/Contents/Helpers/xianyu-server" \
-  -addr 127.0.0.1:59189 \
-  -workdir /tmp/ydisks-local-data \
-  -playwright-runtime-root "$runtime_app/Contents/Resources/playwright-runtime"
-curl -fsS http://127.0.0.1:59189/health
-```
-
-本地没有签名身份时可以生成未签名 pkg，但必须明确告知未签名状态；CI 使用固定签名 Secrets 生成可分发包。
-
-## CI desktop package rules
-
-Do not manually assemble desktop packages in CI. The desktop workflow must build the embedded frontend,
-compile the platform binaries, restore or populate the architecture-specific Playwright runtime cache,
-assemble the package with the platform packaging script, and run the package-specific signing step.
-Windows uses `packaging/windows/installer.iss`; macOS uses `packaging/macos/build-pkg.sh`; Linux archives
-the directory containing `install.sh`, `uninstall.sh`, the systemd unit, binaries and matching runtime.
-
-## Architecture
-
-The following paragraphs describe the current runtime wiring. They are not permission to add more business
-logic to HTTP handlers. The mandatory target architecture and the allowed transition path are defined in
-`docs/architecture/refactoring-master-plan.md` and `docs/architecture/dependency-rules.md`.
-
-`cmd/server/main.go` opens the database (SQLite/MySQL/Postgres by URL scheme), constructs the adapter + account manager + automation center + notifier, starts enabled account runtimes, initializes the optional in-process browser manager, and starts the HTTP server. Business logic does not live in `main.go` — it delegates to `internal/adapter` (Handler/OrderDetailFetcher wiring), `internal/engine`, `internal/account`, `internal/automation`, and domain-specific server handlers.
-
-`internal/xianyu` owns lower-level platform integration:
-
-- `mtop` for signed HTTP calls (interface `mtop.Client` allows test mocking).
-- `ws` for WebSocket transport.
-- `qrlogin` for QR login.
-- `protocol` for cookies, signing, decoding, and message IDs.
-
-Browser-backed verification, order-detail fallbacks and the retained historical password-login implementation live in `internal/browser`. The production account recovery path uses protocol-level renewal and then requires QR login; it must not invoke browser password login. Keep the browser contract and its server/engine callers aligned.
-
-## Frozen slider CAPTCHA logic — DO NOT MODIFY
-
-The current slider CAPTCHA implementation is production-frozen. Its authoritative behavior is documented in `docs/slider-captcha-frozen-spec.md`.
-
-Unless the user explicitly requests a slider CAPTCHA behavior change in the current task, agents MUST NOT:
-
-- edit, refactor, optimize, rename, move, delete, or reformat the protected slider implementation or its tests;
-- change selectors or selector priority, same-frame visibility checks, the exact `300px - 42px = 258px` standard NC distance, trajectories, point counts, timing, mouse-event order, or main-engine no-overshoot behavior;
-- change fresh-`x5sec` success criteria, punish/captcha URL checks, retry selectors, retry text checks, origin checks, reload recovery, retry counts, or timeouts;
-- change Playwright-first / direct-Chromium-CDP-fallback ordering, persistent-profile reuse and locking, verification-URL refresh timing, Cookie merge behavior, browser flags, environment defaults, or engine result labels;
-- weaken, skip, delete, or rewrite slider tests to permit different behavior;
-- modify a caller or shared helper in another file when that would indirectly change any frozen behavior above.
-
-Directly protected files are:
-
-- `internal/browser/slider.go`
-- `internal/browser/slider_test.go`
-- `internal/browser/token_captcha.go`
-- `internal/browser/token_captcha_test.go`
-- `internal/browser/token_captcha_fallback.go`
-- `internal/browser/token_captcha_fallback_integration_test.go`
+- `internal/browser/slider.go`、`slider_test.go`
+- `internal/browser/token_captcha.go`、`token_captcha_test.go`
+- `internal/browser/token_captcha_fallback.go`、`token_captcha_fallback_integration_test.go`
 - `internal/browser/token_captcha_orchestrator_test.go`
 
-Only an explicit user instruction in the current task can authorize a change. When authorized, update the implementation, tests, and frozen specification together, and run every verification required by the specification. Do not treat one authorization as permission for later tasks.
+获得授权时，实现、测试和冻结规范一起更新。一次授权不延续到后续任务。
 
-## Editing notes
+## 安全与敏感数据
 
-- Preserve unrelated working-tree changes.
-- Update `frontend/vite.config.ts` if API route prefixes change.
-- Rebuild the frontend after source changes so embedded assets stay current.
-- Keep protocol and database behavior covered by focused tests.
+- Cookie、Token、密码、SMTP 凭证等不得出现在日志、通知、API 错误、HTTP 响应、前端状态或测试失败输出中。
+- 账号摘要和归属校验不得读取或解密凭证；凭证使用专用模型和专用仓储方法。
+- 不要在持有凭证锁时做慢速外部 I/O。
+- 唯一已批准例外：`GET /api/v1/cards/{card_id}/api-editor` 可向卡券所有者返回已保存的 API 卡请求模板（含第三方 API Key），
+  要求登录、所有权与 `type=api` 校验、`Cache-Control: no-store`，界面默认遮罩敏感输入，关闭或切换时清空草稿。
+  其他返回已存密钥的接口都需要单独获得批准。
+
+## 架构约定
+
+依赖方向以 `docs/architecture/dependency-rules.md` 为准，`make architecture` 会检查。要点：
+
+- `internal/server` 只做 HTTP；新用例写在应用服务里，handler 不直接访问 `Store.DB`、开事务、调 MTOP/浏览器。
+- `internal/db` 负责 SQL、方言、迁移和加密，不依赖上层。`internal/xianyu`、`internal/browser` 不写业务数据、不决定自动化规则。
+- `internal/engine`、`internal/automation` 不依赖 server。
+- 接口由使用方定义且保持最小；必需依赖通过构造函数传入，不用全局 service locator。
+
+### HTTP API
+
+- 新接口使用 `/api/v1` 前缀，请求/响应用具名 DTO，失败用统一错误信封和正确的 HTTP 状态码（不要 200 + `success:false`）。
+- 新增或修改接口：先改 `api/openapi.yaml`，再 `make api-generate` 重新生成 `frontend/shared/api-contract/generated/schema.ts`（只读），
+  并补一个真实 handler 的契约测试。`make api-check` 会检查漂移。
+- 改路由前缀时同步 `frontend/vite.config.ts`、前端调用方和嵌入资源。
+
+### 数据库
+
+- 每个迁移在 `internal/db/migrations/{sqlite,mysql,postgres}` 三个方言中编号和最终 schema 保持一致。
+- 不向上层暴露 `*sql.DB`；需要跨仓储原子操作时使用明确的 Unit of Work。
+- 数据库行为变更要有 SQLite 测试；有条件时用 `make test-multidb` 或 `cmd/dbverify` 验证 MySQL/PostgreSQL。
+
+### 前端
+
+- 结构 `app -> features -> shared`：feature 之间不互相引用内部文件，shared 不引用 feature。
+- 组件不直接 `fetch`/`axios`，通过 feature 的 API adapter 调用共享契约客户端；生成的类型不直接进入组件 state/props。
+- 异步请求要处理取消或“只认最新一次”，避免过期响应覆盖当前状态。
+
+### 并发与生命周期
+
+- 后台 goroutine 要有明确的归属者、Context、取消路径和等待路径。
+- 不在持有 mutex 时做网络、浏览器或等待用户的 I/O。
+- 有并发访问的类型说明哪把锁保护哪些字段，以及加锁顺序。
+
+## 注释与测试
+
+- 注释规范见 `docs/architecture/comment-standard.md`：导出的函数/类型需要文档注释，其余按需；禁止复述标识符的占位注释。
+- 新增或修改的确定性逻辑、分支和错误路径要有聚焦测试，优先用注入依赖、`httptest`、内存数据库。
+- 不要为了通过而删除、跳过或弱化测试。只有确实依赖真实账号或外部平台的行为可以跳过。
+- 不要顺手重排、重命名或格式化无关代码，也不要升级无关依赖；保留工作区中与任务无关的改动。
+
+## 打包与部署
+
+默认端口 `59188`。桌面包把服务绑定到 `127.0.0.1:59188`，服务与托盘是两个进程：
+
+- Windows：`YdisksXianyuHelper` 服务 + `xianyu-tray.exe`，安装脚本 `packaging/windows/installer.iss`。
+- macOS：两个 LaunchAgent（`com.ydisks.xianyu-helper.server` / `.tray`），用 `packaging/macos/build-pkg.sh` 打包，
+  不要手工拷贝 Chromium/Playwright；runtime 不完整时脚本会调用 `prepare-runtime.sh`。
+- Linux：按架构分别打 tar 包，`install.sh` 需 root，数据在 `/var/lib/ydisks-xianyu-helper`。
+- Docker：基础镜像 `node:24-trixie-slim`，复用 CI 准备的 Playwright runtime。
+
+所有桌面包都自带匹配的 Playwright driver、Chromium 和 headless shell，安装时不再下载浏览器。
+CI 中各架构在原生 runner 上构建（不用 QEMU），在 Go/前端测试、真实 Chromium 启动和打包后健康检查都通过前不得发布 Docker manifest。
+版本标签 `v*.*.*` 触发 `release.yml` 生成 GitHub Release。
+
+## 历史文档
+
+`docs/architecture/refactoring-master-plan.md` 与 `refactoring-progress.md` 记录已完成的六阶段重构及证据，仅作历史参考，
+后续修改不再按阶段拆分提交。`tools/architecturecheck` 仍读取该计划的阶段表以启用全部门禁，不要删除其中的状态表。

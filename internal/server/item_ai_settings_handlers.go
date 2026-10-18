@@ -57,8 +57,8 @@ func (s *Server) updateItemAISettings(w http.ResponseWriter, r *http.Request) {
 	}
 	// request 保存解码后的商品 AI 配置。
 	var request itemAISettingsUpdateRequest
-	if // err 是请求正文解码错误。
-	err := decodeJSON(r, &request); err != nil {
+	// err 是请求正文解码错误。
+	if err := decodeJSON(r, &request); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -66,8 +66,8 @@ func (s *Server) updateItemAISettings(w http.ResponseWriter, r *http.Request) {
 	session := auth.SessionFromContext(r.Context())
 	// settings 是传入应用服务的商品级 AI 配置模型。
 	settings := itemapp.ItemAISettings{CookieID: cookieID, ItemID: itemID, Override: request.AIOverride, Context: request.ItemContext}
-	if // err 是商品 AI 配置保存失败原因。
-	err := s.itemAISettingsApplication().Save(r.Context(), session.UserID, settings); err != nil {
+	// err 是商品 AI 配置保存失败原因。
+	if err := s.itemAISettingsApplication().Save(r.Context(), session.UserID, settings); err != nil {
 		s.writeItemAISettingsError(w, err)
 		return
 	}

@@ -56,12 +56,10 @@ type credentialUpdateRequest struct {
 
 // initialize 首次启动时通过 Web UI 创建管理员账号。
 // 该接口只允许在系统尚未存在管理员时调用，避免把初始化能力变成重置密码入口。
-// initialize 封装initialize业务协调。
 func (s *Server) initialize(w http.ResponseWriter, r *http.Request) {
 	// req 是首次管理员初始化请求的具名传输 DTO。
 	var req initializeRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -74,7 +72,6 @@ func (s *Server) initialize(w http.ResponseWriter, r *http.Request) {
 	s.initializationMu.Lock()
 	defer s.initializationMu.Unlock()
 
-	// initialized、err 用于本次流程后续判断的initialized、err
 	initialized, err := s.authenticationApplication().IsSystemInitialized(r.Context())
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "检查系统初始化状态失败")
@@ -85,8 +82,7 @@ func (s *Server) initialize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if // err 用于本次流程后续判断的err
-	_, err := s.authenticationApplication().InitializeAdmin(r.Context(), "admin@example.com", req.Password); err != nil {
+	if _, err := s.authenticationApplication().InitializeAdmin(r.Context(), "admin@example.com", req.Password); err != nil {
 		writeErr(w, http.StatusInternalServerError, "初始化管理员失败")
 		return
 	}
@@ -106,30 +102,23 @@ func (s *Server) initialize(w http.ResponseWriter, r *http.Request) {
 
 // login 用户名密码登录（邮箱登录同走此接口，按字段判断）。
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
-	// req 用于本次流程后续判断的req
 	var req loginRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
-	// clientIP 用于本次流程后续判断的clientIP
 	clientIP := loginClientIP(r)
-	// principal 用于本次流程后续判断的principal
 	principal := loginPrincipal(req.Username, req.Email)
-	if // allowed、retry 用于本次流程后续判断的allowed、retry
-	allowed, retry := s.loginLimiter.allow(clientIP, principal, time.Now()); !allowed {
+	if allowed, retry := s.loginLimiter.allow(clientIP, principal, time.Now()); !allowed {
 		w.Header().Set("Retry-After", strconv.Itoa(max(1, int(retry.Round(time.Second)/time.Second))))
 		writeErr(w, http.StatusTooManyRequests, "登录尝试过于频繁，请稍后再试")
 		return
 	}
 
-	// resp 用于本次流程后续判断的resp
 	var resp loginResponse
 
 	switch {
 	case req.Username != "" && req.Password != "":
-		// sid、user、err 用于本次流程后续判断的sid、user、err
 		sid, user, err := s.authenticationApplication().Login(r.Context(), req.Username, req.Password)
 		if err != nil || user == nil || sid == "" {
 			s.loginLimiter.failure(clientIP, principal, time.Now())
@@ -147,7 +136,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, resp)
 		return
 	case req.Email != "" && req.Password != "":
-		// username、err 用于本次流程后续判断的邮箱映射得到的登录用户名和查询错误
 		username, err := s.authenticationApplication().UsernameByEmail(r.Context(), req.Email)
 		if err != nil || username == "" {
 			s.loginLimiter.failure(clientIP, principal, time.Now())
@@ -155,7 +143,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 				"邮箱或密码错误", "")
 			return
 		}
-		// sid、loginUser、lerr 用于本次流程后续判断的sid、loginUser、lerr
 		sid, loginUser, lerr := s.authenticationApplication().Login(r.Context(), username, req.Password)
 		if lerr != nil || loginUser == nil || sid == "" {
 			s.loginLimiter.failure(clientIP, principal, time.Now())
@@ -179,11 +166,8 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 
 // verify 校验会话有效性。返回 authenticated / initialized / is_admin。
 func (s *Server) verify(w http.ResponseWriter, r *http.Request) {
-	// ctx 用于本次流程后续判断的ctx
 	ctx := r.Context()
-	// initialized 用于本次流程后续判断的initialized
 	initialized, _ := s.authenticationApplication().IsSystemInitialized(ctx)
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(ctx)
 	if sess != nil {
 		writeJSON(w, http.StatusOK, sessionVerificationResponse{
@@ -203,7 +187,6 @@ func (s *Server) verify(w http.ResponseWriter, r *http.Request) {
 
 // logout 登出。
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
 	if sess != nil {
 		s.Auth.Logout(r.Context(), sess.SessionID)
@@ -216,8 +199,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) changeAdminPassword(w http.ResponseWriter, r *http.Request) {
 	// req 是管理员密码修改请求的具名传输 DTO。
 	var req passwordChangeRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -225,9 +207,7 @@ func (s *Server) changeAdminPassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "新密码至少需要 8 个字符")
 		return
 	}
-	// ctx 用于本次流程后续判断的ctx
 	ctx := r.Context()
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(ctx)
 	if sess == nil || !sess.IsAdmin {
 		writeErr(w, http.StatusForbidden, "仅管理员可执行此操作")
@@ -239,8 +219,7 @@ func (s *Server) changeAdminPassword(w http.ResponseWriter, r *http.Request) {
 		writeErrCode(w, http.StatusUnauthorized, "authentication_failed", "当前密码错误", "")
 		return
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.authenticationApplication().UpdatePassword(ctx, sess.Username, req.NewPassword); err != nil {
+	if _, err := s.authenticationApplication().UpdatePassword(ctx, sess.Username, req.NewPassword); err != nil {
 		writeErr(w, http.StatusInternalServerError, "更新失败")
 		return
 	}
@@ -252,8 +231,7 @@ func (s *Server) changeAdminPassword(w http.ResponseWriter, r *http.Request) {
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	// req 是当前用户密码修改请求的具名传输 DTO。
 	var req passwordChangeRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -261,9 +239,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "新密码至少需要 8 个字符")
 		return
 	}
-	// ctx 用于本次流程后续判断的ctx
 	ctx := r.Context()
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(ctx)
 	if sess == nil {
 		writeErr(w, http.StatusUnauthorized, "未授权访问")
@@ -275,8 +251,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		writeErrCode(w, http.StatusUnauthorized, "authentication_failed", "当前密码错误", "")
 		return
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := s.authenticationApplication().UpdatePassword(ctx, sess.Username, req.NewPassword); err != nil {
+	if _, err := s.authenticationApplication().UpdatePassword(ctx, sess.Username, req.NewPassword); err != nil {
 		writeErr(w, http.StatusInternalServerError, "更新失败")
 		return
 	}
@@ -288,20 +263,16 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 func (s *Server) updateCredentials(w http.ResponseWriter, r *http.Request) {
 	// req 是当前用户登录凭证修改请求的具名传输 DTO。
 	var req credentialUpdateRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
 	if sess == nil {
 		writeErr(w, http.StatusUnauthorized, "未授权访问")
 		return
 	}
-	// username 用于本次流程后续判断的username
 	username := strings.TrimSpace(req.NewUsername)
-	// usernameLength 用于本次流程后续判断的usernameLength
 	usernameLength := utf8.RuneCountInString(username)
 	if usernameLength < 3 || usernameLength > 64 {
 		writeErr(w, http.StatusBadRequest, "用户名长度必须为 3 到 64 个字符")
@@ -319,7 +290,6 @@ func (s *Server) updateCredentials(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "用户名和密码均未修改")
 		return
 	}
-	// user、ok、err 用于本次流程后续判断的user、ok、err
 	user, ok, err := s.authenticationApplication().VerifyPassword(r.Context(), sess.Username, req.CurrentPassword)
 	if err != nil {
 		writeCredentialVerificationError(w, err)
@@ -329,8 +299,7 @@ func (s *Server) updateCredentials(w http.ResponseWriter, r *http.Request) {
 		writeErrCode(w, http.StatusUnauthorized, "authentication_failed", "当前密码错误", "")
 		return
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.authenticationApplication().UpdateCredentials(r.Context(), sess.UserID, username, req.NewPassword); err != nil {
+	if err := s.authenticationApplication().UpdateCredentials(r.Context(), sess.UserID, username, req.NewPassword); err != nil {
 		if errors.Is(err, accountapp.ErrUsernameTaken) {
 			writeErrCode(w, http.StatusConflict, "username_taken", "用户名已被占用", "")
 			return

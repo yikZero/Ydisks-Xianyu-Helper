@@ -28,7 +28,6 @@ func TestRefreshJobRunnerCoversConstructionAndGuards(t *testing.T) {
 	}
 	// job 保存用于参数校验的任务。
 	job := &RefreshJob{ID: "job-1"}
-	// err 保存空生命周期 Context 的启动错误。
 	if err := runner.StartJob(nilOrdersContext(), job, "token"); err == nil {
 		t.Fatal("StartJob 未拒绝空生命周期 Context")
 	}
@@ -226,7 +225,6 @@ func TestRefreshJobRunnerCoversRecoveryLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("构造生命周期运行器: %v", err)
 	}
-	// err 保存空恢复生命周期 Context 错误。
 	if err := runner.StartRecovery(nilOrdersContext()); err == nil {
 		t.Fatal("StartRecovery 未拒绝空 Context")
 	}

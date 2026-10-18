@@ -15,7 +15,6 @@ func TestChatRepositoryFindListAndHideSession(t *testing.T) {
 	// store、cleanup 是夹具数据库及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是共用的非取消 Context。
 	ctx := context.Background()
 	// owner 是夹具账号 cid 的所有者。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")
@@ -76,7 +75,6 @@ func TestAutomationRepositoryGetUpdateAndItemProfile(t *testing.T) {
 	defer cleanup()
 	// repository 是自动化规则适配器。
 	repository := NewAutomationRepository(store)
-	// ctx 是共用的非取消 Context。
 	ctx := context.Background()
 	// owner 是夹具账号所有者。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")

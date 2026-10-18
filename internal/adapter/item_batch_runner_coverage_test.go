@@ -40,7 +40,6 @@ func (p *batchLocalPublisherFake) Complete(context.Context, int64, itemapp.Batch
 
 // TestItemBatchPublisherPublishRowPaths 验证批量发布 worker 对远端、Cookie 和本地收口结果的错误分类。
 func TestItemBatchPublisherPublishRowPaths(t *testing.T) {
-	// ctx 是本测试发布 worker 共用的上下文。
 	ctx := context.Background()
 	// remote、local 保存成功路径使用的两个内存端口。
 	remote := &batchPublishPortFake{outcome: itemapp.BatchPublishOutcome{Result: &itemapp.BatchPublishResult{ItemID: "remote"}}}

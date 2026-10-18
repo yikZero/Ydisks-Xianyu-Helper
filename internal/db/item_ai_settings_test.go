@@ -18,10 +18,9 @@ func TestItemAISettingsLifecycle(t *testing.T) {
 	defer database.Close()
 	// store 是商品 AI 配置持久层测试使用的仓储聚合。
 	store := NewStore(database, DialectSQLite)
-	// ctx 是本测试全部数据库操作共用的上下文。
 	ctx := context.Background()
-	if // createErr 是创建测试用户时的错误。
-	_, createErr := store.Users.Create(ctx, "item-ai-owner", "item-ai@example.com", "password"); createErr != nil {
+	// createErr 是创建测试用户时的错误。
+	if _, createErr := store.Users.Create(ctx, "item-ai-owner", "item-ai@example.com", "password"); createErr != nil {
 		t.Fatal(createErr)
 	}
 	// owner 和 ownerErr 是测试账号所有者及其查询错误。
@@ -29,8 +28,8 @@ func TestItemAISettingsLifecycle(t *testing.T) {
 	if ownerErr != nil {
 		t.Fatal(ownerErr)
 	}
-	if // saveErr 是保存测试账号时的错误。
-	saveErr := store.Cookies.Save(ctx, "item-ai-account", "unb=1", owner.ID); saveErr != nil {
+	// saveErr 是保存测试账号时的错误。
+	if saveErr := store.Cookies.Save(ctx, "item-ai-account", "unb=1", owner.ID); saveErr != nil {
 		t.Fatal(saveErr)
 	}
 	// initial 是没有独立记录时的默认继承配置。
@@ -38,8 +37,8 @@ func TestItemAISettingsLifecycle(t *testing.T) {
 	if initialErr != nil || initial.Override != ItemAIOverrideInherit || initial.Context != "" {
 		t.Fatalf("默认商品 AI 配置异常: settings=%+v err=%v", initial, initialErr)
 	}
-	if // upsertErr 是首次保存商品配置时的错误。
-	upsertErr := store.ItemAISettings.Upsert(ctx, ItemAISettingsRow{CookieID: "item-ai-account", ItemID: "item-1", Override: ItemAIOverrideEnabled, Context: "24 小时内发货"}); upsertErr != nil {
+	// upsertErr 是首次保存商品配置时的错误。
+	if upsertErr := store.ItemAISettings.Upsert(ctx, ItemAISettingsRow{CookieID: "item-ai-account", ItemID: "item-1", Override: ItemAIOverrideEnabled, Context: "24 小时内发货"}); upsertErr != nil {
 		t.Fatal(upsertErr)
 	}
 	// saved 是写入后读取到的完整配置。
@@ -47,16 +46,16 @@ func TestItemAISettingsLifecycle(t *testing.T) {
 	if savedErr != nil || saved.Override != ItemAIOverrideEnabled || saved.Context != "24 小时内发货" {
 		t.Fatalf("保存商品 AI 配置异常: settings=%+v err=%v", saved, savedErr)
 	}
-	if // invalidErr 是非法覆盖值写入错误。
-	invalidErr := store.ItemAISettings.Upsert(ctx, ItemAISettingsRow{CookieID: "item-ai-account", ItemID: "item-1", Override: "invalid"}); invalidErr == nil {
+	// invalidErr 是非法覆盖值写入错误。
+	if invalidErr := store.ItemAISettings.Upsert(ctx, ItemAISettingsRow{CookieID: "item-ai-account", ItemID: "item-1", Override: "invalid"}); invalidErr == nil {
 		t.Fatal("非法覆盖值应被拒绝")
 	}
-	if // longErr 是超长商品资料写入错误。
-	longErr := store.ItemAISettings.Upsert(ctx, ItemAISettingsRow{CookieID: "item-ai-account", ItemID: "item-1", Override: ItemAIOverrideInherit, Context: strings.Repeat("中", ItemAIContextMaxRunes+1)}); longErr == nil {
+	// longErr 是超长商品资料写入错误。
+	if longErr := store.ItemAISettings.Upsert(ctx, ItemAISettingsRow{CookieID: "item-ai-account", ItemID: "item-1", Override: ItemAIOverrideInherit, Context: strings.Repeat("中", ItemAIContextMaxRunes+1)}); longErr == nil {
 		t.Fatal("超长商品资料应被拒绝")
 	}
-	if // deleteErr 是重置独立商品配置时的错误。
-	deleteErr := store.ItemAISettings.Delete(ctx, "item-ai-account", "item-1"); deleteErr != nil {
+	// deleteErr 是重置独立商品配置时的错误。
+	if deleteErr := store.ItemAISettings.Delete(ctx, "item-ai-account", "item-1"); deleteErr != nil {
 		t.Fatal(deleteErr)
 	}
 	// reset 是删除独立记录后恢复的默认继承配置。
@@ -76,13 +75,11 @@ func TestItemAISettingsRejectsInvalidUTF8AndReportsDatabaseErrors(t *testing.T) 
 	}
 	// store 是商品 AI 配置测试使用的仓储聚合。
 	store := NewStore(database, DialectSQLite)
-	// ctx 是本测试全部数据库操作共用的上下文。
 	ctx := context.Background()
-	if // invalidErr 是非法 UTF-8 资料写入错误，必须在触达数据库前被拒绝。
-	invalidErr := store.ItemAISettings.Upsert(ctx, ItemAISettingsRow{CookieID: "a", ItemID: "i", Override: ItemAIOverrideEnabled, Context: "坏\xff字节"}); invalidErr == nil {
+	// invalidErr 是非法 UTF-8 资料写入错误，必须在触达数据库前被拒绝。
+	if invalidErr := store.ItemAISettings.Upsert(ctx, ItemAISettingsRow{CookieID: "a", ItemID: "i", Override: ItemAIOverrideEnabled, Context: "坏\xff字节"}); invalidErr == nil {
 		t.Fatal("非法 UTF-8 商品资料必须被拒绝")
 	}
-	// closeErr 保存 Close 调用返回的错误，随后断言它是否符合该场景的预期。
 	if closeErr := database.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -104,16 +101,13 @@ func TestItemAISettingsRejectsInvalidUTF8AndReportsDatabaseErrors(t *testing.T) 
 // 无独立配置的商品为 inherit，有配置的商品为配置值；同一商品标识在不同账号下互不影响；
 // 用户范围查询只返回所属账号的商品；数据库不可用时三个查询都返回错误。
 func TestItemQueriesExposeAIOverridePerAccount(t *testing.T) {
-	// store、cleanup 是隔离的 SQLite 存储及其释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// ownerID、cookieID 是测试账号 A 及其所有者。
 	ownerID, cookieID := seedAccount(t, store)
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// otherCookie 是同一用户名下的另一个账号，用于验证同商品标识的隔离。
 	const otherCookie = "item-ai-other-account"
-	// err 保存 Save 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := store.Cookies.Save(ctx, otherCookie, "unb=2", ownerID); err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +115,6 @@ func TestItemQueriesExposeAIOverridePerAccount(t *testing.T) {
 	for _, row := range []ItemInfoRow{{CookieID: cookieID, ItemID: "same-item", ItemTitle: "A 的商品"}, {CookieID: cookieID, ItemID: "plain-item", ItemTitle: "A 的普通商品"}, {CookieID: otherCookie, ItemID: "same-item", ItemTitle: "B 的商品"}} {
 		// row 是循环变量的独立副本，避免子用例闭包共享同一个迭代变量。
 		row := row
-		// err 保存 Upsert 调用返回的错误，随后断言它是否符合该场景的预期。
 		if err := store.Items.Upsert(ctx, &row); err != nil {
 			t.Fatal(err)
 		}
@@ -158,7 +151,6 @@ func TestItemQueriesExposeAIOverridePerAccount(t *testing.T) {
 	if detail, err := store.Items.GetByCookieItem(ctx, cookieID, "same-item"); err != nil || detail.AIOverride != ItemAIOverrideDisabled || detail.ItemTitle != "A 的商品" {
 		t.Fatalf("商品详情 ai_override 不一致: %+v err=%v", detail, err)
 	}
-	// err 保存 GetByCookieItem 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.Items.GetByCookieItem(ctx, cookieID, "no-such-item"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("不存在的商品应返回 ErrNotFound，got %v", err)
 	}
@@ -191,15 +183,12 @@ func TestItemQueriesExposeAIOverridePerAccount(t *testing.T) {
 	if err := store.DB.Close(); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 AllForCookie 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.Items.AllForCookie(ctx, cookieID); err == nil {
 		t.Error("AllForCookie 数据库故障必须返回错误")
 	}
-	// err 保存 GetByCookieItem 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.Items.GetByCookieItem(ctx, cookieID, "plain-item"); err == nil || errors.Is(err, ErrNotFound) {
 		t.Errorf("GetByCookieItem 数据库故障必须返回基础设施错误，got %v", err)
 	}
-	// err 保存 ListForUser 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := store.Items.ListForUser(ctx, ownerID, ""); err == nil {
 		t.Error("ListForUser 数据库故障必须返回错误")
 	}

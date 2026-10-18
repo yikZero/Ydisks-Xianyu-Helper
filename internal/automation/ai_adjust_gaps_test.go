@@ -24,10 +24,8 @@ type aiPricingGapFixture struct {
 // newAIPricingGapFixture 开启账号 AI 议价与真实改价开关，写入一条 9.90 元待领取报价，并用 fake 作为平台客户端。
 func newAIPricingGapFixture(t *testing.T, fake *fakeMTop) aiPricingGapFixture {
 	t.Helper()
-	// store、cleanup 是隔离数据库及其关闭函数。
 	store, cleanup := newAutomationTestStore(t)
 	t.Cleanup(cleanup)
-	// ctx 是夹具写入共用的上下文。
 	ctx := context.Background()
 	// settingsErr 是读取账号自动免拼等开关时的错误，用于断言读取失败不放行外部动作。
 	if settingsErr := store.AIReply.UpsertSettings(ctx, "cid", db.AIReplySettings{AIEnabled: true, AutoAdjustPriceEnabled: true, MaxDiscountPercent: 10, MaxDiscountAmount: 20, MaxBargainRounds: 3, AIMode: "bargain_only"}); settingsErr != nil {
@@ -48,7 +46,6 @@ func newAIPricingGapFixture(t *testing.T, fake *fakeMTop) aiPricingGapFixture {
 
 // TestAIPricingModeGapBranches 覆盖 AI 报价改价的模式读取、事实不足、领取、折算越界与各终态收口分支。
 func TestAIPricingModeGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// quoteAbort 让报价收口到任何终态的写入失败，模拟平台已响应但本地状态保存失败。
 	const quoteAbort = `CREATE TRIGGER gap_abort_quote BEFORE UPDATE ON ai_bargain_quotes WHEN NEW.status IN ('adjusted','failed','needs_review') BEGIN SELECT RAISE(ABORT, 'forced quote finish failure'); END`
@@ -156,7 +153,6 @@ func TestAIPricingModeGapBranches(t *testing.T) {
 
 // TestAdjustOrderPriceAttemptGapBranches 覆盖订单改价单次尝试的会话、凭证恢复、错误分类与响应凭证保存分支。
 func TestAdjustOrderPriceAttemptGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// task 是账号 cid 的改价任务。
 	task := Task{AccountID: "cid", OrderID: "adjust-gap"}
@@ -165,7 +161,6 @@ func TestAdjustOrderPriceAttemptGapBranches(t *testing.T) {
 	// newCenter 创建带指定平台替身与可选恢复器的中心。
 	newCenter := func(t *testing.T, fake *fakeMTop, recoverFail *bool) (*Center, *db.Store, *fakeCredentialRecoverer) {
 		t.Helper()
-		// store、cleanup 是隔离数据库及关闭函数。
 		store, cleanup := newAutomationTestStore(t)
 		t.Cleanup(cleanup)
 		// deps 是待注入依赖。

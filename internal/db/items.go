@@ -9,7 +9,6 @@ import (
 
 // AllForCookie 返回一个账号下的全部商品持久化记录，不包含账号凭证明文。
 func (i *Items) AllForCookie(ctx context.Context, cookieID string) ([]ItemInfoRow, error) {
-	// rows、err 用于本次流程后续判断的rows、err
 	rows, err := i.DB.QueryContext(ctx,
 		`SELECT i.id, i.cookie_id, i.item_id, COALESCE(i.item_title,''), COALESCE(i.item_description,''),
 		        COALESCE(i.item_category,''), COALESCE(i.item_price,''), COALESCE(i.item_detail,''),
@@ -84,15 +83,11 @@ func (i *Items) ListForUser(ctx context.Context, userID int64, cookieID string) 
 
 // scanItemInfoRows 将商品查询游标转换为统一的商品行模型。
 func scanItemInfoRows(rows *sql.Rows) ([]ItemInfoRow, error) {
-	// out 用于本次流程后续判断的out
 	var out []ItemInfoRow
 	for rows.Next() {
-		// r 用于本次流程后续判断的r
 		var r ItemInfoRow
-		// isMulti、multiQty 用于本次流程后续判断的isMulti、multiQty
 		var isMulti, multiQty int
-		if // err 用于本次流程后续判断的err
-		err := rows.Scan(&r.ID, &r.CookieID, &r.ItemID, &r.ItemTitle, &r.ItemDescription,
+		if err := rows.Scan(&r.ID, &r.CookieID, &r.ItemID, &r.ItemTitle, &r.ItemDescription,
 			&r.ItemCategory, &r.ItemPrice, &r.ItemDetail, &isMulti, &multiQty, &r.AIOverride); err != nil {
 			return nil, err
 		}
@@ -105,7 +100,6 @@ func scanItemInfoRows(rows *sql.Rows) ([]ItemInfoRow, error) {
 
 // Upsert 插入或更新商品信息。
 func (i *Items) Upsert(ctx context.Context, r *ItemInfoRow) error {
-	// err 用于本次流程后续判断的err
 	_, err := i.DB.ExecContext(ctx,
 		`INSERT INTO item_info (cookie_id, item_id, item_title, item_description,
 		    item_category, item_price, item_detail, is_multi_spec, multi_quantity_delivery, updated_at)
@@ -132,7 +126,7 @@ func (i *Items) UpsertBasic(ctx context.Context, r *ItemInfoRow) error {
 	return i.upsertBasic(ctx, i.DB, r)
 }
 
-// UpsertBasicTx 封装UpsertBasicTx业务协调。
+// UpsertBasicTx 在调用方事务内写入商品基础信息。
 func (i *Items) UpsertBasicTx(ctx context.Context, tx *sql.Tx, r *ItemInfoRow) error {
 	return i.upsertBasic(ctx, tx, r)
 }
@@ -149,98 +143,77 @@ func (i *Items) SyncFromRemote(ctx context.Context, cookieID string, rows []Item
 		return ItemSyncResult{}, errors.New("cookie_id 不能为空")
 	}
 
-	// remoteIDs 用于本次流程后续判断的remoteIDs
 	remoteIDs := make(map[string]struct{}, len(rows))
-	// validRows 用于本次流程后续判断的有效Rows
 	validRows := make([]ItemInfoRow, 0, len(rows))
-	// row 表示当前遍历过程中的row
 	for _, row := range rows {
 		row.CookieID = cookieID
 		row.ItemID = strings.TrimSpace(row.ItemID)
 		if row.ItemID == "" {
 			continue
 		}
-		if // exists 用于本次流程后续判断的exists
-		_, exists := remoteIDs[row.ItemID]; exists {
+		if _, exists := remoteIDs[row.ItemID]; exists {
 			continue
 		}
 		remoteIDs[row.ItemID] = struct{}{}
 		validRows = append(validRows, row)
 	}
 
-	// tx、err 用于本次流程后续判断的tx、err
 	tx, err := i.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return ItemSyncResult{}, err
 	}
-	// rollback 用于本次流程后续判断的rollback
 	rollback := func(err error) (ItemSyncResult, error) {
 		_ = tx.Rollback()
 		return ItemSyncResult{}, err
 	}
-	// index 表示当前遍历过程中的index
 	for index := range validRows {
-		if // err 用于本次流程后续判断的err
-		err := i.UpsertBasicTx(ctx, tx, &validRows[index]); err != nil {
+		if err := i.UpsertBasicTx(ctx, tx, &validRows[index]); err != nil {
 			return rollback(err)
 		}
-		if // err 用于本次流程后续判断的err
-		_, err := tx.ExecContext(ctx,
+		if _, err := tx.ExecContext(ctx,
 			`UPDATE item_info SET is_multi_spec=?, updated_at=CURRENT_TIMESTAMP WHERE cookie_id=? AND item_id=?`,
 			boolToInt(validRows[index].IsMultiSpec), cookieID, validRows[index].ItemID); err != nil {
 			return rollback(err)
 		}
 	}
 
-	// args 用于本次流程后续判断的args
 	args := make([]any, 0, len(remoteIDs)+1)
 	args = append(args, cookieID)
-	// deleteQuery 用于本次流程后续判断的delete查询
 	deleteQuery := `UPDATE item_info SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE cookie_id=? AND deleted_at IS NULL`
 	if len(remoteIDs) > 0 {
-		// placeholders 用于本次流程后续判断的placeholders
 		placeholders := make([]string, 0, len(remoteIDs))
-		// itemID 表示当前遍历过程中的商品ID
 		for itemID := range remoteIDs {
 			placeholders = append(placeholders, "?")
 			args = append(args, itemID)
 		}
 		deleteQuery += ` AND item_id NOT IN (` + strings.Join(placeholders, ",") + ")"
 	}
-	// deletedResult、err 用于本次流程后续判断的deletedResult、err
 	deletedResult, err := tx.ExecContext(ctx, deleteQuery, args...)
 	if err != nil {
 		return rollback(err)
 	}
-	// deleted、err 用于本次流程后续判断的deleted、err
 	deleted, err := deletedResult.RowsAffected()
 	if err != nil {
 		return rollback(err)
 	}
 
-	// ruleArgs 用于本次流程后续判断的规则Args
 	ruleArgs := make([]any, 0, len(remoteIDs)+1)
 	ruleArgs = append(ruleArgs, cookieID)
-	// ruleQuery 用于本次流程后续判断的规则查询
 	ruleQuery := `UPDATE automation_rules
 		SET deleted_at=CURRENT_TIMESTAMP, enabled=0, updated_at=CURRENT_TIMESTAMP
 		WHERE cookie_id=? AND item_id<>'' AND deleted_at IS NULL`
 	if len(remoteIDs) > 0 {
-		// placeholders 用于本次流程后续判断的placeholders
 		placeholders := make([]string, 0, len(remoteIDs))
-		// itemID 表示当前遍历过程中的商品ID
 		for itemID := range remoteIDs {
 			placeholders = append(placeholders, "?")
 			ruleArgs = append(ruleArgs, itemID)
 		}
 		ruleQuery += ` AND item_id NOT IN (` + strings.Join(placeholders, ",") + ")"
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := tx.ExecContext(ctx, ruleQuery, ruleArgs...); err != nil {
+	if _, err := tx.ExecContext(ctx, ruleQuery, ruleArgs...); err != nil {
 		return rollback(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := tx.Commit(); err != nil {
+	if err := tx.Commit(); err != nil {
 		return ItemSyncResult{}, err
 	}
 	return ItemSyncResult{Saved: len(validRows), Deleted: int(deleted)}, nil
@@ -300,11 +273,9 @@ func (i *Items) SavePageFromRemote(ctx context.Context, cookieID string, rows []
 	return len(validRows), nil
 }
 
-// upsertBasic 封装upsertBasic业务协调。
 func (i *Items) upsertBasic(ctx context.Context, execer sqlExecer, r *ItemInfoRow) error {
 	// 三种数据库的条件 upsert：非空才覆盖，空值保留旧值。
 	// SQLite/Postgres 用 EXCLUDED.col 引用插入值；MySQL 用 VALUES(col)。
-	// conflictClause 用于本次流程后续判断的conflictClause
 	var conflictClause string
 	switch i.Dialect {
 	case DialectMySQL:
@@ -326,7 +297,6 @@ func (i *Items) upsertBasic(ctx context.Context, execer sqlExecer, r *ItemInfoRo
 		   deleted_at=NULL,
 		   updated_at=CURRENT_TIMESTAMP`
 	}
-	// err 用于本次流程后续判断的err
 	_, err := execer.ExecContext(ctx,
 		`INSERT INTO item_info (cookie_id, item_id, item_title, item_description,
 		    item_category, item_price, item_detail, updated_at)
@@ -338,20 +308,17 @@ func (i *Items) upsertBasic(ctx context.Context, execer sqlExecer, r *ItemInfoRo
 
 // Delete 逻辑删除商品及其商品级自动化规则，保留历史数据以便审计和恢复。
 func (i *Items) Delete(ctx context.Context, cookieID, itemID string) error {
-	// tx、err 用于本次流程后续判断的tx、err
 	tx, err := i.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if // err 用于本次流程后续判断的err
-	_, err := tx.ExecContext(ctx, `UPDATE item_info
+	if _, err := tx.ExecContext(ctx, `UPDATE item_info
 		SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
 		WHERE cookie_id=? AND item_id=? AND deleted_at IS NULL`, cookieID, itemID); err != nil {
 		return err
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := tx.ExecContext(ctx, `UPDATE automation_rules
+	if _, err := tx.ExecContext(ctx, `UPDATE automation_rules
 		SET deleted_at=CURRENT_TIMESTAMP, enabled=0, updated_at=CURRENT_TIMESTAMP
 		WHERE cookie_id=? AND item_id=? AND deleted_at IS NULL`, cookieID, itemID); err != nil {
 		return err
@@ -361,7 +328,6 @@ func (i *Items) Delete(ctx context.Context, cookieID, itemID string) error {
 
 // SetMultiSpec 设置多规格开关。
 func (i *Items) SetMultiSpec(ctx context.Context, cookieID, itemID string, on bool) error {
-	// err 用于本次流程后续判断的err
 	_, err := i.DB.ExecContext(ctx,
 		`UPDATE item_info SET is_multi_spec=?, updated_at=CURRENT_TIMESTAMP WHERE cookie_id=? AND item_id=? AND deleted_at IS NULL`,
 		boolToInt(on), cookieID, itemID)
@@ -370,7 +336,6 @@ func (i *Items) SetMultiSpec(ctx context.Context, cookieID, itemID string, on bo
 
 // SetMultiQuantity 设置多数量发货开关。
 func (i *Items) SetMultiQuantity(ctx context.Context, cookieID, itemID string, on bool) error {
-	// err 用于本次流程后续判断的err
 	_, err := i.DB.ExecContext(ctx,
 		`UPDATE item_info SET multi_quantity_delivery=?, updated_at=CURRENT_TIMESTAMP WHERE cookie_id=? AND item_id=? AND deleted_at IS NULL`,
 		boolToInt(on), cookieID, itemID)

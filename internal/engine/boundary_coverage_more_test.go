@@ -177,7 +177,6 @@ func (*noRefreshCoverageHandler) OnPasswordLoginRefresh(context.Context, string)
 
 // TestEngineCoversTokenFailureAndTransportNotification 验证 token 风控、Session 失效和传输就绪通知分支。
 func TestEngineCoversTokenFailureAndTransportNotification(t *testing.T) {
-	// ctx 是连接错误处理共用的可取消上下文。
 	ctx := context.Background()
 	// account、cleanup 保存风控错误测试使用的账号及数据库清理责任。
 	account, _, _, cleanup := newAccountForTest(t)

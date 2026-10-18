@@ -10,7 +10,6 @@ import (
 // seedSimplifiedEventFixture 写入卖家商品和一笔指定状态的订单，供简化系统事件（只含会话标识）测试复用。
 func seedSimplifiedEventFixture(t *testing.T, store *db.Store, orderStatus string) {
 	t.Helper()
-	// ctx 限制夹具写入的生命周期。
 	ctx := context.Background()
 	// itemErr 保存本账号卖家商品归属事实的写入错误。
 	if itemErr := store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "cid", ItemID: "simple-item", ItemTitle: "简化事件商品"}); itemErr != nil {
@@ -28,7 +27,6 @@ func seedSimplifiedEventFixture(t *testing.T, store *db.Store, orderStatus strin
 // countPendingAndRuns 返回延期任务数和自动化运行数，用于断言简化事件没有产生副作用。
 func countPendingAndRuns(t *testing.T, store *db.Store) (pending, runs int) {
 	t.Helper()
-	// ctx 限制计数查询的生命周期。
 	ctx := context.Background()
 	// queryErr 保存延期任务计数查询错误。
 	if queryErr := store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_pending_tasks`).Scan(&pending); queryErr != nil {
@@ -49,7 +47,6 @@ func simplifiedPaidTask() Task {
 // TestSimplifiedPaidEventAfterShippedOrderIsResolvedWithoutDeferral 验证完整事件已让订单发货后，
 // 同会话的简化付款事件被安全收口：不延期、不创建运行、不重复发货、也就不会进入死信产生人工处理误报。
 func TestSimplifiedPaidEventAfterShippedOrderIsResolvedWithoutDeferral(t *testing.T) {
-	// store、cleanup 提供隔离数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	seedSimplifiedEventFixture(t, store, "shipped")
@@ -70,10 +67,8 @@ func TestSimplifiedPaidEventAfterShippedOrderIsResolvedWithoutDeferral(t *testin
 
 // TestSimplifiedPaidEventStillDeliversPendingShipOrder 验证订单仍待发货时，简化付款事件照常按会话回填并发卡（原有行为回归）。
 func TestSimplifiedPaidEventStillDeliversPendingShipOrder(t *testing.T) {
-	// store、cleanup 提供隔离数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制本测试的规则创建与事件处理生命周期。
 	ctx := context.Background()
 	seedSimplifiedEventFixture(t, store, "pending_ship")
 	// admin、adminErr 提供卡密组和规则的管理用户归属。
@@ -106,7 +101,6 @@ func TestSimplifiedPaidEventStillDeliversPendingShipOrder(t *testing.T) {
 
 // TestSimplifiedPaidEventWithoutRecentOrderStillDefers 验证没有任何近期订单时，简化事件仍写入延期队列等待订单同步（原有行为回归）。
 func TestSimplifiedPaidEventWithoutRecentOrderStillDefers(t *testing.T) {
-	// store、cleanup 提供隔离数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 使用真实事实记录和运行协调器。
@@ -124,10 +118,8 @@ func TestSimplifiedPaidEventWithoutRecentOrderStillDefers(t *testing.T) {
 
 // TestSimplifiedPaidEventOutsideWindowStillDefers 验证订单更新时间超出回溯窗口时不会被误关联，保持延期行为。
 func TestSimplifiedPaidEventOutsideWindowStillDefers(t *testing.T) {
-	// store、cleanup 提供隔离数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制本测试的数据库写入生命周期。
 	ctx := context.Background()
 	seedSimplifiedEventFixture(t, store, "shipped")
 	// execErr 保存把订单更新时间改到窗口外的写入错误。
@@ -150,10 +142,8 @@ func TestSimplifiedPaidEventOutsideWindowStillDefers(t *testing.T) {
 // TestSimplifiedOrderCreatedResolvesToExistingOrderKey 验证简化拍下事件只在订单号和商品都缺失时按近期订单补齐，
 // 补齐后的幂等键与完整事件相同，因此不会产生第二笔订单或延期任务。
 func TestSimplifiedOrderCreatedResolvesToExistingOrderKey(t *testing.T) {
-	// store、cleanup 提供隔离数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制本测试的数据库访问生命周期。
 	ctx := context.Background()
 	seedSimplifiedEventFixture(t, store, "shipped")
 	// center 使用真实事实记录和运行协调器。

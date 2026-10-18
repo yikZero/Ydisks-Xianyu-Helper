@@ -81,7 +81,6 @@ func TestInitializeHandlerGapBranches(t *testing.T) {
 	// port 是可变认证桩。
 	port := &authGapPort{}
 	srv.applications.authentication = port
-	// handler 是真实路由。
 	handler := srv.Router()
 	// post 提交初始化请求并返回状态码。
 	post := func(body string) int {
@@ -92,23 +91,19 @@ func TestInitializeHandlerGapBranches(t *testing.T) {
 	}
 	// goodBody 是合法初始化请求。
 	const goodBody = `{"password":"longenough"}`
-	// code 本次请求返回的 HTTP 状态码
 	if code := post("{"); code != http.StatusBadRequest {
 		t.Errorf("bad json status=%d", code)
 	}
 	port.initializedErr = errors.New("db")
-	// code 本次请求返回的 HTTP 状态码
 	if code := post(goodBody); code != http.StatusInternalServerError {
 		t.Errorf("status check error=%d", code)
 	}
 	port.initializedErr = nil
 	port.initErr = errors.New("init failed")
-	// code 本次请求返回的 HTTP 状态码
 	if code := post(goodBody); code != http.StatusInternalServerError {
 		t.Errorf("init error=%d", code)
 	}
 	port.initErr = nil
-	// code 本次请求返回的 HTTP 状态码
 	if code := post(goodBody); code != http.StatusInternalServerError {
 		t.Errorf("auto login failure=%d", code)
 	}
@@ -122,7 +117,6 @@ func TestLoginHandlerGapBranches(t *testing.T) {
 	// port 是可变认证桩。
 	port := &authGapPort{}
 	srv.applications.authentication = port
-	// handler 是真实路由。
 	handler := srv.Router()
 	// post 提交登录请求并返回响应记录。
 	post := func(body string) *httptest.ResponseRecorder {
@@ -131,21 +125,17 @@ func TestLoginHandlerGapBranches(t *testing.T) {
 		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(body)))
 		return rec
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := post(`{"email":"a@b.c","password":"x"}`); rec.Code != http.StatusUnauthorized {
 		t.Errorf("unknown email status=%d", rec.Code)
 	}
 	port.emailName = "bob"
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := post(`{"email":"a@b.c","password":"x"}`); rec.Code != http.StatusUnauthorized {
 		t.Errorf("email login failure status=%d", rec.Code)
 	}
 	port.loginSID, port.loginUser = "sid", &accountapp.AuthUser{ID: 2, Username: "bob"}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := post(`{"email":"a@b.c","password":"x"}`); rec.Code != http.StatusOK {
 		t.Errorf("email login status=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := post(`{"username":"bob"}`); rec.Code != http.StatusBadRequest {
 		t.Errorf("missing password status=%d", rec.Code)
 	}
@@ -155,7 +145,6 @@ func TestLoginHandlerGapBranches(t *testing.T) {
 	limited := false
 	// i 循环序号，用于生成不同的测试数据
 	for i := 0; i <= loginFailuresPerPrincipal+1; i++ {
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := post(`{"username":"victim","password":"x"}`); rec.Code == http.StatusTooManyRequests {
 			limited = true
 			if rec.Header().Get("Retry-After") == "" {
@@ -174,9 +163,7 @@ func TestPasswordAndCredentialHandlersGapBranches(t *testing.T) {
 	// srv、_、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话（用户名 admin）。
 	cookie := loginHelper(t, handler)
 	// port 是注入的认证桩。
 	port := &authGapPort{verifyUser: accountapp.AuthUser{ID: 1, Username: "admin"}}
@@ -184,21 +171,17 @@ func TestPasswordAndCredentialHandlersGapBranches(t *testing.T) {
 
 	// bad 描述两类密码修改接口的校验失败。
 	for _, path := range []string{"/change-admin-password", "/change-password"} {
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, "POST", path, "{"); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s bad json=%d", path, rec.Code)
 		}
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, "POST", path, `{"current_password":"a","new_password":"short"}`); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s short password=%d", path, rec.Code)
 		}
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, "POST", path, `{"current_password":"a","new_password":"longenough"}`); rec.Code != http.StatusUnauthorized {
 			t.Errorf("%s wrong current=%d", path, rec.Code)
 		}
 		port.verifyOK = true
 		port.updatePasswordErr = errors.New("db")
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, "POST", path, `{"current_password":"a","new_password":"longenough"}`); rec.Code != http.StatusInternalServerError {
 			t.Errorf("%s update failure=%d", path, rec.Code)
 		}
@@ -208,7 +191,6 @@ func TestPasswordAndCredentialHandlersGapBranches(t *testing.T) {
 
 	// credentials 路径为旧版凭据修改接口。
 	const credentials = "/account/credentials"
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "PUT", credentials, "{"); rec.Code != http.StatusBadRequest {
 		t.Errorf("credentials bad json=%d", rec.Code)
 	}
@@ -227,8 +209,7 @@ func TestPasswordAndCredentialHandlersGapBranches(t *testing.T) {
 		verifyOK  bool
 		// updateErr 是 UpdateCredentials 的错误。
 		updateErr error
-		// want 是期望状态码。
-		want int
+		want      int
 	}{
 		{"short username", body("ab", "pw", ""), nil, true, nil, 400},
 		{"missing current", body("newname", " ", ""), nil, true, nil, 400},
@@ -244,7 +225,6 @@ func TestPasswordAndCredentialHandlersGapBranches(t *testing.T) {
 	// tc 表示当前凭据修改场景。
 	for _, tc := range cases {
 		port.verifyErr, port.verifyOK, port.updateCredentialsErr = tc.verifyErr, tc.verifyOK, tc.updateErr
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, "PUT", credentials, tc.body); rec.Code != tc.want {
 			t.Errorf("%s => %d want %d body=%s", tc.name, rec.Code, tc.want, rec.Body.String())
 		}

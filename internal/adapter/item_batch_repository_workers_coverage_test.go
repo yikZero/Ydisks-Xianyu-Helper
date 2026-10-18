@@ -13,10 +13,8 @@ import (
 
 // TestItemBatchRepositoryWorkerStatePaths 验证批量发布仓储适配器的租约、明细收口和取消流程。
 func TestItemBatchRepositoryWorkerStatePaths(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试所有数据库调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的批量发布适配器。
 	repository := NewItemBatchRepository(store)

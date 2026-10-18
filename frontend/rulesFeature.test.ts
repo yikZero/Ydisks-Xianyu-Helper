@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
-const source = (path: string) => readFileSync(resolve(__dirname, path), 'utf8'); /* source 表示source。 */
+const source = (path: string) => readFileSync(resolve(__dirname, path), 'utf8');
 
 describe('responsive rules layout', () => {
   test('allows the rules page to shrink inside the sidebar layout', () => {

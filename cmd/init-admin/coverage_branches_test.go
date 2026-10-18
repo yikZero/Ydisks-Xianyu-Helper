@@ -42,7 +42,6 @@ func (failingReader) Read(_ []byte) (int, error) { return 0, errBranchWrite }
 func TestRunWriteFailuresSweep(t *testing.T) {
 	// scenarios 描述两种流程：新建管理员（空库）与重置管理员（已有管理员并回答 y）。
 	scenarios := []struct {
-		// name 是子测试名称。
 		name string
 		// preseed 表示运行前是否先创建一个管理员。
 		preseed bool
@@ -60,8 +59,8 @@ func TestRunWriteFailuresSweep(t *testing.T) {
 				// dbPath 是本轮独立的临时 SQLite 文件，避免污染真实数据。
 				dbPath := filepath.Join(t.TempDir(), "sweep.db")
 				if sc.preseed {
-					if // seedErr 是预置管理员阶段的失败原因。
-					seedErr := run(context.Background(), dbPath, bufio.NewReader(strings.NewReader("a@example.com\nold\nold\n")), &bytes.Buffer{}); seedErr != nil {
+					// seedErr 是预置管理员阶段的失败原因。
+					if seedErr := run(context.Background(), dbPath, bufio.NewReader(strings.NewReader("a@example.com\nold\nold\n")), &bytes.Buffer{}); seedErr != nil {
 						t.Fatalf("预置管理员失败: %v", seedErr)
 					}
 				}
@@ -182,11 +181,9 @@ func TestPromptPasswordTwiceBranches(t *testing.T) {
 
 // TestReadPasswordNoEchoFallback 覆盖非终端回退路径：提示写入失败、读取错误、无换行 EOF 与换行写入失败。
 func TestReadPasswordNoEchoFallback(t *testing.T) {
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := readPasswordNoEcho(bufio.NewReader(strings.NewReader("x\n")), "p:", &failingWriter{failAt: 1}); !errors.Is(err, errBranchWrite) {
 		t.Fatalf("提示写入失败应返回: %v", err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := readPasswordNoEcho(bufio.NewReader(failingReader{}), "p:", &bytes.Buffer{}); !errors.Is(err, errBranchWrite) {
 		t.Fatalf("读取失败应返回: %v", err)
 	}
@@ -195,7 +192,6 @@ func TestReadPasswordNoEchoFallback(t *testing.T) {
 	if err != nil || got != "pw" {
 		t.Fatalf("got=%q err=%v", got, err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := readPasswordNoEcho(bufio.NewReader(strings.NewReader("x\n")), "p:", &failingWriter{failAt: 2}); !errors.Is(err, errBranchWrite) {
 		t.Fatalf("换行写入失败应返回: %v", err)
 	}

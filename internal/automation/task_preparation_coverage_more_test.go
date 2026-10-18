@@ -10,10 +10,8 @@ import (
 
 // TestPrepareBuyerNicknameBoundaries 覆盖买家昵称已知、会话缺失和数据库错误边界。
 func TestPrepareBuyerNicknameBoundaries(t *testing.T) {
-	// store、cleanup 提供自动化中心所需的隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 控制昵称准备过程的数据库生命周期。
 	ctx := context.Background()
 	// center 是只使用本地数据库的自动化中心。
 	center := New(store, nil, nil)
@@ -43,7 +41,6 @@ func TestPrepareBuyerNicknameBoundaries(t *testing.T) {
 	closedDB, closedCleanup := newAutomationTestStore(t)
 	// closedCenter 使用已关闭数据库验证昵称查询错误包装。
 	closedCenter := New(closedDB, nil, nil)
-	// err 保存关闭测试数据库连接时的错误。
 	if err := closedDB.DB.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -57,10 +54,8 @@ func TestPrepareBuyerNicknameBoundaries(t *testing.T) {
 
 // TestResolvePaidTaskOrderFromSimplifiedContext 验证简化付款事件可从本账号会话订单补齐自动发货所需事实。
 func TestResolvePaidTaskOrderFromSimplifiedContext(t *testing.T) {
-	// store、cleanup 提供自动化中心所需的隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 控制订单事实回填过程的数据库生命周期。
 	ctx := context.Background()
 	// writeErr 保存待发货订单种子写入错误。
 	if writeErr := store.Orders.Upsert(ctx, "simple-order", db.OrderUpsertOpts{
@@ -86,10 +81,8 @@ func TestResolvePaidTaskOrderFromSimplifiedContext(t *testing.T) {
 
 // TestHandleTaskSkipsPaidDeliveryWhenAutoConfirmDisabled 验证参考项目的自动确认开关会在付款自动发货入口处整体阻断执行。
 func TestHandleTaskSkipsPaidDeliveryWhenAutoConfirmDisabled(t *testing.T) {
-	// store、cleanup 提供自动化中心所需的隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 控制付款事件处理过程的数据库生命周期。
 	ctx := context.Background()
 	// updateErr 保存关闭账号自动确认设置的数据库错误。
 	if _, updateErr := store.DB.ExecContext(ctx, `UPDATE cookies SET auto_confirm=0 WHERE id='cid'`); updateErr != nil {

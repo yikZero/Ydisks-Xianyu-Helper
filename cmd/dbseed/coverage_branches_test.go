@@ -53,7 +53,6 @@ func TestSeedFromSQLiteRejectsEmptyCredentials(t *testing.T) {
 	target, _ := branchTarget(t)
 	// source 是空源库。
 	source := branchLooseSource(t)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := seedFromSQLite(context.Background(), source, target, seedOptions{Username: "", Password: "x"}); err == nil {
 		t.Fatal("空用户名应被拒绝")
 	}
@@ -61,7 +60,6 @@ func TestSeedFromSQLiteRejectsEmptyCredentials(t *testing.T) {
 
 // TestSeedFromSQLiteAppliesDefaultsAndSeedsTextCards 覆盖默认管理员、非法 limit 回落、跳过无映射订单与 text 卡密/脏订单分支。
 func TestSeedFromSQLiteAppliesDefaultsAndSeedsTextCards(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// target 是目标仓储。
 	target, _ := branchTarget(t)
@@ -76,7 +74,6 @@ func TestSeedFromSQLiteAppliesDefaultsAndSeedsTextCards(t *testing.T) {
 	}
 	// stmt 是当前预置语句。
 	for _, stmt := range seedSQL {
-		// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 		if _, err := source.Exec(stmt); err != nil {
 			t.Fatal(err)
 		}
@@ -112,16 +109,13 @@ func TestSeedFromSQLiteSurfacesTargetFailures(t *testing.T) {
 				`INSERT INTO orders VALUES ('o1','i1','1','1.00','paid','','','1')`,
 				`INSERT INTO cards VALUES ('n','data',0,'1')`,
 			} {
-				// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 				if _, err := source.Exec(stmt); err != nil {
 					t.Fatal(err)
 				}
 			}
-			// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 			if _, err := database.Exec("ALTER TABLE " + table + " RENAME TO broken_" + table); err != nil {
 				t.Skipf("无法破坏表 %s: %v", table, err)
 			}
-			// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 			if _, err := seedFromSQLite(context.Background(), source, target, seedOptions{Username: "fx", Password: "p", Limit: 5}); err == nil {
 				t.Fatalf("表 %s 损坏后应返回错误", table)
 			}
@@ -131,7 +125,6 @@ func TestSeedFromSQLiteSurfacesTargetFailures(t *testing.T) {
 
 // TestEnsureFixtureAdminBranches 覆盖创建冲突、数据库故障与已存在管理员的密码重置分支。
 func TestEnsureFixtureAdminBranches(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// target、database 是目标仓储与连接。
 	target, database := branchTarget(t)
@@ -139,7 +132,6 @@ func TestEnsureFixtureAdminBranches(t *testing.T) {
 	if ok, err := target.Users.Create(ctx, "other", "adm@docker.test", "pw-pw-pw"); err != nil || !ok {
 		t.Fatalf("预置用户: %v %v", ok, err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := ensureFixtureAdmin(ctx, target, "adm", "pw"); err == nil {
 		t.Fatal("邮箱冲突应失败")
 	}
@@ -148,7 +140,6 @@ func TestEnsureFixtureAdminBranches(t *testing.T) {
 		t.Fatalf("已存在用户应被重置: %v", err)
 	}
 	database.Close()
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := ensureFixtureAdmin(ctx, target, "other", "x"); err == nil {
 		t.Fatal("连接关闭后应失败")
 	}
@@ -156,7 +147,6 @@ func TestEnsureFixtureAdminBranches(t *testing.T) {
 
 // TestPrepareFixtureUserBranches 覆盖创建冲突、清理失败与连接故障分支，并验证已有用户被重置为普通用户。
 func TestPrepareFixtureUserBranches(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// target、database 是目标仓储与连接。
 	target, database := branchTarget(t)
@@ -173,16 +163,13 @@ func TestPrepareFixtureUserBranches(t *testing.T) {
 	if err != nil || existing.IsAdmin {
 		t.Fatalf("existing=%+v err=%v", existing, err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := database.Exec(`ALTER TABLE automation_rules RENAME TO broken_rules`); err != nil {
 		t.Skipf("无法破坏表: %v", err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := prepareFixtureUser(ctx, target, seedOptions{Username: "other", Password: "p"}); err == nil || !strings.Contains(err.Error(), "清理上次测试数据") {
 		t.Fatalf("清理失败应返回: %v", err)
 	}
 	database.Close()
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := prepareFixtureUser(ctx, target, seedOptions{Username: "other", Password: "p"}); err == nil {
 		t.Fatal("连接关闭后应失败")
 	}
@@ -190,7 +177,6 @@ func TestPrepareFixtureUserBranches(t *testing.T) {
 
 // TestSeedScansFailOnNullColumns 验证源库出现 NULL 主键/类型列时各 seed 函数返回扫描错误。
 func TestSeedScansFailOnNullColumns(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// target 是目标仓储。
 	target, _ := branchTarget(t)
@@ -202,20 +188,16 @@ func TestSeedScansFailOnNullColumns(t *testing.T) {
 		`INSERT INTO orders (item_id) VALUES ('i')`,
 		`INSERT INTO cards (name) VALUES ('x')`,
 	} {
-		// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 		if _, err := source.Exec(stmt); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, _, err := seedItems(ctx, source, target, "acc", 5); err == nil {
 		t.Fatal("seedItems 应因 NULL item_id 扫描失败")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := seedOrders(ctx, source, target, "acc", map[string]string{}, 5); err == nil {
 		t.Fatal("seedOrders 应因 NULL order_id 扫描失败")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := seedCards(ctx, source, target, 1, 5); err == nil {
 		t.Fatal("seedCards 应因 NULL type 扫描失败")
 	}
@@ -223,7 +205,6 @@ func TestSeedScansFailOnNullColumns(t *testing.T) {
 
 // TestSeedQueriesFailWhenSourceTablesMissing 验证源库缺少表时三个 seed 函数返回查询错误。
 func TestSeedQueriesFailWhenSourceTablesMissing(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// target 是目标仓储。
 	target, _ := branchTarget(t)
@@ -233,15 +214,12 @@ func TestSeedQueriesFailWhenSourceTablesMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer empty.Close()
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, _, err := seedItems(ctx, empty, target, "acc", 5); err == nil {
 		t.Fatal("seedItems 应失败")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := seedOrders(ctx, empty, target, "acc", nil, 5); err == nil {
 		t.Fatal("seedOrders 应失败")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := seedCards(ctx, empty, target, 1, 5); err == nil {
 		t.Fatal("seedCards 应失败")
 	}
@@ -249,7 +227,6 @@ func TestSeedQueriesFailWhenSourceTablesMissing(t *testing.T) {
 
 // TestSeedWritesFailWhenTargetClosed 验证目标库不可写时 seedItems/seedOrders/seedCards 返回写入错误。
 func TestSeedWritesFailWhenTargetClosed(t *testing.T) {
-	// ctx 是测试上下文。
 	ctx := context.Background()
 	// target、database 是目标仓储与连接，稍后关闭。
 	target, database := branchTarget(t)
@@ -261,21 +238,17 @@ func TestSeedWritesFailWhenTargetClosed(t *testing.T) {
 		`INSERT INTO orders VALUES ('o1','i1','1','1.00','paid','','','1')`,
 		`INSERT INTO cards VALUES ('n','text',0,'1')`,
 	} {
-		// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 		if _, err := source.Exec(stmt); err != nil {
 			t.Fatal(err)
 		}
 	}
 	database.Close()
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, _, err := seedItems(ctx, source, target, "acc", 5); err == nil {
 		t.Fatal("seedItems 应失败")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := seedOrders(ctx, source, target, "acc", map[string]string{"i1": "docker-item-001"}, 5); err == nil {
 		t.Fatal("seedOrders 应失败")
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := seedCards(ctx, source, target, 1, 5); err == nil {
 		t.Fatal("seedCards 应失败")
 	}

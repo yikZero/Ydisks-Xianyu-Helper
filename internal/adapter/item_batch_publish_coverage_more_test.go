@@ -12,9 +12,7 @@ import (
 
 // TestItemBatchPublishPortRejectsInvalidInputsBeforeRemoteCall 验证批量远端发布在调用平台前拒绝损坏的位置、价格、类目和图片数据。
 func TestItemBatchPublishPortRejectsInvalidInputsBeforeRemoteCall(t *testing.T) {
-	// ctx 是本测试批次预检共用的非取消上下文。
 	ctx := context.Background()
-	// store、cleanup 保存本地批次预检测试数据库及资源清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// admin、adminErr 保存批次所属用户及读取错误。

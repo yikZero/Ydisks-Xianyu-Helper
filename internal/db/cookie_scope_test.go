@@ -11,7 +11,6 @@ func TestCookieScopedQueriesExcludeSecrets(t *testing.T) {
 	// store 是当前测试使用的 SQLite repository 聚合器。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// ownerID 和 otherID 是两个互不相同的账号所有者。
 	var ownerID, otherID int64
@@ -119,7 +118,6 @@ func TestListEnabledRuntimeCredentials(t *testing.T) {
 	// store 是当前测试使用的 SQLite repository 聚合器。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// ownerID 是测试账号所属用户，用于创建两条账号记录。
 	var ownerID int64
@@ -163,7 +161,6 @@ func TestGetCookieRuntimeDataExcludesLoginSecrets(t *testing.T) {
 	// store 是当前测试使用的 SQLite repository 聚合器。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// createErr 表示创建测试用户失败的原因。
 	if ok, createErr := store.Users.Create(ctx, "fingerprint-owner", "fingerprint-owner@example.com", "pw"); createErr != nil || !ok {

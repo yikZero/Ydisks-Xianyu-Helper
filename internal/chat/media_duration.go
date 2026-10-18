@@ -12,8 +12,8 @@ func extractMediaDuration(raw map[string]any, messageType string) int64 {
 	// inspect 从任意嵌套 JSON 容器中定位语音对象，遇到第一个正数秒值即结束。
 	var inspect func(any) int64
 	inspect = func(value any) int64 {
-		switch // typed 是当前递归节点的协议原始类型。
-		typed := value.(type) {
+		// typed 是当前递归节点的协议原始类型。
+		switch typed := value.(type) {
 		case string:
 			// nested 保存成功反序列化的内层 JSON，实时 WebSocket 经常将其作为字符串封装。
 			var nested any

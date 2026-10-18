@@ -57,7 +57,6 @@ func (u coverageAutomationUploader) UploadChatImage(context.Context, string, str
 
 // TestAutomationImageSenderMapsFailureAndSuccessPaths 验证图片自动化包装器的确定性错误和成功路径。
 func TestAutomationImageSenderMapsFailureAndSuccessPaths(t *testing.T) {
-	// ctx 是本测试图片发送共用的上下文。
 	ctx := context.Background()
 	// sender 保存记录图片转发结果的内存发送器。
 	sender := &coverageAutomationSender{}

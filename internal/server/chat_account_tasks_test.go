@@ -15,27 +15,20 @@ import (
 	"xianyu-go/internal/db"
 )
 
-// TestChatHistoryAndAccountTaskSettingsEndpoints 封装Test聊天HistoryAnd账号任务设置Endpoints业务协调。
 func TestChatHistoryAndAccountTaskSettingsEndpoints(t *testing.T) {
-	// srv、store、cleanup 用于本次流程后续判断的srv、store、cleanup
 	srv, store, cleanup := newTestServerWithChat(t)
 	defer cleanup()
-	// handler 用于本次流程后续判断的handler
 	handler := srv.Router()
-	// cookie 用于本次流程后续判断的登录凭证
 	cookie := loginHelper(t, handler)
 
-	// err 用于本次流程后续判断的err
 	_, _, err := store.Chats.SaveMessage(context.Background(), db.ChatSession{CookieID: "acc1", ChatID: "chat-1", BuyerID: "buyer-1", BuyerName: "买家甲"},
 		db.ChatMessage{MessageKey: "platform-1", Direction: "incoming", SenderID: "buyer-1", SenderName: "买家甲", MessageType: "text", Content: "你好", Status: "received", SentAt: 1000}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// request 用于本次流程后续判断的请求
 	request := httptest.NewRequest(http.MethodGet, "/api/chat/sessions?account_id=acc1", nil)
 	request.AddCookie(cookie)
-	// recorder 用于本次流程后续判断的recorder
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "买家甲") {
@@ -60,7 +53,6 @@ func TestChatHistoryAndAccountTaskSettingsEndpoints(t *testing.T) {
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "交易愉快") {
 		t.Fatalf("task settings status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
-	// settings、err 用于本次流程后续判断的settings、err
 	settings, err := store.AccountTasks.Get(context.Background(), "acc1")
 	if err != nil || !settings.AutoRateEnabled || !settings.AutoPolishEnabled || settings.PolishTime != "04:30" {
 		t.Fatalf("settings=%+v err=%v", settings, err)
@@ -105,7 +97,6 @@ func TestMarkChatReadKeepsPlatformReportAliveAfterClientCancellation(t *testing.
 	srv.applications.chat = port
 	// handler 是替换聊天端口后的真实 HTTP Router。
 	handler := srv.Router()
-	// cookie 是通过真实认证流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 	// request 是带有一条有效平台消息标识的已读请求。
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/chat/read", strings.NewReader(`{"account_id":"acc1","chat_id":"chat-read","message_ids":[{"messageId":"message.PNM"}]}`)).WithContext(requestCtx)
@@ -125,63 +116,44 @@ func TestMarkChatReadKeepsPlatformReportAliveAfterClientCancellation(t *testing.
 	}
 }
 
-// TestChatWebSocketStreamsOnlyAuthenticatedAccountEvents 封装Test聊天WebSocketStreamsOnlyAuthenticated账号Events业务协调。
 func TestChatWebSocketStreamsOnlyAuthenticatedAccountEvents(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServerWithChat(t)
 	defer cleanup()
-	// service 用于本次流程后续判断的service
 	service := testChatDomain(srv)
-	// handler 用于本次流程后续判断的handler
 	handler := srv.Router()
-	// cookie 用于本次流程后续判断的登录凭证
 	cookie := loginHelper(t, handler)
-	// httpServer 用于本次流程后续判断的httpServer
 	httpServer := httptest.NewServer(handler)
 	defer httpServer.Close()
 
-	// header 用于本次流程后续判断的header
 	header := make(http.Header)
 	header.Set("Cookie", cookie.String())
-	// ctx、cancel 用于本次流程后续判断的ctx、cancel
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	// conn、err 用于本次流程后续判断的conn、err
 	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(httpServer.URL, "http")+"/api/v1/chat/ws", &websocket.DialOptions{HTTPHeader: header})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
-	// ready 用于本次流程后续判断的ready
 	var ready map[string]any
-	if // err 用于本次流程后续判断的err
-	err := wsjson.Read(ctx, conn, &ready); err != nil || ready["type"] != "ready" {
+	if err := wsjson.Read(ctx, conn, &ready); err != nil || ready["type"] != "ready" {
 		t.Fatalf("ready=%+v err=%v", ready, err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, _, err := service.RecordIncoming(ctx, chat.Incoming{AccountID: "acc1", ChatID: "chat-live", BuyerID: "buyer",
+	if _, _, err := service.RecordIncoming(ctx, chat.Incoming{AccountID: "acc1", ChatID: "chat-live", BuyerID: "buyer",
 		BuyerName: "实时买家", Text: "实时消息", Raw: map[string]any{"messageId": "live-1"}}); err != nil {
 		t.Fatal(err)
 	}
-	// event 用于本次流程后续判断的event
 	var event chat.Event
-	if // err 用于本次流程后续判断的err
-	err := wsjson.Read(ctx, conn, &event); err != nil || event.Type != "message.created" || event.Message.Content != "实时消息" {
+	if err := wsjson.Read(ctx, conn, &event); err != nil || event.Type != "message.created" || event.Message.Content != "实时消息" {
 		t.Fatalf("event=%+v err=%v", event, err)
 	}
 }
 
-// TestChatAndTaskEndpointsEnforceOwnershipAndValidation 封装Test聊天And任务EndpointsEnforceOwnershipAndValidation业务协调。
 func TestChatAndTaskEndpointsEnforceOwnershipAndValidation(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServerWithChat(t)
 	defer cleanup()
-	// handler 用于本次流程后续判断的handler
 	handler := srv.Router()
-	// cookie 用于本次流程后续判断的登录凭证
 	cookie := loginHelper(t, handler)
 
-	// cases 用于本次流程后续判断的cases
 	cases := []struct {
 		method, path, body string
 		want               int
@@ -191,13 +163,10 @@ func TestChatAndTaskEndpointsEnforceOwnershipAndValidation(t *testing.T) {
 		{http.MethodPut, "/api/account-tasks/acc1", `{"auto_rate_enabled":true,"rate_content":"","auto_polish_enabled":false,"polish_time":"03:00"}`, http.StatusBadRequest},
 		{http.MethodPut, "/api/account-tasks/acc1", `{"auto_rate_enabled":false,"rate_content":"x","auto_polish_enabled":true,"polish_time":"25:99"}`, http.StatusBadRequest},
 	}
-	// tc 表示当前遍历过程中的tc
 	for _, tc := range cases {
-		// request 用于本次流程后续判断的请求
 		request := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
 		request.Header.Set("Content-Type", "application/json")
 		request.AddCookie(cookie)
-		// recorder 用于本次流程后续判断的recorder
 		recorder := httptest.NewRecorder()
 		handler.ServeHTTP(recorder, request)
 		if recorder.Code != tc.want {

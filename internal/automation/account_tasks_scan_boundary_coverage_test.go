@@ -10,10 +10,8 @@ import (
 
 // TestScanAccountTasksCoversStatusPauseSessionAndPolishBranches 验证账号任务扫描器的状态、暂停、会话阻断和擦亮分支。
 func TestScanAccountTasksCoversStatusPauseSessionAndPolishBranches(t *testing.T) {
-	// store、cleanup 保存扫描测试使用的 SQLite 存储及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是所有本地扫描和任务仓储调用共用的上下文。
 	ctx := context.Background()
 	// client 记录扫描器是否触发平台任务。
 	client := &fakeAccountTaskClient{items: []mtop.ItemListItem{{ID: "scan-polish-item"}}}

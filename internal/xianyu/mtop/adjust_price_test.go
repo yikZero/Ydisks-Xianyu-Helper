@@ -189,7 +189,6 @@ func TestAdjustOrderPriceContextCanceled(t *testing.T) {
 	// ctx、cancel 分别是已取消的请求上下文和其释放函数。
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	// err 保存 HTTP 请求因上下文取消返回的错误。
 	_, _, _, err := client.AdjustOrderPriceContext(ctx, adjustPriceCookies, "order-1", 990)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err=%v，期望 context.Canceled", err)

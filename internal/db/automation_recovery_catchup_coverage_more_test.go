@@ -66,10 +66,8 @@ func catchupRunSnapshot(cookieID, orderID, planJSON string) string {
 // TestPendingShipOrdersWithoutPaidRunAfterReturnsUntouchedOrders 验证兜底扫描能选中完全没有运行的待发货订单。
 // 这是 P2 修复的核心：付款系统消息丢失时订单不会留下任何运行记录，只能靠订单状态补触发。
 func TestPendingShipOrdersWithoutPaidRunAfterReturnsUntouchedOrders(t *testing.T) {
-	// s、cleanup 保存测试数据库及关闭责任。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号主键与账号标识。
 	userID, cookieID := seedAccount(t, s)
@@ -104,10 +102,8 @@ func TestPendingShipOrdersWithoutPaidRunAfterReturnsUntouchedOrders(t *testing.T
 // TestPendingShipOrdersWithoutPaidRunAfterFilters 验证兜底扫描的全部排除边界。
 // 每一条排除规则都对应一次真实线上风险：重复发货、打给无会话订单或对停用规则空转。
 func TestPendingShipOrdersWithoutPaidRunAfterFilters(t *testing.T) {
-	// s、cleanup 保存测试数据库及关闭责任。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号主键与账号标识。
 	userID, cookieID := seedAccount(t, s)
@@ -152,10 +148,8 @@ func TestPendingShipOrdersWithoutPaidRunAfterFilters(t *testing.T) {
 // TestPendingShipScansFallBackToDefaultBounds 验证两个兜底扫描在非法入参下回落到默认分页与代次上限。
 // 调用方传入 0 时不得把 LIMIT 设为 0 或放开代次上限，否则会造成漏扫或无限重开。
 func TestPendingShipScansFallBackToDefaultBounds(t *testing.T) {
-	// s、cleanup 保存测试数据库及关闭责任。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号主键与账号标识。
 	userID, cookieID := seedAccount(t, s)
@@ -194,10 +188,8 @@ func TestPendingShipScansFallBackToDefaultBounds(t *testing.T) {
 // TestPendingShipScansReportStorageFailures 验证存储不可用时两个兜底扫描都返回错误。
 // 兜底扫描漏报比多报更危险：错误必须上抛给调度器记录，而不是当成“没有候选”。
 func TestPendingShipScansReportStorageFailures(t *testing.T) {
-	// s、cleanup 保存测试数据库及关闭责任。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// closeErr 保存数据库关闭错误；关闭后存储层必须以错误返回。
 	if closeErr := s.DB.Close(); closeErr != nil {
@@ -222,10 +214,8 @@ func TestPendingShipScansReportStorageFailures(t *testing.T) {
 // 真正的放行判据（剩余动作是否只含幂等状态动作）必须由调用方依据快照里的冻结计划判定，
 // 因为 automation_rule_actions 是会被管理员编辑的现行配置：用它判定等于把数字游标套用到改过的规则上。
 func TestPendingShipResumableRunsAfterSelectsRunsOfEnabledOwnerRule(t *testing.T) {
-	// s、cleanup 保存测试数据库及关闭责任。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号主键与账号标识。
 	userID, cookieID := seedAccount(t, s)
@@ -362,10 +352,8 @@ func TestPendingShipResumableRunsAfterSelectsRunsOfEnabledOwnerRule(t *testing.T
 // TestReopenRunForRecoveryRequiresUnchangedAttempt 验证重开运行必须以原代次抢占成功。
 // 代次变化说明另一个 worker 已经动过这条运行，抢占失败必须让调用方放弃，避免重复发货。
 func TestReopenRunForRecoveryRequiresUnchangedAttempt(t *testing.T) {
-	// s、cleanup 保存测试数据库及关闭责任。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号主键与账号标识。
 	userID, cookieID := seedAccount(t, s)
@@ -411,10 +399,8 @@ func TestReopenRunForRecoveryRequiresUnchangedAttempt(t *testing.T) {
 // TestPendingShipResumableRunsDeduplicatesOrderAndBlocksActiveRun 验证同一订单只返回最新候选，且存在活动运行时不回退旧运行。
 // 这样可以防止历史重复运行在重启或冷却过期后再次执行确认发货。
 func TestPendingShipResumableRunsDeduplicatesOrderAndBlocksActiveRun(t *testing.T) {
-	// s、cleanup 保存测试数据库及关闭责任。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号主键与账号标识。
 	userID, cookieID := seedAccount(t, s)
@@ -483,10 +469,8 @@ RETURNING id`, ruleID, cookieID, "item-dedup", orderID, "buyer-"+orderID, "chat-
 // TestReopenRunForRecoverySerializesSameOrder 验证两个并发恢复调用在同一订单上只有一个能取得运行执行权。
 // 订单写锁必须与正常 TryStartRun 使用相同的账号→订单顺序，否则跨进程重启仍可能产生双重确认发货。
 func TestReopenRunForRecoverySerializesSameOrder(t *testing.T) {
-	// s、cleanup 保存测试数据库及关闭责任。
 	s, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号主键与账号标识。
 	userID, cookieID := seedAccount(t, s)

@@ -128,8 +128,7 @@ func (s *sendSender) UpdateCookie(string) {
 type sendUploader struct {
 	// result 保存上传成功后返回的图片地址。
 	result ImageUpload
-	// err 保存上传或凭证刷新阶段需要返回的错误。
-	err error
+	err    error
 }
 
 // UploadChatImage 返回预设上传结果，不接收明文 Cookie 参数。

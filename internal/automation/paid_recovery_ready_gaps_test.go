@@ -68,16 +68,13 @@ func (c paidRecoveryCase) assertRunStatus(t *testing.T, want string) db.Automati
 
 // TestPaidRecoveryReadyGates 覆盖付款恢复门禁的全部放行、延期、取消与人工核对分支。
 func TestPaidRecoveryReadyGates(t *testing.T) {
-	// ctx 是门禁调用共用的上下文。
 	ctx := context.Background()
 	// abortUpdate 让 automation_runs 的任何更新失败，用于覆盖延期、取消、隔离的写入错误。
 	const abortUpdate = `CREATE TRIGGER gap_abort_run_update BEFORE UPDATE ON automation_runs BEGIN SELECT RAISE(ABORT, 'forced run update failure'); END`
 
 	t.Run("非付款触发直接放行", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		c.task.TriggerType = TriggerBuyerReviewed
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if !ok || err != nil {
 			t.Fatalf("非付款触发应放行: ok=%v err=%v", ok, err)
@@ -88,7 +85,6 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		for _, source := range []string{"ws", "scheduler"} {
 			// c 保存当前来源的夹具。
 			c := newPaidRecoveryCase(t, "pending_ship", source)
-			// ok、err 保存门禁结论。
 			ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 			if !ok || err != nil {
 				t.Fatalf("%s 来源应放行: ok=%v err=%v", source, ok, err)
@@ -96,10 +92,8 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		}
 	})
 	t.Run("缺少本地订单转人工", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		execGapSQL(t, c.store, `DELETE FROM orders`)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err != nil {
 			t.Fatalf("缺单应拒绝且不报错: ok=%v err=%v", ok, err)
@@ -107,10 +101,8 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		c.assertRunStatus(t, "needs_review")
 	})
 	t.Run("订单读取失败延期", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		execGapSQL(t, c.store, `ALTER TABLE orders RENAME TO orders_gap_hidden`)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err != nil {
 			t.Fatalf("读取失败应延期: ok=%v err=%v", ok, err)
@@ -122,18 +114,15 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		}
 	})
 	t.Run("订单读取失败且延期写入失败", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		execGapSQL(t, c.store, `ALTER TABLE orders RENAME TO orders_gap_hidden`)
 		execGapSQL(t, c.store, abortUpdate)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err == nil || !strings.Contains(err.Error(), "延期付款恢复运行失败") {
 			t.Fatalf("应返回合并错误: ok=%v err=%v", ok, err)
 		}
 	})
 	t.Run("订单归属变化转人工", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		// admin、adminErr 保存新账号归属管理员，满足订单到账号的外键约束。
 		admin, adminErr := c.store.Users.GetByUsername(ctx, "admin")
@@ -145,7 +134,6 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 			t.Fatal(saveErr)
 		}
 		execGapSQL(t, c.store, `UPDATE orders SET cookie_id='other-account'`)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err != nil {
 			t.Fatalf("归属变化应拒绝: ok=%v err=%v", ok, err)
@@ -153,10 +141,8 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		c.assertRunStatus(t, "needs_review")
 	})
 	t.Run("系统已发货取消旧运行", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		execGapSQL(t, c.store, `UPDATE orders SET system_shipped=1, order_status='shipped'`)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err != nil {
 			t.Fatalf("已发货应拒绝: ok=%v err=%v", ok, err)
@@ -164,11 +150,9 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		c.assertRunStatus(t, "canceled")
 	})
 	t.Run("扫描快照陈旧时不取消", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "canceled", "ws")
 		// 快照尝试次数与数据库不一致，表示运行已被其他实例续租。
 		c.run.AttemptCount += 5
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err != nil {
 			t.Fatalf("陈旧快照应静默拒绝: ok=%v err=%v", ok, err)
@@ -176,20 +160,16 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		c.assertRunStatus(t, "running")
 	})
 	t.Run("取消写入失败返回错误", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "canceled", "ws")
 		execGapSQL(t, c.store, abortUpdate)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err == nil || !strings.Contains(err.Error(), "取消已失效付款恢复运行") {
 			t.Fatalf("应返回取消错误: ok=%v err=%v", ok, err)
 		}
 	})
 	t.Run("未知角色WS运行缺少商品证据转人工", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		c.task.OrderRole = ""
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err != nil {
 			t.Fatalf("缺少卖家证据应拒绝: ok=%v err=%v", ok, err)
@@ -197,25 +177,21 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		c.assertRunStatus(t, "needs_review")
 	})
 	t.Run("未知角色WS运行有商品证据时放行", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		c.task.OrderRole = ""
 		// itemErr 保存该步骤的中间结果，供后续断言使用。
 		if itemErr := c.store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "cid", ItemID: "recovery-item", ItemTitle: "恢复商品"}); itemErr != nil {
 			t.Fatal(itemErr)
 		}
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if !ok || err != nil {
 			t.Fatalf("有卖家证据应放行: ok=%v err=%v", ok, err)
 		}
 	})
 	t.Run("未知角色核验读取失败延期", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		c.task.OrderRole = ""
 		execGapSQL(t, c.store, `ALTER TABLE item_info RENAME TO item_info_gap_hidden`)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err != nil {
 			t.Fatalf("核验失败应延期: ok=%v err=%v", ok, err)
@@ -223,22 +199,18 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		c.assertRunStatus(t, "running")
 	})
 	t.Run("未知角色核验读取失败且延期失败", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		c.task.OrderRole = ""
 		execGapSQL(t, c.store, `ALTER TABLE item_info RENAME TO item_info_gap_hidden`)
 		execGapSQL(t, c.store, abortUpdate)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err == nil || !strings.Contains(err.Error(), "核对未知角色付款运行失败") {
 			t.Fatalf("应返回合并错误: ok=%v err=%v", ok, err)
 		}
 	})
 	t.Run("自动发货开关读取失败延期", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		execGapSQL(t, c.store, `ALTER TABLE cookies RENAME TO cookies_gap_hidden`)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err != nil {
 			t.Fatalf("开关读取失败应延期: ok=%v err=%v", ok, err)
@@ -246,22 +218,18 @@ func TestPaidRecoveryReadyGates(t *testing.T) {
 		c.assertRunStatus(t, "running")
 	})
 	t.Run("自动发货开关读取失败且延期失败", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		execGapSQL(t, c.store, `ALTER TABLE cookies RENAME TO cookies_gap_hidden`)
 		execGapSQL(t, c.store, abortUpdate)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err == nil || !strings.Contains(err.Error(), "读取付款恢复自动发货开关失败") {
 			t.Fatalf("应返回合并错误: ok=%v err=%v", ok, err)
 		}
 	})
 	t.Run("自动发货关闭且延期失败", func(t *testing.T) {
-		// c 保存夹具。
 		c := newPaidRecoveryCase(t, "pending_ship", "ws")
 		execGapSQL(t, c.store, `UPDATE cookies SET auto_confirm=0`)
 		execGapSQL(t, c.store, abortUpdate)
-		// ok、err 保存门禁结论。
 		ok, err := c.scheduler.paidRecoveryReady(ctx, c.task, c.run)
 		if ok || err == nil || !strings.Contains(err.Error(), "自动发货已关闭") {
 			t.Fatalf("应返回延期错误: ok=%v err=%v", ok, err)

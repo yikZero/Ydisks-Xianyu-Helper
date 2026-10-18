@@ -13,8 +13,7 @@ import (
 type scriptedAPIFetcher struct {
 	// result 是每次请求返回的卡密内容与是否已派发标志。
 	result APICardResult
-	// err 是每次请求返回的错误；为空表示请求成功。
-	err error
+	err    error
 	// calls 统计 Fetch 被调用的次数，用于断言失败后不再重复取卡。
 	calls int
 }
@@ -49,7 +48,6 @@ func (s imageFailSender) SendImage(context.Context, string, string, string, int6
 
 // TestSendCardImageGapBranches 覆盖图片卡与文本卡发送中的读取失败、离线与结果不明分支。
 func TestSendCardImageGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// task 是完整会话信息的发货任务。
 	task := Task{AccountID: "cid", OrderID: "card-gap", ChatID: "chat", BuyerID: "buyer", Quantity: "1"}
@@ -69,7 +67,6 @@ func TestSendCardImageGapBranches(t *testing.T) {
 	}
 
 	t.Run("图片卡发送成功记录图片凭证", func(t *testing.T) {
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// action 绑定图片卡。
@@ -83,7 +80,6 @@ func TestSendCardImageGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("图片卡账号离线为确定未发送", func(t *testing.T) {
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// action 绑定图片卡。
@@ -97,7 +93,6 @@ func TestSendCardImageGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("图片发送结果不明保留待核对凭证", func(t *testing.T) {
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// action 绑定图片卡。
@@ -111,7 +106,6 @@ func TestSendCardImageGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("文本卡内容为空读取失败", func(t *testing.T) {
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// action 绑定文本卡，随后把正文清空。
@@ -125,7 +119,6 @@ func TestSendCardImageGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("文本卡账号离线为确定未发送", func(t *testing.T) {
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// action 绑定文本卡。
@@ -138,7 +131,6 @@ func TestSendCardImageGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("文本发送结果不明保留渲染文本", func(t *testing.T) {
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// action 绑定文本卡。
@@ -155,7 +147,6 @@ func TestSendCardImageGapBranches(t *testing.T) {
 
 // TestSendAPICardGapBranches 覆盖 API 卡发货的取卡失败、空响应与买家消息发送失败；失败后不得重复取卡。
 func TestSendAPICardGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// task 是完整会话信息的发货任务。
 	task := Task{AccountID: "cid", OrderID: "api-gap", ChatID: "chat", BuyerID: "buyer", Quantity: "1"}
@@ -212,7 +203,6 @@ func TestSendAPICardGapBranches(t *testing.T) {
 
 // TestTemplateAPILoadGapBranches 覆盖模板变量的缺失绑定与 API 取卡失败分类。
 func TestTemplateAPILoadGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	// task 是完整会话信息的发货任务。
 	task := Task{AccountID: "cid", OrderID: "tpl-gap", Quantity: "1"}

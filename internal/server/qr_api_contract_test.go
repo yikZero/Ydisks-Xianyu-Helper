@@ -16,9 +16,7 @@ func TestAPIContractQRLoginGenerationFailure(t *testing.T) {
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	setTestQRLogin(srv, &fakeQRLoginService{generateErr: errors.New("二维码服务不可用")})
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// req 是触发二维码上游失败的生成请求。
 	req := httptest.NewRequest(http.MethodPost, "/qr-login/generate", nil)
@@ -47,9 +45,7 @@ func TestAPIContractQRLoginPersistFailure(t *testing.T) {
 	defer cleanup()
 	setTestQRLogin(srv, &fakeQRLoginService{status: map[string]any{"status": "success"}})
 	ownQRSession(t, srv, store, "persist-failure")
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// req 是触发扫码结果缺少凭证的状态查询请求。
 	req := httptest.NewRequest(http.MethodGet, "/qr-login/status/persist-failure", nil)
@@ -78,9 +74,7 @@ func TestAPIContractQRVerificationFailure(t *testing.T) {
 	defer cleanup()
 	setTestQRLogin(srv, &fakeQRLoginService{completeErr: errors.New("验证服务不可用")})
 	ownQRSession(t, srv, store, "verification-failure")
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// req 是触发风控验证上游失败的请求。
 	req := httptest.NewRequest(http.MethodPost, "/qr-login/complete-verification/verification-failure", nil)
@@ -107,9 +101,7 @@ func TestAPIContractPasswordLoginDisabled(t *testing.T) {
 	// srv 是用于验证密码登录禁用契约的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	assertUnifiedAPIError(t, handler, http.MethodPost, "/password-login", `{}`, sessionCookie, http.StatusNotImplemented, "password_login_disabled", "Go 客户端仅支持扫码登录，密码登录已禁用", false)
 }

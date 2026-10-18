@@ -15,7 +15,6 @@ func TestKeywordRepositoryCRUDMapping(t *testing.T) {
 	defer cleanup()
 	// repository 是待验证的关键词数据库适配器。
 	repository := NewKeywordRepository(store)
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// owner 是测试模板中的关键词所有者。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")
@@ -81,7 +80,6 @@ func TestKeywordRepositoryRejectsCrossUserAccess(t *testing.T) {
 	// store 是使用临时 SQLite 数据库的测试存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// created、createErr 保存第二个用户的创建结果。
 	created, createErr := store.Users.Create(ctx, "other", "other@example.invalid", "pw")
@@ -118,7 +116,6 @@ func TestKeywordRepositoryPropagatesInfrastructureErrors(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定测试存储的关键词适配器。
 	repository := NewKeywordRepository(store)
-	// closeErr 保存关闭测试数据库的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -141,7 +138,6 @@ func TestKeywordRepositoryCoversClosedDatabaseOperations(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定已关闭数据库的关键词适配器。
 	repository := NewKeywordRepository(store)
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -189,7 +185,6 @@ func TestKeywordRepositoryCoversClosedDatabaseOperations(t *testing.T) {
 
 // TestKeywordRepositoryMapsMissingOwnedAccount 验证账号不存在时归属授权返回资源缺失错误。
 func TestKeywordRepositoryMapsMissingOwnedAccount(t *testing.T) {
-	// store、cleanup 保存隔离的 SQLite 存储和关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是待验证的关键词适配器。
@@ -206,12 +201,10 @@ var _ keywordsapp.Repository = (*KeywordRepository)(nil)
 // TestKeywordRepositoryMapsMissingRulesAndInvalidIdentity 验证目标规则或商品回复不存在时统一映射为应用层 ErrNotFound，
 // 并且用户标识非法、账号标识为空时在访问数据库之前就被拒绝。
 func TestKeywordRepositoryMapsMissingRulesAndInvalidIdentity(t *testing.T) {
-	// store、cleanup 是带管理员账号 cid 的测试存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是被测的关键词适配器。
 	repository := NewKeywordRepository(store)
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// owner 是账号 cid 的所有者。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")
@@ -220,19 +213,15 @@ func TestKeywordRepositoryMapsMissingRulesAndInvalidIdentity(t *testing.T) {
 	}
 	// draft 是用于更新的有效草稿。
 	draft := keywordsapp.Draft{Keyword: "价格", Reply: "50元", Type: "text"}
-	// err 保存 Update 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := repository.Update(ctx, owner.ID, "cid", 9999, draft); !errors.Is(err, keywordsapp.ErrNotFound) {
 		t.Fatalf("更新不存在的规则应映射为 ErrNotFound，got %v", err)
 	}
-	// err 保存 DeleteByID 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := repository.DeleteByID(ctx, owner.ID, "cid", 9999); !errors.Is(err, keywordsapp.ErrNotFound) {
 		t.Fatalf("删除不存在的规则应映射为 ErrNotFound，got %v", err)
 	}
-	// err 保存 DeleteByIndex 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := repository.DeleteByIndex(ctx, owner.ID, "cid", 3); !errors.Is(err, keywordsapp.ErrNotFound) {
 		t.Fatalf("越界序号应映射为 ErrNotFound，got %v", err)
 	}
-	// err 保存 GetItemReply 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := repository.GetItemReply(ctx, owner.ID, "cid", "no-item"); !errors.Is(err, keywordsapp.ErrNotFound) {
 		t.Fatalf("不存在的商品回复应映射为 ErrNotFound，got %v", err)
 	}
@@ -240,7 +229,6 @@ func TestKeywordRepositoryMapsMissingRulesAndInvalidIdentity(t *testing.T) {
 	if _, err := repository.ListItemReplies(ctx, 0); !errors.Is(err, keywordsapp.ErrInvalidUser) {
 		t.Fatalf("ListItemReplies 非法用户应 ErrInvalidUser，got %v", err)
 	}
-	// err 保存 List 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := repository.List(ctx, -1, "cid"); !errors.Is(err, keywordsapp.ErrInvalidUser) {
 		t.Fatalf("List 非法用户应 ErrInvalidUser，got %v", err)
 	}
@@ -252,11 +240,9 @@ func TestKeywordRepositoryMapsMissingRulesAndInvalidIdentity(t *testing.T) {
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	// err 保存 List 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := repository.List(ctx, owner.ID, "cid"); err == nil || errors.Is(err, keywordsapp.ErrNotFound) {
 		t.Fatalf("数据库故障应返回基础设施错误，got %v", err)
 	}
-	// err 保存 DeleteByID 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := repository.DeleteByID(ctx, owner.ID, "cid", 1); err == nil || errors.Is(err, keywordsapp.ErrNotFound) {
 		t.Fatalf("数据库故障不得被映射为未找到，got %v", err)
 	}

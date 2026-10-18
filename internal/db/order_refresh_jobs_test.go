@@ -9,7 +9,6 @@ import (
 
 // TestOrderRefreshJobsLifecycle 验证订单刷新任务的创建、租约、终态和过期恢复生命周期。
 func TestOrderRefreshJobsLifecycle(t *testing.T) {
-	// store、cleanup 保存当前测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// ctx 保存当前任务测试使用的上下文。

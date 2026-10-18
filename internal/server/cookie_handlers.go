@@ -37,9 +37,7 @@ func (s *Server) mountCookies(r chi.Router) {
 	r.Get("/cookies/{cid}/pause-duration", s.getCookiePauseDuration)
 }
 
-// getLongLoginSettings 封装getLong登录设置业务协调。
 func (s *Server) getLongLoginSettings(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
 	// ownedDetail、ok 保存账号摘要和归属校验结果。
 	ownedDetail, ok := s.requireCookieOwner(w, r, cid)
@@ -55,19 +53,14 @@ func (s *Server) getLongLoginSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, longLoginResponse{CanOpenLongLogin: result.CanOpenLongLogin, Enabled: result.Enabled})
 }
 
-// setLongLoginSettings 封装setLong登录设置业务协调。
 func (s *Server) setLongLoginSettings(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
-	// ownedDetail、ok 用于本次流程后续判断的ownedDetail、ok
 	ownedDetail, ok := s.requireCookieOwner(w, r, cid)
 	if !ok {
 		return
 	}
-	// req 用于本次流程后续判断的req
 	var req longLoginSettingsRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil || req.Enabled == nil {
+	if err := decodeJSON(r, &req); err != nil || req.Enabled == nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -97,7 +90,6 @@ func (s *Server) writeLongLoginError(w http.ResponseWriter, err error) {
 	writeErr(w, http.StatusInternalServerError, "保存续期 Cookie 失败")
 }
 
-// updateRunningCookie 封装updateRunning登录凭证业务协调。
 func (s *Server) updateRunningCookie(ctx context.Context, cookieID, value string) {
 	// runtimeService 负责唤醒凭证阻塞任务并将 Cookie 同步到账号运行实例。
 	runtimeService := s.accountRuntimeApplication()
@@ -110,7 +102,6 @@ func (s *Server) updateRunningCookie(ctx context.Context, cookieID, value string
 	}
 }
 
-// updateCookieSettingsRequest 用于本次流程后续判断的update登录凭证设置请求
 type updateCookieSettingsRequest struct {
 	Cookie        *string  `json:"cookie"`
 	Remark        *string  `json:"remark"`
@@ -183,17 +174,13 @@ type cookiePauseDurationRequest struct {
 
 // updateCookieSettings 原子保存编辑弹窗中的账号字段和通知绑定。
 func (s *Server) updateCookieSettings(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
-	// detail、ok 用于本次流程后续判断的detail、ok
 	ownedDetail, ok := s.requireCookieOwner(w, r, cid)
 	if !ok {
 		return
 	}
-	// req 用于本次流程后续判断的req
 	var req updateCookieSettingsRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -373,7 +360,6 @@ func (s *Server) getCookieDetails(w http.ResponseWriter, r *http.Request) {
 func (s *Server) refreshCookieProfile(w http.ResponseWriter, r *http.Request) {
 	cid := chi.URLParam(r, "cid")                // cid 是请求路径中的账号 ID。
 	sess := auth.SessionFromContext(r.Context()) // sess 是当前认证会话。
-	// profile、err 用于本次流程后续判断的profile、err
 	profile, err := s.accountProfileApplication().RefreshProfile(r.Context(), sess.UserID, cid)
 	if err != nil {
 		if errors.Is(err, accountapp.ErrForbidden) {
@@ -413,17 +399,13 @@ func (s *Server) refreshCookieProfile(w http.ResponseWriter, r *http.Request) {
 
 // addCookie 添加账号 cookie。
 func (s *Server) addCookie(w http.ResponseWriter, r *http.Request) {
-	// req 用于本次流程后续判断的req
 	var req createCookieRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil || req.ID == "" || req.Value == "" {
+	if err := decodeJSON(r, &req); err != nil || req.ID == "" || req.Value == "" {
 		writeErr(w, http.StatusBadRequest, "缺少 id 或 value")
 		return
 	}
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	if // err 用于本次流程后续判断的err
-	err := s.accountLoginApplication().CreateCookie(r.Context(), req.ID, req.Value, sess.UserID, req.LoginMethod); err != nil {
+	if err := s.accountLoginApplication().CreateCookie(r.Context(), req.ID, req.Value, sess.UserID, req.LoginMethod); err != nil {
 		if errors.Is(err, accountapp.ErrForbidden) {
 			writeErr(w, http.StatusForbidden, "该账号ID已存在且不属于当前用户")
 			return
@@ -450,24 +432,19 @@ type updateCookieRequest struct {
 
 // updateCookie 更新 cookie 值。
 func (s *Server) updateCookie(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
-	// ok 用于本次流程后续判断的ok
 	_, ok := s.requireCookieOwner(w, r, cid)
 	if !ok {
 		return
 	}
 	// req 保存请求中的 Cookie、登录方式和可选凭证版本。
 	var req updateCookieRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	if // err 用于本次流程后续判断的err
-	err := s.accountLoginApplication().UpdateCookie(r.Context(), cid, req.Value, sess.UserID, req.LoginMethod, req.LastRefreshAt); err != nil {
+	if err := s.accountLoginApplication().UpdateCookie(r.Context(), cid, req.Value, sess.UserID, req.LoginMethod, req.LastRefreshAt); err != nil {
 		if errors.Is(err, accountapp.ErrCredentialConflict) {
 			writeErr(w, http.StatusConflict, err.Error())
 			return
@@ -484,17 +461,14 @@ func (s *Server) updateCookie(w http.ResponseWriter, r *http.Request) {
 
 // updateCookieLoginInfo 更新账号登录信息（用户名/密码/显示浏览器）。
 func (s *Server) updateCookieLoginInfo(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
 	// detail、ok 保存非敏感账号摘要和归属校验结果。
 	detail, ok := s.requireCookieOwner(w, r, cid)
 	if !ok {
 		return
 	}
-	// req 用于本次流程后续判断的req
 	var req cookieLoginInfoRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -520,17 +494,13 @@ func (s *Server) updateCookieLoginInfo(w http.ResponseWriter, r *http.Request) {
 
 // setCookieStatus 启用/禁用账号。
 func (s *Server) setCookieStatus(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
-	// ownedDetail、ok 用于本次流程后续判断的ownedDetail、ok
 	ownedDetail, ok := s.requireCookieOwner(w, r, cid)
 	if !ok {
 		return
 	}
-	// req 用于本次流程后续判断的req
 	var req cookieStatusRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -564,9 +534,7 @@ func (s *Server) setCookieStatus(w http.ResponseWriter, r *http.Request) {
 
 // deleteCookie 删除账号。
 func (s *Server) deleteCookie(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
-	// ownedDetail、ok 用于本次流程后续判断的ownedDetail、ok
 	ownedDetail, ok := s.requireCookieOwner(w, r, cid)
 	if !ok {
 		return
@@ -611,15 +579,12 @@ func (s *Server) deleteCookie(w http.ResponseWriter, r *http.Request) {
 
 // setCookieAutoConfirm 原子更新自动发货总开关和自动确认发货开关。
 func (s *Server) setCookieAutoConfirm(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
-	// req 用于本次流程后续判断的req
 	var req cookieAutoConfirmRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -643,9 +608,7 @@ func (s *Server) setCookieAutoConfirm(w http.ResponseWriter, r *http.Request) {
 
 // getCookieAutoConfirm 获取账号自动发货总开关（auto_confirm）与自动确认发货开关（auto_consign）。
 func (s *Server) getCookieAutoConfirm(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
-	// d、ok 用于本次流程后续判断的d、ok
 	d, ok := s.requireCookieOwner(w, r, cid)
 	if !ok {
 		return
@@ -655,22 +618,19 @@ func (s *Server) getCookieAutoConfirm(w http.ResponseWriter, r *http.Request) {
 
 // setCookieRemark 设置备注。
 func (s *Server) setCookieRemark(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
-	// req 用于本次流程后续判断的req
 	var req cookieRemarkRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
 	// sess 是当前请求的认证会话，用于让应用服务再次确认账号归属。
 	sess := authSess(r)
-	if // err 保存应用层账号备注错误。
-	_, err := s.accountSettingsApplication().SetRemark(r.Context(), sess.UserID, cid, req.Remark); err != nil {
+	// err 保存应用层账号备注错误。
+	if _, err := s.accountSettingsApplication().SetRemark(r.Context(), sess.UserID, cid, req.Remark); err != nil {
 		if errors.Is(err, accountapp.ErrForbidden) || errors.Is(err, accountapp.ErrNotFound) {
 			writeErr(w, http.StatusForbidden, "无权操作该账号")
 			return
@@ -683,15 +643,12 @@ func (s *Server) setCookieRemark(w http.ResponseWriter, r *http.Request) {
 
 // setCookiePauseDuration 设置暂停时长。
 func (s *Server) setCookiePauseDuration(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
-	// req 用于本次流程后续判断的req
 	var req cookiePauseDurationRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -718,7 +675,6 @@ func (s *Server) setCookiePauseDuration(w http.ResponseWriter, r *http.Request) 
 
 // getCookiePauseDuration 获取暂停时长。
 func (s *Server) getCookiePauseDuration(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cid")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
@@ -743,7 +699,6 @@ func cachedAccountSummaryNickname(summary accountapp.AccountSummary) string {
 	return "账号 " + truncate(summary.ID, 6)
 }
 
-// normalizeProfileAvatarURL 封装normalizeProfileAvatarURL业务协调。
 func normalizeProfileAvatarURL(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -758,7 +713,6 @@ func normalizeProfileAvatarURL(raw string) string {
 	return raw
 }
 
-// truncate 封装truncate业务协调。
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s

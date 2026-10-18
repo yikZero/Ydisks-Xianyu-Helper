@@ -41,7 +41,6 @@ type Manager struct {
 	runCtx      context.Context
 }
 
-// managedAccount 用于本次流程后续判断的managed账号
 type managedAccount struct {
 	cookieID string
 	acc      *engine.Account
@@ -122,8 +121,7 @@ func (m *Manager) Start(ctx context.Context, cookieID, cookieValue string) error
 	if m.runCtx != nil {
 		ctx = m.runCtx
 	}
-	if // ma、ok 用于本次流程后续判断的ma、ok
-	ma, ok := m.accounts[cookieID]; ok {
+	if ma, ok := m.accounts[cookieID]; ok {
 		if ma.stopping {
 			m.mu.Unlock()
 			return fmt.Errorf("账号 %s 正在停止", cookieID)
@@ -143,7 +141,6 @@ func (m *Manager) Start(ctx context.Context, cookieID, cookieValue string) error
 	if m.replyDeliveryProvider != nil {
 		replyDelivery = m.replyDeliveryProvider()
 	}
-	// acc 用于本次流程后续判断的acc
 	acc := engine.New(engine.Config{
 		CookieID:      cookieID,
 		CookieStr:     cookieValue,
@@ -152,9 +149,7 @@ func (m *Manager) Start(ctx context.Context, cookieID, cookieValue string) error
 		Logger:        m.logger,
 		ReplyDelivery: replyDelivery,
 	})
-	// accCtx、cancel 用于本次流程后续判断的accCtx、cancel
 	accCtx, cancel := context.WithCancel(ctx)
-	// ma 用于本次流程后续判断的ma
 	ma := &managedAccount{
 		cookieID: cookieID,
 		acc:      acc,
@@ -166,7 +161,6 @@ func (m *Manager) Start(ctx context.Context, cookieID, cookieValue string) error
 
 	m.logger.Info("启动账号", "account", cookieID)
 	go func() {
-		// err 用于本次流程后续判断的err
 		err := acc.Run(accCtx)
 		m.mu.Lock()
 		ma.err = err
@@ -210,7 +204,6 @@ func (m *Manager) StopContext(ctx context.Context, cookieID string) error {
 		return errors.New("停止账号需要关闭 Context")
 	}
 	m.mu.Lock()
-	// ma、ok 用于本次流程后续判断的ma、ok
 	ma, ok := m.accounts[cookieID]
 	if ok {
 		// stopping 标记会阻止 Start 在停止上下文超时后重新替换仍可能存活的运行实例。
@@ -231,8 +224,7 @@ func (m *Manager) StopContext(ctx context.Context, cookieID string) error {
 		return fmt.Errorf("等待账号 %s 运行协程退出失败: %w", cookieID, ctx.Err())
 	}
 	m.mu.Lock()
-	if // current 用于本次流程后续判断的current
-	current := m.accounts[cookieID]; current == ma {
+	if current := m.accounts[cookieID]; current == ma {
 		delete(m.accounts, cookieID)
 	}
 	m.mu.Unlock()
@@ -247,7 +239,6 @@ func (m *Manager) StopContext(ctx context.Context, cookieID string) error {
 func (m *Manager) GetInstance(cookieID string) (automation.MessageSender, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	// ma、ok 用于本次流程后续判断的ma、ok
 	ma, ok := m.accounts[cookieID]
 	if !ok {
 		return nil, false
@@ -262,7 +253,6 @@ func (m *Manager) Sender(cookieID string) (automation.MessageSender, bool) {
 
 // RecoverExpiredCredential 把上层 MTOP API 确认的 Session 失效
 // 统一转交给账号 Handler 的协议续期流程。调用方必须先释放账号凭证锁。
-// RecoverExpiredCredential 封装RecoverExpiredCredential业务协调。
 func (m *Manager) RecoverExpiredCredential(ctx context.Context, cookieID string) bool {
 	if m == nil || m.handler == nil {
 		return false
@@ -274,11 +264,8 @@ func (m *Manager) RecoverExpiredCredential(ctx context.Context, cookieID string)
 func (m *Manager) RuntimeStatuses() map[string]engine.RuntimeStatus {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	// statuses 用于本次流程后续判断的statuses
 	statuses := make(map[string]engine.RuntimeStatus, len(m.accounts))
-	// id、ma 表示当前遍历过程中的id、ma
 	for id, ma := range m.accounts {
-		// status 用于本次流程后续判断的状态
 		status := ma.acc.RuntimeStatus()
 		select {
 		case <-ma.done:
@@ -350,14 +337,11 @@ func (m *Manager) StopAllContext(ctx context.Context) error {
 	m.mu.Lock()
 	// stoppingAll 在收集账号前建立全局 fencing，防止并发 Start 把新实例遗漏在本次关闭之外。
 	m.stoppingAll = true
-	// ids 用于本次流程后续判断的ids
 	ids := make([]string, 0, len(m.accounts))
-	// id 表示当前遍历过程中的标识
 	for id := range m.accounts {
 		ids = append(ids, id)
 	}
 	m.mu.Unlock()
-	// id 表示当前遍历过程中的标识
 	for _, id := range ids {
 		// err 表示当前账号停止失败或关闭上下文已到期。
 		if err := m.StopContext(ctx, id); err != nil {

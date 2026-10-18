@@ -110,7 +110,6 @@ func TestRepositoriesReturnRowsIterationErrors(t *testing.T) {
 		t.Fatalf("打开测试数据库失败: %v", openErr)
 	}
 	defer database.Close()
-	// ctx 是不会取消的测试上下文。
 	ctx := context.Background()
 	// automation 是绑定测试驱动的自动化规则仓储，覆盖问题列表与延迟任务领取。
 	automation := &AutomationRules{DB: database}

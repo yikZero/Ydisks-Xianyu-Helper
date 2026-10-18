@@ -14,10 +14,8 @@ import (
 
 // TestItemBatchRepositoryCreatesPreviewFromApplicationModels 验证预检应用模型到数据库字段的转换。
 func TestItemBatchRepositoryCreatesPreviewFromApplicationModels(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是绑定测试数据库的预检批次适配器。
 	repository := NewItemBatchRepository(store)
@@ -81,10 +79,8 @@ func TestItemBatchRepositoryRejectsMissingStore(t *testing.T) {
 
 // TestItemBatchRepositoryMapsAndCleansBatch 验证批次行和状态完整映射及上传目录清理。
 func TestItemBatchRepositoryMapsAndCleansBatch(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存测试用户及读取错误。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

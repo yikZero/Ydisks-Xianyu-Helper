@@ -154,7 +154,6 @@ func TestDiscoveryLatestAttemptFencesOlderSnapshot(t *testing.T) {
 	for _, outcome := range []string{"success", "failure", "cancel"} {
 		// t 接收当前交错时序的断言。
 		t.Run(outcome, func(t *testing.T) {
-			// ctx、cancel 控制旧请求生命周期，异常退出时也释放后台等待。
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			// entered、release 确保旧请求先开始但最后返回，只有测试主协程关闭 release。

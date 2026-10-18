@@ -37,7 +37,6 @@ func (w *WSMessageStore) AddBatch(ctx context.Context, messages []WSMessage) err
 	query.WriteString("INSERT INTO ws_messages (cookie_id, direction, raw_text, parsed_json, message_kind, parse_status, error, created_at) VALUES ")
 	// args 按列顺序保存每条诊断帧的参数，最终一次性绑定到批量 INSERT。
 	args := make([]any, 0, len(messages)*7)
-	// i、message 表示当前遍历过程中的i、message
 	for i, message := range messages {
 		if i > 0 {
 			query.WriteByte(',')

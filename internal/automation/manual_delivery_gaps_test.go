@@ -14,11 +14,9 @@ import (
 // triggerKey 区分自动与人工幂等键；返回运行主键。
 func seedManualPriorRun(t *testing.T, store *db.Store, orderID, triggerKey, status, errMsg string, sent int, proof db.AutomationDeliveryProof) int64 {
 	t.Helper()
-	// ctx 是夹具写入共用的上下文。
 	ctx := context.Background()
 	// ruleID 是夹具规则主键，运行必须引用现有规则。
 	var ruleID int64
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if err := store.DB.QueryRowContext(ctx, `SELECT id FROM automation_rules LIMIT 1`).Scan(&ruleID); err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +29,6 @@ func seedManualPriorRun(t *testing.T, store *db.Store, orderID, triggerKey, stat
 		t.Fatalf("创建先前运行失败: %v %v", started, startErr)
 	}
 	execGapSQL(t, store, `UPDATE automation_runs SET action_started=1 WHERE id=`+itoa(runID))
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if err := store.Automation.UpdateDeliveryReplayProof(ctx, runID, 1, proof); err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +42,6 @@ func seedManualPriorRun(t *testing.T, store *db.Store, orderID, triggerKey, stat
 func TestPrepareManualDeliveryTaskValidation(t *testing.T) {
 	// nilCenter 覆盖空中心保护。
 	var nilCenter *Center
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := nilCenter.prepareManualDeliveryTask(context.Background(), &db.Order{}); err == nil {
 		t.Fatal("空中心应报错")
 	}
@@ -67,7 +63,6 @@ func TestPrepareManualDeliveryTaskValidation(t *testing.T) {
 			ctx, _, center, _, _, order, cleanup := newManualDeliveryFixture(t, "prep-order")
 			defer cleanup()
 			tc.mutate(order)
-			// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 			if _, err := center.prepareManualDeliveryTask(ctx, order); err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("err=%v want %s", err, tc.want)
 			}
@@ -77,11 +72,9 @@ func TestPrepareManualDeliveryTaskValidation(t *testing.T) {
 		// ctx、store、center、order、cleanup 保存人工发货夹具。
 		ctx, store, center, _, _, order, cleanup := newManualDeliveryFixture(t, "prep-pause")
 		defer cleanup()
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := store.Cookies.SetPause(ctx, "cid", 60); err != nil {
 			t.Fatal(err)
 		}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.prepareManualDeliveryTask(ctx, order); err == nil || !strings.Contains(err.Error(), "暂停") {
 			t.Fatalf("err=%v", err)
 		}
@@ -91,7 +84,6 @@ func TestPrepareManualDeliveryTaskValidation(t *testing.T) {
 		ctx, store, center, _, _, order, cleanup := newManualDeliveryFixture(t, "prep-disabled")
 		defer cleanup()
 		execGapSQL(t, store, `INSERT OR REPLACE INTO cookie_status (cookie_id, enabled) VALUES ('cid', 0)`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.prepareManualDeliveryTask(ctx, order); err == nil || !strings.Contains(err.Error(), "停用") {
 			t.Fatalf("err=%v", err)
 		}
@@ -101,7 +93,6 @@ func TestPrepareManualDeliveryTaskValidation(t *testing.T) {
 		ctx, store, center, _, _, order, cleanup := newManualDeliveryFixture(t, "prep-cookies")
 		defer cleanup()
 		execGapSQL(t, store, `ALTER TABLE cookies RENAME TO cookies_gap_hidden`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.prepareManualDeliveryTask(ctx, order); err == nil {
 			t.Fatal("应报账号读取错误")
 		}
@@ -111,7 +102,6 @@ func TestPrepareManualDeliveryTaskValidation(t *testing.T) {
 		ctx, _, center, _, _, order, cleanup := newManualDeliveryFixture(t, "prep-nocookie")
 		defer cleanup()
 		order.CookieID = ""
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.prepareManualDeliveryTask(ctx, order); err == nil {
 			t.Fatal("缺账号应报错")
 		}
@@ -121,7 +111,6 @@ func TestPrepareManualDeliveryTaskValidation(t *testing.T) {
 		ctx, store, center, _, _, order, cleanup := newManualDeliveryFixture(t, "prep-upsert")
 		defer cleanup()
 		execGapSQL(t, store, `ALTER TABLE orders RENAME TO orders_gap_hidden`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.prepareManualDeliveryTask(ctx, order); err == nil {
 			t.Fatal("订单事实不可写应报错")
 		}
@@ -178,7 +167,6 @@ func TestHandlePriorManualDeliveryMatrix(t *testing.T) {
 		ctx, store, center, _, _, order, cleanup := newManualDeliveryFixture(t, "prior-readerr")
 		defer cleanup()
 		execGapSQL(t, store, `ALTER TABLE automation_runs RENAME TO automation_runs_gap_hidden`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发；handled 表示请求是否已有最终结论，不再继续后续流程。
 		handled, _, err := center.handlePriorManualDelivery(ctx, Task{AccountID: "cid", OrderID: order.OrderID}, "k")
 		if !handled || err == nil {
 			t.Fatalf("handled=%v err=%v", handled, err)
@@ -210,7 +198,6 @@ func TestHandleExistingManualDeliveryMatrix(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// run 是被测运行副本。
 			run := tc.run
-			// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发；handled 表示请求是否已有最终结论，不再继续后续流程。
 			handled, _, err := center.handleExistingManualDelivery(context.Background(), Task{}, &run)
 			if !handled || err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("handled=%v err=%v want %s", handled, err, tc.want)
@@ -225,7 +212,6 @@ func TestHandleExistingManualDeliveryMatrix(t *testing.T) {
 		runID := seedManualPriorRun(t, store, order.OrderID, "manual_delivery:existing-proof", "failed", "x", 1, proof)
 		// run 保存从数据库读取的自动化运行记录，用于断言状态与代次。
 		run, _ := store.Automation.GetRun(ctx, runID)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		_, _, err := center2.handleExistingManualDelivery(ctx, Task{AccountID: "cid", OrderID: order.OrderID}, run)
 		if err == nil {
 			t.Fatal("缺少逐单位记录应拒绝")
@@ -240,19 +226,15 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 	defer cleanup()
 	// task 是补发任务。
 	task := Task{AccountID: "cid", OrderID: order.OrderID, ChatID: "chat", BuyerID: "buyer"}
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := center.claimAndReplayDeliveryProof(ctx, task, nil); err == nil {
 		t.Fatal("空运行应报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := center.claimAndReplayDeliveryProof(ctx, task, &db.AutomationRun{DeliveryProof: db.AutomationDeliveryProof{RefillPending: true}}); err == nil {
 		t.Fatal("补取占用应报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := center.claimAndReplayDeliveryProof(ctx, task, &db.AutomationRun{}); err == nil {
 		t.Fatal("无快照应报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := center.replayDeliveryProof(ctx, task, nil); err == nil {
 		t.Fatal("空运行应报错")
 	}
@@ -274,7 +256,6 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 	t.Run("领取失败运行不存在", func(t *testing.T) {
 		// run 引用不存在的运行主键。
 		run := &db.AutomationRun{ID: 999999, AttemptCount: 1, RawEventJSON: `{}`, DeliveryProof: proof}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.claimAndReplayDeliveryProof(ctx, task, run); err == nil {
 			t.Fatal("应返回计划或领取错误")
 		}
@@ -282,7 +263,6 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 	t.Run("租约失效", func(t *testing.T) {
 		// run 引用不存在的运行，续租必然失败。
 		run := &db.AutomationRun{ID: 999998, AttemptCount: 1, DeliveryProof: proof}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.replayDeliveryProof(ctx, task, run); err == nil {
 			t.Fatal("续租失败应报错")
 		}
@@ -290,7 +270,6 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 	t.Run("快照缺逐单位记录", func(t *testing.T) {
 		// run 的快照缺少 ExpectedUnits。
 		run := newRunning("k-nounits", db.AutomationDeliveryProof{TradeText: "x"})
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.replayDeliveryProof(ctx, task, run); err == nil || !strings.Contains(err.Error(), "逐单位") {
 			t.Fatalf("err=%v", err)
 		}
@@ -298,7 +277,6 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 	t.Run("快照单位数无效", func(t *testing.T) {
 		// run 的已知单位超过期望单位。
 		run := newRunning("k-badunits", db.AutomationDeliveryProof{TradeText: "x", ExpectedUnits: 1, PreparedUnits: 2})
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.replayDeliveryProof(ctx, task, run); err == nil || !strings.Contains(err.Error(), "单位数量无效") {
 			t.Fatalf("err=%v", err)
 		}
@@ -306,7 +284,6 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 	t.Run("消息内容为空", func(t *testing.T) {
 		// run 含一条空内容消息。
 		run := newRunning("k-empty", db.AutomationDeliveryProof{TradeText: "x", ExpectedUnits: 1, PreparedUnits: 1, Messages: []db.AutomationDeliveryMessage{{Kind: "text", Content: " "}}})
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.replayDeliveryProof(ctx, task, run); err == nil || !strings.Contains(err.Error(), "为空") {
 			t.Fatalf("err=%v", err)
 		}
@@ -314,7 +291,6 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 	t.Run("消息类型无效", func(t *testing.T) {
 		// run 含未知类型消息。
 		run := newRunning("k-kind", db.AutomationDeliveryProof{TradeText: "x", ExpectedUnits: 1, PreparedUnits: 1, Messages: []db.AutomationDeliveryMessage{{Kind: "video", Content: "v"}}})
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.replayDeliveryProof(ctx, task, run); err == nil || !strings.Contains(err.Error(), "类型无效") {
 			t.Fatalf("err=%v", err)
 		}
@@ -324,7 +300,6 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 		run := newRunning("k-send", db.AutomationDeliveryProof{TradeText: "x", ExpectedUnits: 1, PreparedUnits: 1, Messages: []db.AutomationDeliveryMessage{{Kind: "text", Content: "CARD"}}})
 		sender.err = errors.New("平台拒绝")
 		defer func() { sender.err = nil }()
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.replayDeliveryProof(ctx, task, run); err == nil || !strings.Contains(err.Error(), "原样补发订单内容失败") {
 			t.Fatalf("err=%v", err)
 		}
@@ -332,11 +307,9 @@ func TestClaimAndReplayDeliveryProofGuards(t *testing.T) {
 	t.Run("旧版快照按图片后文本恢复并因账号暂停拒绝", func(t *testing.T) {
 		// run 为旧版快照，仅含图片与文本字段。
 		run := newRunning("k-legacy", db.AutomationDeliveryProof{TradeText: "x", PicList: []string{"http://img"}, ExpectedUnits: 1, PreparedUnits: 1})
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := store.Cookies.SetPause(ctx, "cid", 60); err != nil {
 			t.Fatal(err)
 		}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.replayDeliveryProof(ctx, task, run); err == nil || !strings.Contains(err.Error(), "暂停") {
 			t.Fatalf("err=%v", err)
 		}
@@ -349,7 +322,6 @@ func TestExecuteManualDeliveryRulesBranches(t *testing.T) {
 		// ctx、center、cleanup 保存人工发货夹具。
 		ctx, _, center, _, _, _, cleanup := newManualDeliveryFixture(t, "rules-none")
 		defer cleanup()
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.executeManualDeliveryRules(ctx, Task{AccountID: "cid", ItemID: "other-item", TriggerType: TriggerOrderPaid}, "k"); err == nil || !strings.Contains(err.Error(), "未匹配到付款后自动发货规则") {
 			t.Fatalf("err=%v", err)
 		}
@@ -359,7 +331,6 @@ func TestExecuteManualDeliveryRulesBranches(t *testing.T) {
 		ctx, store, center, _, _, _, cleanup := newManualDeliveryFixture(t, "rules-err")
 		defer cleanup()
 		execGapSQL(t, store, `ALTER TABLE automation_rule_actions RENAME TO automation_rule_actions_gap_hidden`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.executeManualDeliveryRules(ctx, Task{AccountID: "cid", ItemID: "manual-item", TriggerType: TriggerOrderPaid}, "k"); err == nil {
 			t.Fatal("应返回规则查询错误")
 		}
@@ -370,7 +341,6 @@ func TestExecuteManualDeliveryRulesBranches(t *testing.T) {
 		defer cleanup()
 		// task 携带规则动作没有配置的规格。
 		task := Task{AccountID: "cid", ItemID: "manual-item", TriggerType: TriggerOrderPaid, SpecName: "颜色", SpecValue: "黑", OrderID: "rules-spec"}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		_, err := center.executeManualDeliveryRules(ctx, task, "manual_delivery:rules-spec")
 		if err != nil && !strings.Contains(err.Error(), "规格") && !strings.Contains(err.Error(), "卡密") {
 			t.Fatalf("err=%v", err)
@@ -390,12 +360,10 @@ func TestExecuteManualDeliveryRulesBranches(t *testing.T) {
 		execGapSQL(t, store, `UPDATE automation_runs SET trigger_key='manual_delivery:rules-dup' WHERE trigger_key='ws-key'`)
 		// task 是人工任务；运行已存在，应走已有运行处理。
 		task := Task{Source: "manual", AccountID: "cid", OrderID: order.OrderID, ItemID: "manual-item", ChatID: "chat", BuyerID: "buyer", TriggerType: TriggerOrderPaid, Quantity: "1"}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.executeManualDeliveryRule(ctx, task, rules[0], "manual_delivery:rules-dup"); err == nil {
 			t.Fatal("已完成的人工运行应拒绝重复发货")
 		}
 	})
-	// got 保存被测函数的实际返回值，供断言比较。
 	if got := buildManualDeliveryTriggerKey(Task{}); got != "" {
 		t.Fatalf("空订单键=%q", got)
 	}
@@ -407,7 +375,6 @@ func seedQuarantinedManualReplay(t *testing.T, ctx context.Context, store *db.St
 	t.Helper()
 	// ruleID 是夹具唯一付款发货规则主键。
 	var ruleID int64
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if err := store.DB.QueryRowContext(ctx, `SELECT id FROM automation_rules WHERE cookie_id=? AND item_id=?`, order.CookieID, order.ItemID).Scan(&ruleID); err != nil {
 		t.Fatal(err)
 	}
@@ -424,12 +391,10 @@ func seedQuarantinedManualReplay(t *testing.T, ctx context.Context, store *db.St
 	if getErr != nil {
 		t.Fatal(getErr)
 	}
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发；ok 保存该步骤的中间结果，供后续断言使用。
 	if ok, err := store.Automation.StartRunAction(ctx, runID, current.AttemptCount, 0, time.Now().Add(time.Minute).Unix()); err != nil || !ok {
 		t.Fatalf("占用动作检查点失败: %v %v", ok, err)
 	}
 	saveManualReplayTestPlan(t, ctx, store, runID, units)
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if err := store.Automation.QuarantineRunResultWithProof(ctx, runID, current.AttemptCount, 1, "消息回显超时", &proof); err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +420,6 @@ func TestManualReplayVariants(t *testing.T) {
 		defer cleanup()
 		seedQuarantinedManualReplay(t, ctx, store, order, db.AutomationDeliveryProof{TradeText: "T", Messages: []db.AutomationDeliveryMessage{{Kind: "text", Content: "T"}}, ExpectedUnits: 1, PreparedUnits: 1}, 1)
 		execGapSQL(t, store, `CREATE TRIGGER gap_reject_success BEFORE UPDATE OF status ON automation_runs WHEN NEW.status='success' BEGIN SELECT RAISE(ABORT, 'forced complete failure'); END`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.ManualFullDelivery(ctx, order); err == nil || !strings.Contains(err.Error(), "保存运行结果失败") {
 			t.Fatalf("err=%v", err)
 		}
@@ -477,12 +441,10 @@ func TestManualReplayVariants(t *testing.T) {
 		// stale 是代次已落后的扫描快照，领取必须返回未取得。
 		stale := *run
 		stale.AttemptCount += 3
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.claimAndReplayDeliveryProof(ctx, Task{AccountID: "cid", OrderID: order.OrderID}, &stale); err == nil || !strings.Contains(err.Error(), "正在补发") {
 			t.Fatalf("err=%v", err)
 		}
 		execGapSQL(t, store, gapAbortRunUpdate)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.claimAndReplayDeliveryProof(ctx, Task{AccountID: "cid", OrderID: order.OrderID}, run); err == nil || !strings.Contains(err.Error(), "领取订单内容补发") {
 			t.Fatalf("err=%v", err)
 		}
@@ -500,7 +462,6 @@ func TestManualReplayVariants(t *testing.T) {
 		run, _ := store.Automation.GetRun(ctx, runID)
 		run.DeliveryProof = proof
 		execGapSQL(t, store, `ALTER TABLE cookies RENAME TO cookies_gap_hidden`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.replayDeliveryProof(ctx, Task{AccountID: "cid", OrderID: order.OrderID}, run); err == nil {
 			t.Fatal("门禁读取失败应报错")
 		}
@@ -510,7 +471,6 @@ func TestManualReplayVariants(t *testing.T) {
 		ctx, store, center, _, mtopMock, order, cleanup := newManualDeliveryFixture(t, "variant-image")
 		defer cleanup()
 		seedQuarantinedManualReplay(t, ctx, store, order, db.AutomationDeliveryProof{Messages: []db.AutomationDeliveryMessage{{Kind: "image", Content: "http://img/2.png"}}, PicList: []string{"http://img/2.png"}, ExpectedUnits: 1, PreparedUnits: 1}, 1)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发；sent 保存该步骤的中间结果，供后续断言使用。
 		if sent, err := center.ManualFullDelivery(ctx, order); err != nil || sent != 1 || mtopMock.consignCalls != 1 {
 			t.Fatalf("sent=%d err=%v", sent, err)
 		}
@@ -529,7 +489,6 @@ func TestRefillPartialDeliveryProofGuards(t *testing.T) {
 	t.Run("计划损坏", func(t *testing.T) {
 		// run 没有原始发货计划。
 		run := &db.AutomationRun{DeliveryProof: partial, RawEventJSON: `{}`}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.refillPartialDeliveryProof(ctx, task, run); err == nil {
 			t.Fatal("计划损坏应报错")
 		}
@@ -541,7 +500,6 @@ func TestRefillPartialDeliveryProofGuards(t *testing.T) {
 	run.DeliveryProof = partial
 	t.Run("API卡密禁止自动续取", func(t *testing.T) {
 		execGapSQL(t, store, `UPDATE cards SET type='api'`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.refillPartialDeliveryProof(ctx, task, run); err == nil || !strings.Contains(err.Error(), "API 卡密") {
 			t.Fatalf("err=%v", err)
 		}
@@ -549,7 +507,6 @@ func TestRefillPartialDeliveryProofGuards(t *testing.T) {
 	t.Run("卡组不存在", func(t *testing.T) {
 		execGapSQL(t, store, `PRAGMA foreign_keys=OFF`)
 		execGapSQL(t, store, `DELETE FROM cards`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := center.refillPartialDeliveryProof(ctx, task, run); err == nil || !strings.Contains(err.Error(), "读取补发卡密组") {
 			t.Fatalf("err=%v", err)
 		}
@@ -560,7 +517,6 @@ func TestRefillPartialDeliveryProofGuards(t *testing.T) {
 func TestManualFullDeliveryNilReceiver(t *testing.T) {
 	// nilCenter 是空中心。
 	var nilCenter *Center
-	// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 	if _, err := nilCenter.ManualFullDelivery(context.Background(), nil); err == nil {
 		t.Fatal("空中心应报错")
 	}

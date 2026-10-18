@@ -13,19 +13,15 @@ import (
 	"xianyu-go/internal/db"
 )
 
-// readinessTestSender 用于本次流程后续判断的readinessTestSender
 type readinessTestSender struct {
 	*testSender
 	ready bool
 }
 
-// AutomationReady 封装自动化Ready业务协调。
 func (s *readinessTestSender) AutomationReady() bool { return s.ready }
 
-// readinessTestProvider 用于本次流程后续判断的readinessTestProvider
 type readinessTestProvider struct{ sender MessageSender }
 
-// Sender 封装Sender业务协调。
 func (p readinessTestProvider) Sender(string) (MessageSender, bool) { return p.sender, true }
 
 // TestParseReviewRuleConfig 默认值 + JSON 覆盖 + 非法输入兜底。
@@ -59,7 +55,6 @@ func TestSchedulerQuarantineSuccess(t *testing.T) {
 	// store 是本测试使用的 SQLite 自动化存储。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是恢复任务共用的数据库上下文。
 	ctx := context.Background()
 	// runID 是已执行外部动作且租约过期的运行主键。
 	runID := seedExpiredRecoveryRun(t, store, ctx, "success")
@@ -87,7 +82,6 @@ func TestSchedulerQuarantineWriteFailureUsesJoinedNeedsReviewError(t *testing.T)
 	// store 是本测试使用的 SQLite 自动化存储。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是恢复任务共用的数据库上下文。
 	ctx := context.Background()
 	// runID 确保数据库中存在一条待隔离的过期运行。
 	_ = seedExpiredRecoveryRun(t, store, ctx, "write-failure")
@@ -117,7 +111,6 @@ func TestSchedulerDeferredFinishWriteFailureUsesNeedsReviewError(t *testing.T) {
 	// store 是本测试使用的 SQLite 自动化存储。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是延迟任务共用的数据库上下文。
 	ctx := context.Background()
 	// insertErr 表示写入故意非法延迟任务时的数据库错误。
 	if _, insertErr := store.DB.ExecContext(ctx, `INSERT INTO automation_pending_tasks
@@ -154,7 +147,6 @@ func TestSchedulerDeferredDeadLetterSendsManualNotification(t *testing.T) {
 	// store、cleanup 保存本测试使用的 SQLite 自动化存储及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是延期任务写入、扫描和状态读取共用的上下文。
 	ctx := context.Background()
 	// insertErr 保存预置第四次失败的非法延期任务时的数据库错误。
 	_, insertErr := store.DB.ExecContext(ctx, `INSERT INTO automation_pending_tasks
@@ -233,7 +225,6 @@ func seedExpiredRecoveryRun(t *testing.T, store *db.Store, ctx context.Context, 
 
 // TestIntFromAny float64/int/string 三类来源 + 无效类型返回 0。
 func TestIntFromAny(t *testing.T) {
-	// cases 用于本次流程后续判断的cases
 	cases := []struct {
 		in   any
 		want int
@@ -246,10 +237,8 @@ func TestIntFromAny(t *testing.T) {
 		{nil, 0},
 		{true, 0},
 	}
-	// c 表示当前遍历过程中的c
 	for _, c := range cases {
-		if // got 用于本次流程后续判断的got
-		got := intFromAny(c.in); got != c.want {
+		if got := intFromAny(c.in); got != c.want {
 			t.Errorf("intFromAny(%v)=%d want %d", c.in, got, c.want)
 		}
 	}
@@ -257,27 +246,22 @@ func TestIntFromAny(t *testing.T) {
 
 // TestParseDBTime 支持的三种格式 + 无效返回零值。
 func TestParseDBTime(t *testing.T) {
-	if // t1 用于本次流程后续判断的t1
-	t1 := parseDBTime("2026-01-02 15:04:05"); t1.IsZero() {
+	if t1 := parseDBTime("2026-01-02 15:04:05"); t1.IsZero() {
 		t.Error("datetime 格式应解析成功")
 	}
-	if // t1 用于本次流程后续判断的t1
-	t1 := parseDBTime("2026-01-02T15:04:05Z"); t1.IsZero() {
+	if t1 := parseDBTime("2026-01-02T15:04:05Z"); t1.IsZero() {
 		t.Error("RFC3339 格式应解析成功")
 	}
-	if // t1 用于本次流程后续判断的t1
-	t1 := parseDBTime(""); !t1.IsZero() {
+	if t1 := parseDBTime(""); !t1.IsZero() {
 		t.Error("空串应返回零值")
 	}
-	if // t1 用于本次流程后续判断的t1
-	t1 := parseDBTime("not a time"); !t1.IsZero() {
+	if t1 := parseDBTime("not a time"); !t1.IsZero() {
 		t.Error("非法串应返回零值")
 	}
 }
 
 // TestReviewRequestRuleDue 综合判定：达到时长且未超次数 → due；否则不 due。
 func TestReviewRequestRuleDue(t *testing.T) {
-	// rule 用于本次流程后续判断的规则
 	rule := db.AutomationRule{ConfigJSON: `{"after_shipped_hours":1,"max_attempts":2}`}
 
 	// 已发货 2 小时、未请求过 → due。
@@ -320,11 +304,8 @@ func TestReviewRequestRuleDue(t *testing.T) {
 	}
 }
 
-// TestReviewRequestRuleDueUsesRepeatIntervalAfterFirstAttempt 封装TestReview请求规则DueUsesRepeatIntervalAfterFirst尝试次数业务协调。
 func TestReviewRequestRuleDueUsesRepeatIntervalAfterFirstAttempt(t *testing.T) {
-	// rule 用于本次流程后续判断的规则
 	rule := db.AutomationRule{ConfigJSON: `{"first_delay_hours":1,"repeat_interval_hours":24,"max_attempts":3}`}
-	// order 用于本次流程后续判断的订单
 	order := db.Order{
 		OrderID:             "repeat-review",
 		SystemShipped:       true,
@@ -341,14 +322,11 @@ func TestReviewRequestRuleDueUsesRepeatIntervalAfterFirstAttempt(t *testing.T) {
 	}
 }
 
-// TestParseDBTimeAcceptsPostgresTimestampText 封装TestParseDB时间AcceptsPostgresTimestamp文本业务协调。
 func TestParseDBTimeAcceptsPostgresTimestampText(t *testing.T) {
-	// got 用于本次流程后续判断的got
 	got := parseDBTime("2026-07-27 03:36:29.123456+00")
 	if got.IsZero() {
 		t.Fatal("Postgres CURRENT_TIMESTAMP 文本不应解析为零值")
 	}
-	// want 用于本次流程后续判断的want
 	want := time.Date(2026, 7, 27, 3, 36, 29, 123456000, time.UTC)
 	if !got.Equal(want) {
 		t.Fatalf("parseDBTime=%s want %s", got, want)
@@ -357,16 +335,13 @@ func TestParseDBTimeAcceptsPostgresTimestampText(t *testing.T) {
 
 // TestFirstNonEmpty 返回首个非空串。
 func TestFirstNonEmpty(t *testing.T) {
-	if // got 用于本次流程后续判断的got
-	got := firstNonEmpty("", "", "x", "y"); got != "x" {
+	if got := firstNonEmpty("", "", "x", "y"); got != "x" {
 		t.Errorf("firstNonEmpty=%q want x", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := firstNonEmpty(); got != "" {
+	if got := firstNonEmpty(); got != "" {
 		t.Errorf("无参应返回空，got %q", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := firstNonEmpty("a"); got != "a" {
+	if got := firstNonEmpty("a"); got != "a" {
 		t.Errorf("单参=%q want a", got)
 	}
 }
@@ -374,20 +349,15 @@ func TestFirstNonEmpty(t *testing.T) {
 // TestSchedulerScanExecutesDueThenSkipsOnMaxAttempts 端到端验证调度扫描：
 // 首次扫描命中到期订单 → 执行规则 → 发送文本 + 计数 +1；
 // 二次扫描因达到 max_attempts 跳过，不再发送。
-// TestSchedulerScanExecutesDueThenSkipsOnMaxAttempts 封装TestSchedulerScanExecutesDueThenSkipsOnMax尝试次数业务协调。
 func TestSchedulerScanExecutesDueThenSkipsOnMaxAttempts(t *testing.T) {
-	// database、err 用于本次流程后续判断的database、err
 	database, _, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "sched.db"))
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
 	defer database.Close()
-	// store 用于本次流程后续判断的store
 	store := db.NewStore(database, db.DialectSQLite)
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
 	store.Users.Create(ctx, "admin", "a@e.com", "pw")
-	// admin 用于本次流程后续判断的admin
 	admin, _ := store.Users.GetByUsername(ctx, "admin")
 	store.Cookies.Save(ctx, "cid", "unb=1; _m_h5_tk=tk;", admin.ID)
 
@@ -413,18 +383,14 @@ func TestSchedulerScanExecutesDueThenSkipsOnMaxAttempts(t *testing.T) {
 
 	// 已发货、未评价、有 chat_id 的订单。
 	shipped := time.Now().UTC().Add(-2 * time.Hour).Format("2006-01-02 15:04:05")
-	if // err 用于本次流程后续判断的err
-	_, err := store.DB.ExecContext(ctx, `INSERT INTO orders
+	if _, err := store.DB.ExecContext(ctx, `INSERT INTO orders
 		(order_id, cookie_id, item_id, buyer_id, chat_id, system_shipped, shipped_at, review_request_count)
 		VALUES ('o-sched', 'cid', 'item-1', 'buyer-1', 'chat-1', 1, ?, 0)`, shipped); err != nil {
 		t.Fatalf("insert order: %v", err)
 	}
 
-	// sender 用于本次流程后续判断的sender
 	sender := &testSender{}
-	// center 用于本次流程后续判断的center
 	center := New(store, testSenderProvider{sender: sender}, nil)
-	// sched 用于本次流程后续判断的sched
 	sched := NewScheduler(center)
 	// 缩短间隔不影响单次 scan 调用，但避免 Run 阻塞。
 	_ = sched
@@ -448,16 +414,11 @@ func TestSchedulerScanExecutesDueThenSkipsOnMaxAttempts(t *testing.T) {
 	}
 }
 
-// TestSchedulerWaitsForWebSocketBeforeCreatingRun 封装TestSchedulerWaitsForWebSocketBeforeCreating运行业务协调。
 func TestSchedulerWaitsForWebSocketBeforeCreatingRun(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// admin 用于本次流程后续判断的admin
 	admin, _ := store.Users.GetByUsername(ctx, "admin")
-	// ruleID、err 用于本次流程后续判断的规则ID、err
 	ruleID, err := store.Automation.Create(ctx, db.AutomationRuleInput{
 		UserID: admin.ID, CookieID: "cid", ItemID: "item-ready", Name: "wait-ws",
 		TriggerType: TriggerReviewMissingTimeout, Enabled: true,
@@ -467,23 +428,17 @@ func TestSchedulerWaitsForWebSocketBeforeCreatingRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// shipped 用于本次流程后续判断的shipped
 	shipped := time.Now().UTC().Add(-2 * time.Hour).Format(time.RFC3339Nano)
-	if // err 用于本次流程后续判断的err
-	_, err := store.DB.ExecContext(ctx, `INSERT INTO orders
+	if _, err := store.DB.ExecContext(ctx, `INSERT INTO orders
 		(order_id,cookie_id,item_id,buyer_id,chat_id,system_shipped,shipped_at)
 		VALUES ('wait-ws-order','cid','item-ready','buyer','chat',1,?)`, shipped); err != nil {
 		t.Fatal(err)
 	}
-	// sender 用于本次流程后续判断的sender
 	sender := &readinessTestSender{testSender: &testSender{}, ready: false}
-	// scheduler 用于本次流程后续判断的scheduler
 	scheduler := NewScheduler(New(store, readinessTestProvider{sender: sender}, nil))
 	scheduler.scan(ctx)
-	// count 用于本次流程后续判断的数量
 	var count int
-	if // err 用于本次流程后续判断的err
-	err := store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_runs WHERE rule_id=?`, ruleID).Scan(&count); err != nil {
+	if err := store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_runs WHERE rule_id=?`, ruleID).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {
@@ -496,35 +451,26 @@ func TestSchedulerWaitsForWebSocketBeforeCreatingRun(t *testing.T) {
 	}
 }
 
-// TestSchedulerScansMoreThanOneReviewPage 封装TestSchedulerScansMoreThanOneReview页码业务协调。
 func TestSchedulerScansMoreThanOneReviewPage(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// admin 用于本次流程后续判断的admin
 	admin, _ := store.Users.GetByUsername(ctx, "admin")
-	if // err 用于本次流程后续判断的err
-	_, err := store.Automation.Create(ctx, db.AutomationRuleInput{
+	if _, err := store.Automation.Create(ctx, db.AutomationRuleInput{
 		UserID: admin.ID, CookieID: "cid", Name: "review-all", TriggerType: TriggerReviewMissingTimeout, Enabled: true,
 		ConfigJSON: `{"after_shipped_hours":1,"max_attempts":1}`,
 		Actions:    []db.AutomationActionInput{{ActionType: ActionSendText, MessageTemplate: "review", Enabled: true}},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// shipped 用于本次流程后续判断的shipped
 	shipped := time.Now().UTC().Add(-2 * time.Hour).Format("2006-01-02 15:04:05")
-	for // i 用于本次流程后续判断的i
-	i := 0; i < 205; i++ {
-		if // err 用于本次流程后续判断的err
-		_, err := store.DB.ExecContext(ctx, `INSERT INTO orders
+	for i := 0; i < 205; i++ {
+		if _, err := store.DB.ExecContext(ctx, `INSERT INTO orders
 			(order_id,cookie_id,buyer_id,chat_id,system_shipped,shipped_at,review_request_count,updated_at)
 			VALUES (?,?,?,?,1,?,0,?)`, fmt.Sprintf("review-%03d", i), "cid", "buyer", fmt.Sprintf("chat-%03d", i), shipped, shipped); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// sender 用于本次流程后续判断的sender
 	sender := &testSender{}
 	NewScheduler(New(store, testSenderProvider{sender: sender}, nil)).scan(ctx)
 	if len(sender.texts) != 205 {
@@ -532,14 +478,11 @@ func TestSchedulerScansMoreThanOneReviewPage(t *testing.T) {
 	}
 }
 
-// TestRecoveryNeedsSenderUsesNextActionType 封装TestRecoveryNeedsSenderUsesNext动作类型业务协调。
 func TestRecoveryNeedsSenderUsesNextActionType(t *testing.T) {
-	// rule 用于本次流程后续判断的规则
 	rule := db.AutomationRule{Actions: []db.AutomationAction{
 		{ActionType: ActionConfirmShipment, Enabled: true},
 		{ActionType: ActionSendText, Enabled: true},
 	}}
-	// task 用于本次流程后续判断的任务
 	task := Task{TriggerType: TriggerBuyerReviewed}
 	if recoveryNeedsSender(task, rule, 0) {
 		t.Fatal("确认发货动作不应等待 WebSocket")
@@ -549,16 +492,11 @@ func TestRecoveryNeedsSenderUsesNextActionType(t *testing.T) {
 	}
 }
 
-// TestAutomationSchedulerWaitsForShutdown 封装Test自动化SchedulerWaitsForShutdown业务协调。
 func TestAutomationSchedulerWaitsForShutdown(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// scheduler 用于本次流程后续判断的scheduler
 	scheduler := NewScheduler(New(store, testSenderProvider{sender: &testSender{}}, nil))
-	// ctx、cancel 用于本次流程后续判断的ctx、cancel
 	ctx, cancel := context.WithCancel(context.Background())
-	// done 用于本次流程后续判断的done
 	done := make(chan struct{})
 	go func() {
 		scheduler.Run(ctx)
@@ -575,7 +513,6 @@ func TestAutomationSchedulerWaitsForShutdown(t *testing.T) {
 
 // TestAutomationSchedulerUsesSecondLevelDeferredTicker 验证延迟动作不再被分钟级扫描额外阻塞，并可由原有关闭路径回收。
 func TestAutomationSchedulerUsesSecondLevelDeferredTicker(t *testing.T) {
-	// store、cleanup 分别提供隔离的 SQLite 存储和测试结束后的数据库释放函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// ctx 是创建自动化规则及延迟任务时使用的非取消数据库上下文。
@@ -613,8 +550,8 @@ func TestAutomationSchedulerUsesSecondLevelDeferredTicker(t *testing.T) {
 	scheduler.scan(ctx)
 	// pendingAfterGeneralScan 保存通用扫描后的待执行任务数量，应仍为一条。
 	var pendingAfterGeneralScan int
-	if // countErr 是读取延迟任务数量时的数据库错误，出现错误时无法判断通用扫描是否越权领取任务。
-	countErr := store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_pending_tasks`).Scan(&pendingAfterGeneralScan); countErr != nil {
+	// countErr 是读取延迟任务数量时的数据库错误，出现错误时无法判断通用扫描是否越权领取任务。
+	if countErr := store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_pending_tasks`).Scan(&pendingAfterGeneralScan); countErr != nil {
 		t.Fatal(countErr)
 	}
 	if pendingAfterGeneralScan != 1 {
@@ -622,8 +559,8 @@ func TestAutomationSchedulerUsesSecondLevelDeferredTicker(t *testing.T) {
 	}
 	// dueAt 把任务重新安排到至少一秒后，确保 Run 的启动扫描不能把本断言误判为定时器行为。
 	dueAt := time.Now().UTC().Unix() + 2
-	if // updateErr 是重设测试任务到期时间的数据库错误，失败时无法区分启动扫描和定时器行为。
-	_, updateErr := store.DB.ExecContext(ctx, `UPDATE automation_pending_tasks SET due_at=?`, dueAt); updateErr != nil {
+	// updateErr 是重设测试任务到期时间的数据库错误，失败时无法区分启动扫描和定时器行为。
+	if _, updateErr := store.DB.ExecContext(ctx, `UPDATE automation_pending_tasks SET due_at=?`, dueAt); updateErr != nil {
 		t.Fatal(updateErr)
 	}
 	// interval 保持远大于测试窗口，证明任务不是被通用扫描执行。
@@ -643,8 +580,8 @@ func TestAutomationSchedulerUsesSecondLevelDeferredTicker(t *testing.T) {
 	for {
 		// pending 保存当前尚未完成的延迟任务数量，任务成功时会被原子删除。
 		var pending int
-		if // countErr 是轮询延迟任务状态时的数据库错误，不能把存储故障误判成调度超时。
-		countErr := store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_pending_tasks`).Scan(&pending); countErr != nil {
+		// countErr 是轮询延迟任务状态时的数据库错误，不能把存储故障误判成调度超时。
+		if countErr := store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM automation_pending_tasks`).Scan(&pending); countErr != nil {
 			t.Fatal(countErr)
 		}
 		if pending == 0 {
@@ -659,8 +596,8 @@ func TestAutomationSchedulerUsesSecondLevelDeferredTicker(t *testing.T) {
 	// waitCtx、waitCancel 限制关闭等待时间，确保双计时器仍遵循原有 Wait 生命周期。
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), time.Second)
 	defer waitCancel()
-	if // waitErr 是调度器在关闭预算内未完成收口时的错误。
-	waitErr := scheduler.WaitContext(waitCtx); waitErr != nil {
+	// waitErr 是调度器在关闭预算内未完成收口时的错误。
+	if waitErr := scheduler.WaitContext(waitCtx); waitErr != nil {
 		t.Fatalf("scheduler did not stop after cancellation: %v", waitErr)
 	}
 	if len(sender.texts) != 1 || sender.texts[0] != "second-level-message" {

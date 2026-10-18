@@ -46,12 +46,9 @@ func okToken() *mtop.RefreshResult {
 
 // TestRefreshTokenFailureBranches 验证 Token 刷新在门控、读取、重读、空结果、并发变更与写回失败时的结果。
 func TestRefreshTokenFailureBranches(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
 	t.Run("门控被占用", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时
 		acc, _ := gapCredentialAccount(t, &tokenFnMtop{})
-		// err 保存 acquireRefreshGate 调用返回的错误，随后断言它是否符合该场景的预期 ；release 是释放刷新门令牌的函数，必须在用例结束前调用
 		release, err := acc.acquireRefreshGate(ctx)
 		if err != nil {
 			t.Fatal(err)
@@ -60,13 +57,11 @@ func TestRefreshTokenFailureBranches(t *testing.T) {
 		// canceled 是已取消的上下文。
 		canceled, cancel := context.WithCancel(ctx)
 		cancel()
-		// err 保存 refreshToken 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, _, err := acc.refreshToken(canceled); err == nil {
 			t.Fatal("门控等待取消应报错")
 		}
 	})
 	t.Run("补全设备标识并成功", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时
 		acc, _ := gapCredentialAccount(t, &tokenFnMtop{fn: func(_ context.Context, _, deviceID string) (*mtop.RefreshResult, error) {
 			if deviceID == "" {
 				t.Error("设备标识应由 unb 派生")
@@ -76,16 +71,13 @@ func TestRefreshTokenFailureBranches(t *testing.T) {
 		acc.mu.Lock()
 		acc.deviceID = ""
 		acc.mu.Unlock()
-		// err 保存 refreshToken 调用返回的错误，随后断言它是否符合该场景的预期 ；token 保存刷新得到的连接级访问令牌
 		if token, _, err := acc.refreshToken(ctx); err != nil || token != "tok" {
 			t.Fatalf("刷新应成功: %q %v", token, err)
 		}
 	})
 	t.Run("请求前读取失败", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		acc, store := gapCredentialAccount(t, &tokenFnMtop{})
 		corruptCookieValue(t, store)
-		// err 保存 refreshToken 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, _, err := acc.refreshToken(ctx); err == nil {
 			t.Fatal("读取失败应报错")
 		}
@@ -98,18 +90,14 @@ func TestRefreshTokenFailureBranches(t *testing.T) {
 			corruptCookieValue(t, store)
 			return okToken(), nil
 		}}
-		// acc 是本用例构造的被测账号运行时
 		var acc *Account
 		acc, store = gapCredentialAccount(t, client)
-		// err 保存 refreshToken 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, _, err := acc.refreshToken(ctx); err == nil {
 			t.Fatal("重读失败应报错")
 		}
 	})
 	t.Run("空结果", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时
 		acc, _ := gapCredentialAccount(t, &tokenFnMtop{fn: func(context.Context, string, string) (*mtop.RefreshResult, error) { return nil, nil }})
-		// err 保存 refreshToken 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, _, err := acc.refreshToken(ctx); err == nil || !strings.Contains(err.Error(), "未返回结果") {
 			t.Fatalf("空结果应报错: %v", err)
 		}
@@ -125,10 +113,8 @@ func TestRefreshTokenFailureBranches(t *testing.T) {
 			_ = store.Cookies.UpdateValueExisting(ctx, "cid", "unb=123; _m_h5_tk=v"+strings.Repeat("x", calls)+";")
 			return okToken(), nil
 		}}
-		// acc 是本用例构造的被测账号运行时
 		var acc *Account
 		acc, store = gapCredentialAccount(t, client)
-		// err 保存 refreshToken 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, _, err := acc.refreshToken(ctx); err == nil || !strings.Contains(err.Error(), "重试次数已达上限") {
 			t.Fatalf("应报重试耗尽: %v", err)
 		}
@@ -145,10 +131,8 @@ func TestRefreshTokenFailureBranches(t *testing.T) {
 			result.CookieStateChanged = true
 			return result, nil
 		}}
-		// acc 是本用例构造的被测账号运行时
 		var acc *Account
 		acc, store = gapCredentialAccount(t, client)
-		// err 保存 refreshToken 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, _, err := acc.refreshToken(ctx); err == nil || !strings.Contains(err.Error(), "保存 token 响应 Cookie") {
 			t.Fatalf("应报写回失败: %v", err)
 		}
@@ -157,39 +141,30 @@ func TestRefreshTokenFailureBranches(t *testing.T) {
 
 // TestAdoptTokenResponseCookiesBranches 验证 Token 响应 Cookie 合并的空值、元数据损坏、完整快照、写回失败与无存储路径。
 func TestAdoptTokenResponseCookiesBranches(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
 	t.Run("元数据损坏", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		acc, store := gapCredentialAccount(t, &tokenFnMtop{})
-		// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, err := store.DB.ExecContext(ctx, `UPDATE cookies SET metadata_json='enc:v1:!!!' WHERE id='cid'`); err != nil {
 			t.Fatal(err)
 		}
-		// err 保存 adoptTokenResponseCookies 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, err := acc.adoptTokenResponseCookies(ctx, "a=1", &mtop.RefreshResult{UpdatedCookies: "a=2", CookieStateChanged: true}); err == nil {
 			t.Fatal("元数据损坏应报错")
 		}
 	})
 	t.Run("完整空快照写回成功与失败", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		acc, store := gapCredentialAccount(t, &tokenFnMtop{})
 		// complete 是声明快照完整但 Jar 为空的响应。
 		complete := &mtop.RefreshResult{UpdatedCookies: "unb=123", CookieSnapshotComplete: true}
-		// cookie 保存被测函数返回的 Cookie 字符串 ；err 保存 adoptTokenResponseCookies 调用返回的错误，随后断言它是否符合该场景的预期
 		if cookie, err := acc.adoptTokenResponseCookies(ctx, "a=1", complete); err != nil || cookie != "unb=123" {
 			t.Fatalf("完整快照应写回: %q %v", cookie, err)
 		}
 		blockCookieUpdates(t, store)
-		// err 保存 adoptTokenResponseCookies 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, err := acc.adoptTokenResponseCookies(ctx, "a=1", complete); err == nil {
 			t.Fatal("写回失败应报错")
 		}
 	})
 	t.Run("无存储", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时
 		acc := New(Config{CookieID: "mem", CookieStr: "unb=1"})
-		// cookie 保存被测函数返回的 Cookie 字符串 ；err 保存 adoptTokenResponseCookies 调用返回的错误，随后断言它是否符合该场景的预期
 		if cookie, err := acc.adoptTokenResponseCookies(ctx, "unb=1", &mtop.RefreshResult{UpdatedCookies: "unb=1; b=2", CookieStateChanged: true}); err != nil || cookie != "unb=1; b=2" || acc.currentCookieStr() != "unb=1; b=2" {
 			t.Fatalf("无存储应只更新内存: %q %v", cookie, err)
 		}
@@ -202,11 +177,9 @@ func TestAdoptTokenResponseCookiesBranches(t *testing.T) {
 
 // TestTokenCaptchaRecoveryBranches 验证滑块恢复在处理器缺失、错误类型不符与写回失败时放弃恢复。
 func TestTokenCaptchaRecoveryBranches(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
 	// riskErr 是带验证地址的风控错误。
 	riskErr := &mtop.RiskVerificationError{API: "token", VerificationURL: "https://verify.example"}
-	// acc 是本用例构造的被测账号运行时 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 	acc, store := gapCredentialAccount(t, &tokenFnMtop{})
 	// ok 表示 tryTokenCaptchaRecovery 是否按预期完成动作
 	if _, ok := acc.tryTokenCaptchaRecovery(ctx, "a=1", "dev", riskErr); ok {
@@ -228,17 +201,13 @@ func TestTokenCaptchaRecoveryBranches(t *testing.T) {
 
 // TestTokenCacheAndCooldownBranches 验证 Token 缓存的空值、无有效期、写库失败，以及冷却与清理边界。
 func TestTokenCacheAndCooldownBranches(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
-	// acc 是本用例构造的被测账号运行时 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 	acc, store := gapCredentialAccount(t, &tokenFnMtop{})
 	acc.saveTokenCache(ctx, "dev", "", 0, "fp")
 	acc.saveTokenCache(ctx, "dev", "token", 0, "fp")
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(ctx, `CREATE TRIGGER block_token_insert BEFORE INSERT ON account_tokens BEGIN SELECT RAISE(ABORT, 'blocked'); END`); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 	if _, err := store.DB.ExecContext(ctx, `CREATE TRIGGER block_token_delete BEFORE DELETE ON account_tokens BEGIN SELECT RAISE(ABORT, 'blocked'); END`); err != nil {
 		t.Fatal(err)
 	}
@@ -259,38 +228,30 @@ func TestTokenCacheAndCooldownBranches(t *testing.T) {
 
 // TestUpdateCookieAndReloadBranches 验证运行时 Cookie 同步与数据库重载在空值、读取失败与空 Context 下的行为。
 func TestUpdateCookieAndReloadBranches(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
 	t.Run("无存储空值", func(t *testing.T) {
 		// memory 是没有数据库存储的纯内存账号
 		memory := New(Config{CookieID: "mem", CookieStr: "unb=1"})
-		// err 保存 UpdateCookieContext 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := memory.UpdateCookieContext(ctx, "  "); err != nil {
 			t.Fatal(err)
 		}
-		// err 保存 UpdateCookieContext 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := memory.UpdateCookieContext(nil, "unb=1"); err == nil { //nolint:staticcheck // 刻意验证空 Context 防御。
 			t.Fatal("空 Context 应报错")
 		}
 	})
 	t.Run("读取失败", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		acc, store := gapCredentialAccount(t, &tokenFnMtop{})
 		corruptCookieValue(t, store)
-		// err 保存 UpdateCookieContext 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := acc.UpdateCookieContext(ctx, "unb=1"); err == nil {
 			t.Fatal("读取失败应报错")
 		}
 		acc.UpdateCookie("unb=1")
 	})
 	t.Run("数据库值为空", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		acc, store := gapCredentialAccount(t, &tokenFnMtop{})
-		// err 保存 ExecContext 调用返回的错误，随后断言它是否符合该场景的预期
 		if _, err := store.DB.ExecContext(ctx, `UPDATE cookies SET value='' WHERE id='cid'`); err != nil {
 			t.Fatal(err)
 		}
-		// err 保存 UpdateCookieContext 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := acc.UpdateCookieContext(ctx, "unb=1"); err == nil {
 			t.Fatal("空值且无 Jar 应报错")
 		}
@@ -299,12 +260,10 @@ func TestUpdateCookieAndReloadBranches(t *testing.T) {
 		}
 	})
 	t.Run("凭证指纹为空时重载", func(t *testing.T) {
-		// acc 是本用例构造的被测账号运行时 ；store 是该账号使用的隔离测试数据库存储，用于构造和破坏持久化状态
 		acc, store := gapCredentialAccount(t, &tokenFnMtop{})
 		acc.mu.Lock()
 		acc.credentialFP = ""
 		acc.mu.Unlock()
-		// err 保存 UpdateValueExisting 调用返回的错误，随后断言它是否符合该场景的预期
 		if err := store.Cookies.UpdateValueExisting(ctx, "cid", "unb=123; _m_h5_tk=reload;"); err != nil {
 			t.Fatal(err)
 		}
@@ -316,15 +275,12 @@ func TestUpdateCookieAndReloadBranches(t *testing.T) {
 
 // TestRenewEdgeBranches 验证无续期器、迟到合并无变化与导出的快照辅助路径。
 func TestRenewEdgeBranches(t *testing.T) {
-	// ctx 是测试共用上下文。
 	ctx := context.Background()
-	// acc 是本用例构造的被测账号运行时
 	acc, _ := gapCredentialAccount(t, &tokenFnMtop{})
 	acc.renewer = nil
 	if acc.tryAPIRenew(ctx) {
 		t.Fatal("无续期器不应续期")
 	}
-	// err 保存 persistPendingRenewCookies 调用返回的错误，随后断言它是否符合该场景的预期
 	if err := acc.persistPendingRenewCookies(ctx, &renew.Result{SetCookies: []string{"_m_h5_tk=tk_1; Path=/"}}); err != nil {
 		t.Fatal(err)
 	}

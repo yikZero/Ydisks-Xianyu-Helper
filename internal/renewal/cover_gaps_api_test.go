@@ -60,7 +60,6 @@ func TestExecuteAPICookieRenewIteratesAccounts(t *testing.T) {
 
 // TestAPIRenewDisabledAndMutationDuringCall 验证账号在续期前后被停用/删除、或外部请求期间凭证被并发改写时的日志语义。
 func TestAPIRenewDisabledAndMutationDuringCall(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
 	// cases 描述每个场景在请求期间对账号做的修改与期望日志状态（空串表示不写日志）。
 	cases := []struct {
@@ -80,7 +79,6 @@ func TestAPIRenewDisabledAndMutationDuringCall(t *testing.T) {
 		// account 保存测试用账号快照，不含真实凭证。
 		account := createSchedulerAccount(t, store, "cid-"+tc.name, apiCookie())
 		if tc.beforeSQL != "" {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			if _, err := store.DB.ExecContext(ctx, tc.beforeSQL, account.ID); err != nil {
 				t.Fatal(err)
 			}
@@ -88,7 +86,6 @@ func TestAPIRenewDisabledAndMutationDuringCall(t *testing.T) {
 		// server 保存本地 httptest 桩服务，只监听回环地址，不访问真实平台。
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			if tc.duringSQL != "" {
-				// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 				if _, err := store.DB.ExecContext(ctx, tc.duringSQL, account.ID); err != nil {
 					t.Errorf("%s: %v", tc.name, err)
 				}
@@ -118,7 +115,6 @@ func TestAPIRenewConcurrentUpdateWithoutResponseCookies(t *testing.T) {
 	concurrentValue := "unb=1; concurrent=kept; havana_lgc_exp=" + futureSchedulerMillis()
 	// server 保存本地 httptest 桩服务，只监听回环地址，不访问真实平台。
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if err := store.Cookies.UpdateRenewalCookie(context.Background(), account.ID, concurrentValue, `{}`, time.Now().Unix()); err != nil {
 			t.Errorf("concurrent update: %v", err)
 		}
@@ -135,7 +131,6 @@ func TestAPIRenewConcurrentUpdateWithoutResponseCookies(t *testing.T) {
 
 // TestAPIRenewSnapshotRestartAndPersistenceFailures 验证完整 Cookie Jar 续期、账号重启失败、保存失败与请求失败的日志。
 func TestAPIRenewSnapshotRestartAndPersistenceFailures(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
 	// snapshotMetadata 是带完整 Cookie Jar 的账号 metadata。
 	snapshotMetadata := func() string {
@@ -166,7 +161,6 @@ func TestAPIRenewSnapshotRestartAndPersistenceFailures(t *testing.T) {
 		// account 保存测试用账号快照，不含真实凭证。
 		account := createSchedulerAccount(t, store, "cid-"+tc.name, apiCookie())
 		if tc.snapshot {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			if err := store.Cookies.UpdateRenewalCookie(ctx, account.ID, account.Value, snapshotMetadata(), time.Now().Unix()); err != nil {
 				t.Fatal(err)
 			}
@@ -221,7 +215,6 @@ const (
 
 // TestPendingAPIRenewLateResponseOutcomes 验证迟到响应在账号缺失、并发冲突、无变化、保存失败与正文读取失败时的最终日志。
 func TestPendingAPIRenewLateResponseOutcomes(t *testing.T) {
-	// ctx 是本地调用上下文。
 	ctx := context.Background()
 	// cases 描述放行前对账号做的修改、服务行为与期望的日志片段。
 	cases := []struct {
@@ -231,13 +224,11 @@ func TestPendingAPIRenewLateResponseOutcomes(t *testing.T) {
 		want    string
 	}{
 		{"account-missing", pendingCookieBody, func(t *testing.T, s *db.Store, id string) {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			if _, err := s.DB.ExecContext(ctx, `DELETE FROM cookies WHERE id = ?`, id); err != nil {
 				t.Fatal(err)
 			}
 		}, ""},
 		{"conflict", pendingCookieBody, func(t *testing.T, s *db.Store, id string) {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			if err := s.Cookies.UpdateRenewalCookie(ctx, id, "unb=1; sdkSilent=1; havana_lgc_exp="+futureSchedulerMillis(), `{}`, time.Now().Unix()); err != nil {
 				t.Fatal(err)
 			}
@@ -341,7 +332,6 @@ func TestSchedulerCleanupRunAndSleepEdges(t *testing.T) {
 	// nilCtx 模拟缺少生命周期 Context 的调用。
 	var nilCtx context.Context
 	NewScheduler(store, nil, nil, nil).Run(nilCtx)
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := sleepCtx(context.Background(), time.Millisecond); err != nil {
 		t.Fatalf("err=%v", err)
 	}
@@ -362,7 +352,6 @@ func TestRunFixedAndAPIFixedExecuteAfterTimer(t *testing.T) {
 	}
 	// key 与 value 是当前设置项。
 	for key, value := range settings {
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if err := store.Settings.Set(ctx, key, value); err != nil {
 			t.Fatal(err)
 		}

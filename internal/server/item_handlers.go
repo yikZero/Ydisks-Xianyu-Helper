@@ -45,51 +45,41 @@ func (s *Server) publishItem(w http.ResponseWriter, r *http.Request) {
 	if !parseMultipartRequest(w, r, maxItemPublishBytes, maxOrderImportBytes, "商品发布图片总大小不能超过 96 MiB") {
 		return
 	}
-	// cookieID 用于本次流程后续判断的登录凭证ID
 	cookieID := strings.TrimSpace(r.FormValue("cookie_id"))
 	if cookieID == "" {
 		writeErr(w, http.StatusBadRequest, "请选择发布账号")
 		return
 	}
-	// userID、ok 用于本次流程后续判断的用户ID、ok
 	_, userID, ok := s.cookieForCurrentUser(w, r, cookieID)
 	if !ok {
 		return
 	}
-	// title 用于本次流程后续判断的标题
 	title := strings.TrimSpace(r.FormValue("title"))
-	// description 用于本次流程后续判断的description
 	description := strings.TrimSpace(r.FormValue("description"))
-	// priceCents、err 用于本次流程后续判断的priceCents、err
 	priceCents, err := parseMoneyCents(r.FormValue("price"))
 	if err != nil || priceCents < 0 {
 		writeErr(w, http.StatusBadRequest, "商品价格必须大于 0")
 		return
 	}
-	// origCents、err 用于本次流程后续判断的origCents、err
 	origCents, err := parseMoneyCents(r.FormValue("original_price"))
 	if err != nil || origCents < 0 {
 		writeErr(w, http.StatusBadRequest, "商品原价格式错误")
 		return
 	}
-	// quantity、err 用于本次流程后续判断的quantity、err
 	quantity, err := strconv.Atoi(strings.TrimSpace(r.FormValue("quantity")))
 	if err != nil || quantity <= 0 {
 		writeErr(w, http.StatusBadRequest, "库存数量必须大于 0")
 		return
 	}
-	// postageMode 用于本次流程后续判断的postage模式
 	postageMode := strings.TrimSpace(r.FormValue("postage_mode"))
 	if postageMode == "" {
 		postageMode = "free"
 	}
-	// postageCents、err 用于本次流程后续判断的postageCents、err
 	postageCents, err := parseMoneyCents(r.FormValue("postage"))
 	if err != nil || postageCents < 0 || (postageMode == "fixed" && postageCents <= 0) {
 		writeErr(w, http.StatusBadRequest, "固定邮费必须大于 0")
 		return
 	}
-	// images、err 用于本次流程后续判断的images、err
 	images, err := readPublishImages(r, 9)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
@@ -115,10 +105,8 @@ func (s *Server) publishItem(w http.ResponseWriter, r *http.Request) {
 	var location itemPublishLocationRequest
 	// selectedLocation 保存解析成功、待转换为应用模型的发货地。
 	var selectedLocation *itemPublishLocationRequest
-	if // rawLocation 用于本次流程后续判断的原始地址
-	rawLocation := strings.TrimSpace(r.FormValue("location")); rawLocation != "" {
-		if // err 用于本次流程后续判断的err
-		err := json.Unmarshal([]byte(rawLocation), &location); err != nil {
+	if rawLocation := strings.TrimSpace(r.FormValue("location")); rawLocation != "" {
+		if err := json.Unmarshal([]byte(rawLocation), &location); err != nil {
 			writeErr(w, http.StatusBadRequest, "发货地格式错误，请重新定位")
 			return
 		}
@@ -158,15 +146,11 @@ func (s *Server) publishItem(w http.ResponseWriter, r *http.Request) {
 		PostageMode: postageMode, PostageCents: postageCents, Location: applicationLocation,
 		Category: applicationCategory, Images: applicationImages, Specs: publishSpecs, SKUs: publishSKUs, SpecImages: applicationSpecImages,
 	})
-	// res 用于本次流程后续判断的响应
 	res := outcome.Result
 	if callErr != nil {
-		// perr 用于本次流程后续判断的perr
 		var perr *itemapp.PublishError
 		if errors.As(callErr, &perr) {
-			// status 用于本次流程后续判断的状态
 			status := http.StatusBadGateway
-			// msg 用于本次流程后续判断的msg
 			msg := perr.Error()
 			if perr.Code == itemapp.PublishErrorStockPermissionMissing {
 				status = http.StatusForbidden
@@ -240,7 +224,6 @@ type itemPublishCategoryRequest struct {
 	TBCatID string
 }
 
-// readPublishImages 封装read发布Images业务协调。
 func readPublishImages(r *http.Request, maxImages int) ([]itemapp.Image, error) {
 	return readPublishImageField(r, "images", maxImages, true)
 }
@@ -258,7 +241,6 @@ func readPublishImageField(r *http.Request, field string, maxImages int, require
 		}
 		return nil, nil
 	}
-	// files 用于本次流程后续判断的文件列表。
 	files := r.MultipartForm.File[field]
 	if len(files) == 0 && required && field == "images" {
 		files = r.MultipartForm.File["image"]
@@ -272,16 +254,12 @@ func readPublishImageField(r *http.Request, field string, maxImages int, require
 	if len(files) > maxImages {
 		return nil, fmt.Errorf("商品图片最多 %d 张", maxImages)
 	}
-	// images 用于本次流程后续判断的images
 	images := make([]itemapp.Image, 0, len(files))
-	// fh 表示当前遍历过程中的fh
 	for _, fh := range files {
-		// f、err 用于本次流程后续判断的f、err
 		f, err := fh.Open()
 		if err != nil {
 			return nil, fmt.Errorf("读取图片失败: %w", err)
 		}
-		// data、tooLarge、err 用于本次流程后续判断的data、tooLarge、err
 		data, tooLarge, err := readLimitedBytes(f, 10<<20)
 		_ = f.Close()
 		if err != nil {
@@ -293,7 +271,6 @@ func readPublishImageField(r *http.Request, field string, maxImages int, require
 		if len(data) == 0 {
 			return nil, errors.New("图片文件为空")
 		}
-		// contentType 用于本次流程后续判断的内容类型
 		contentType := fh.Header.Get("Content-Type")
 		if contentType == "" {
 			contentType = http.DetectContentType(data)
@@ -306,7 +283,6 @@ func readPublishImageField(r *http.Request, field string, maxImages int, require
 	return images, nil
 }
 
-// parseMoneyCents 封装parseMoneyCents业务协调。
 func parseMoneyCents(raw string) (int64, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -314,7 +290,6 @@ func parseMoneyCents(raw string) (int64, error) {
 	}
 	raw = strings.TrimPrefix(raw, "¥")
 	raw = strings.TrimPrefix(raw, "￥")
-	// sign 用于本次流程后续判断的sign
 	sign := int64(1)
 	if strings.HasPrefix(raw, "-") {
 		sign = -1
@@ -322,20 +297,16 @@ func parseMoneyCents(raw string) (int64, error) {
 	} else {
 		raw = strings.TrimPrefix(raw, "+")
 	}
-	// parts 用于本次流程后续判断的parts
 	parts := strings.Split(raw, ".")
 	if len(parts) > 2 {
 		return 0, fmt.Errorf("金额格式错误")
 	}
-	// yuan、err 用于本次流程后续判断的yuan、err
 	yuan, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	// cents 用于本次流程后续判断的cents
 	cents := int64(0)
 	if len(parts) == 2 {
-		// frac 用于本次流程后续判断的frac
 		frac := strings.TrimSpace(parts[1])
 		if len(frac) > 2 {
 			return 0, fmt.Errorf("金额最多支持两位小数")
@@ -371,13 +342,10 @@ type itemPublishLocationRequest struct {
 	Province string `json:"province"`
 }
 
-// listItems 封装list商品列表业务协调。
 func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
 	// cookieID 是可选的账号筛选条件。
 	cookieID := strings.TrimSpace(r.URL.Query().Get("cookie_id"))
-	// cookieID 用于本次流程后续判断的登录凭证ID
 	if cookieID != "" {
 		if !s.cookieOwnedByUser(r.Context(), sess.UserID, cookieID) {
 			writeErr(w, http.StatusForbidden, "无权限操作该账号")
@@ -390,9 +358,7 @@ func (s *Server) listItems(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "查询失败")
 		return
 	}
-	// result 用于本次流程后续判断的结果。
 	result := make([]itemListResponse, 0, len(items))
-	// it 表示当前遍历过程中的商品行。
 	for _, it := range items {
 		result = append(result, itemToMap(it))
 	}
@@ -477,9 +443,7 @@ func (s *Server) writeItemSyncError(w http.ResponseWriter, err error) {
 	writeErr(w, http.StatusInternalServerError, "商品同步失败")
 }
 
-// cookieForCurrentUser 封装登录凭证ForCurrent用户业务协调。
 func (s *Server) cookieForCurrentUser(w http.ResponseWriter, r *http.Request, cookieID string) (string, int64, bool) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
 	// service 提供消费者定义的平台凭证只读端口；本校验不会把 Cookie 明文带入 HTTP 层。
 	service := s.platformCredentialApplication()
@@ -504,9 +468,7 @@ func (s *Server) cookieForCurrentUser(w http.ResponseWriter, r *http.Request, co
 	return value, sess.UserID, true
 }
 
-// listItemsByCookie 封装list商品列表By登录凭证业务协调。
 func (s *Server) listItemsByCookie(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
@@ -517,25 +479,19 @@ func (s *Server) listItemsByCookie(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "查询失败")
 		return
 	}
-	// out 用于本次流程后续判断的out
 	out := make([]itemListResponse, 0, len(items))
-	// it 表示当前遍历过程中的it
 	for _, it := range items {
 		out = append(out, itemToMap(it))
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
-// getItem 封装get商品业务协调。
 func (s *Server) getItem(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
-	// itemID 用于本次流程后续判断的商品ID
 	itemID := chi.URLParam(r, "item_id")
-	// it、err 用于本次流程后续判断的it、err
 	it, err := s.itemCatalogApplication().Get(r.Context(), cid, itemID)
 	if err != nil {
 		writeErr(w, http.StatusNotFound, "商品不存在")
@@ -604,15 +560,13 @@ type itemMultiQuantityRequest struct {
 
 // createItem 创建本地商品记录并返回统一操作结果。
 func (s *Server) createItem(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
 	// req 保存解码后的创建商品请求。
 	var req itemCreateRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil || req.ItemID == "" {
+	if err := decodeJSON(r, &req); err != nil || req.ItemID == "" {
 		writeErr(w, http.StatusBadRequest, "缺少商品 ID")
 		return
 	}
@@ -633,17 +587,14 @@ func (s *Server) createItem(w http.ResponseWriter, r *http.Request) {
 
 // updateItem 更新本地商品的部分字段并保留未提交字段。
 func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
-	// itemID 用于本次流程后续判断的商品ID
 	itemID := chi.URLParam(r, "item_id")
 	// req 保存解码后的局部更新商品请求。
 	var req itemUpdateRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -668,14 +619,11 @@ func (s *Server) updateItem(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, operationResponse{Success: true})
 }
 
-// deleteItem 封装delete商品业务协调。
 func (s *Server) deleteItem(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
-	// itemID 用于本次流程后续判断的商品ID
 	itemID := chi.URLParam(r, "item_id")
 	// err 保存商品删除应用服务返回的错误。
 	if err := s.itemCatalogMutationApplication().Delete(r.Context(), cid, itemID); err != nil {
@@ -685,19 +633,15 @@ func (s *Server) deleteItem(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, operationResponse{Success: true})
 }
 
-// setItemMultiSpec 封装set商品MultiSpec业务协调。
 func (s *Server) setItemMultiSpec(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
-	// itemID 用于本次流程后续判断的商品ID
 	itemID := chi.URLParam(r, "item_id")
 	// req 保存解码后的多规格开关请求。
 	var req itemMultiSpecRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -709,19 +653,15 @@ func (s *Server) setItemMultiSpec(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, operationResponse{Success: true})
 }
 
-// setItemMultiQuantity 封装set商品MultiQuantity业务协调。
 func (s *Server) setItemMultiQuantity(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
 	if !s.requireCookieOwnership(w, r, cid) {
 		return
 	}
-	// itemID 用于本次流程后续判断的商品ID
 	itemID := chi.URLParam(r, "item_id")
 	// req 保存解码后的多数量交付开关请求。
 	var req itemMultiQuantityRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -750,21 +690,16 @@ func itemImageFromDetail(detail string) string {
 	if detail == "" {
 		return ""
 	}
-	// m 用于本次流程后续判断的m
 	var m map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal([]byte(detail), &m); err != nil {
+	if err := json.Unmarshal([]byte(detail), &m); err != nil {
 		return ""
 	}
-	if // pic、ok 用于本次流程后续判断的pic、ok
-	pic, ok := m["pic_info"].(map[string]any); ok {
-		if // url、ok 用于本次流程后续判断的url、ok
-		url, ok := pic["picUrl"].(string); ok {
+	if pic, ok := m["pic_info"].(map[string]any); ok {
+		if url, ok := pic["picUrl"].(string); ok {
 			return url
 		}
 	}
-	if // url、ok 用于本次流程后续判断的url、ok
-	url, ok := m["item_image"].(string); ok {
+	if url, ok := m["item_image"].(string); ok {
 		return url
 	}
 	return ""

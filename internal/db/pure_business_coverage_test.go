@@ -70,7 +70,6 @@ func TestWSMessageFindInboundParsedJSONContaining(t *testing.T) {
 	// store、cleanup 保存临时数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 限制本测试所有数据库操作的生命周期。
 	ctx := context.Background()
 	// cookieID 保存诊断帧所属账号标识。
 	_, cookieID := seedAccount(t, store)

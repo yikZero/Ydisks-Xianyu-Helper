@@ -11,7 +11,6 @@ func TestAIBargainQuoteLifecycle(t *testing.T) {
 	// store、cleanup 是迁移到最新结构的测试仓储及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是报价生命周期测试上下文。
 	ctx := context.Background()
 	// err 是创建报价账号所有者时不应出现的错误。
 	if _, err := store.Users.Create(ctx, "quote-admin", "quote@example.com", "pw"); err != nil {

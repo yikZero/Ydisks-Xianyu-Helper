@@ -3,7 +3,7 @@ import type { UserConfig } from 'vite';
 import config from './vite.config';
 
 test('development server proxies versioned API and health checks', () => {
-  const proxy = (config as UserConfig).server?.proxy; /* proxy 表示proxy。 */
+  const proxy = (config as UserConfig).server?.proxy;
   expect(proxy).toBeDefined();
   expect(proxy).toHaveProperty('/api');
   expect(proxy).toHaveProperty('/health');

@@ -13,10 +13,8 @@ import (
 
 // TestAccountTaskSessionAndCookiePersistence 验证账号任务会话阻断指纹和响应 Cookie 收口分支。
 func TestAccountTaskSessionAndCookiePersistence(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试所有数据库调用共用的非取消上下文。
 	ctx := context.Background()
 	// sender 保存响应 Cookie 同步到在线运行时的测试发送器。
 	sender := &testSender{}
@@ -91,7 +89,6 @@ func TestAccountTaskSessionAndCookiePersistence(t *testing.T) {
 	}
 	// closedStoreCoordinator 是底层数据库关闭后的错误传播测试对象。
 	closedStoreCoordinator := &accountTaskCoordinator{repository: newStoreAccountTaskRepository(store), senders: testSenderProvider{sender: sender}, logger: slog.Default()}
-	// closeErr 保存关闭测试数据库的错误。
 	closeErr := store.DB.Close()
 	if closeErr != nil {
 		t.Fatal(closeErr)

@@ -40,7 +40,6 @@ func TestTruncateAPITestPreview(t *testing.T) {
 	}
 	// long 是超过预览上限的文本。
 	long := strings.Repeat("a", apiTestPreviewLimit+5)
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := truncateAPITestPreview(long); len(got) != apiTestPreviewLimit+3 || !strings.HasSuffix(got, "...") {
 		t.Fatalf("截断结果错误 len=%d", len(got))
 	}
@@ -48,11 +47,9 @@ func TestTruncateAPITestPreview(t *testing.T) {
 
 // TestAPICardTesterPOSTAndFailureBranches 覆盖测试请求的 POST、非对象 JSON、错误配置、取消与超大响应路径。
 func TestAPICardTesterPOSTAndFailureBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// client 是零值测试适配器。
 	client := &apiDeliveryClient{}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := client.Test(ctx, cardsapp.APIRequestTestInput{Config: "{"}); err == nil {
 		t.Fatal("非法配置应失败")
 	}
@@ -87,7 +84,6 @@ func TestAPICardTesterPOSTAndFailureBranches(t *testing.T) {
 	// cancelled 是已取消上下文，应原样返回取消错误。
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := client.Test(cancelled, cardsapp.APIRequestTestInput{Config: postConfig}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("取消错误: %v", err)
 	}
@@ -96,7 +92,6 @@ func TestAPICardTesterPOSTAndFailureBranches(t *testing.T) {
 	// closedURL 已关闭的本地测试端点地址，用于模拟网络不可达。
 	closedURL := closed.URL
 	closed.Close()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := client.Test(ctx, cardsapp.APIRequestTestInput{Config: fmt.Sprintf(`{"url":%q,"method":"GET","timeout_seconds":5}`, closedURL)}); err == nil || strings.Contains(err.Error(), closedURL) {
 		t.Fatalf("网络失败应返回通用错误: %v", err)
 	}
@@ -111,13 +106,11 @@ func TestAPICardTesterPOSTAndFailureBranches(t *testing.T) {
 
 // TestAPIDeliveryFetchErrorBranches 覆盖 Fetch 的商品详情、配置、网络、重试耗尽和取消分支。
 func TestAPIDeliveryFetchErrorBranches(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// oldGaps 保存全局退避配置，测试结束后恢复。
 	oldGaps := apiDeliveryRetryGaps
 	apiDeliveryRetryGaps = []time.Duration{time.Millisecond, time.Millisecond}
 	defer func() { apiDeliveryRetryGaps = oldGaps }()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := (&apiDeliveryClient{}).Fetch(ctx, automation.APICardRequest{Config: "{"}); err == nil {
 		t.Fatal("非法配置应失败")
 	}
@@ -136,7 +129,6 @@ func TestAPIDeliveryFetchErrorBranches(t *testing.T) {
 	config := fmt.Sprintf(`{"url":%q,"method":"GET","timeout_seconds":5,"params":{"d":"{item_detail}"}}`, server.URL)
 	// client 持有真实 SQLite 商品库。
 	client := &apiDeliveryClient{store: store}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "cid", ItemID: "i1", ItemTitle: "t", ItemDetail: "DETAIL"}); err != nil {
 		t.Fatalf("写入商品: %v", err)
 	}
@@ -154,7 +146,6 @@ func TestAPIDeliveryFetchErrorBranches(t *testing.T) {
 	}
 	// 数据库关闭后商品详情查询出现非 NotFound 错误。
 	cleanup()
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := client.Fetch(ctx, automation.APICardRequest{Config: config, AccountID: "cid", ItemID: "i1"}); err == nil || !strings.Contains(err.Error(), "读取商品详情") {
 		t.Fatalf("数据库错误应上抛: %v", err)
 	}
@@ -194,7 +185,6 @@ func TestAPIDeliveryFetchRetryExhaustionAndCancel(t *testing.T) {
 	defer cancelServer.Close()
 	// cancelConfig 与 config 相同但指向取消服务。
 	cancelConfig := strings.Replace(config, server.URL, cancelServer.URL, 1)
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := (&apiDeliveryClient{}).Fetch(ctx, automation.APICardRequest{Config: cancelConfig}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("退避期间取消: %v", err)
 	}
@@ -237,7 +227,6 @@ func TestAPIDeliveryDoRequestResponseBranches(t *testing.T) {
 	client := &apiDeliveryClient{}
 	// config 是不带内容类型的 POST 配置（空 content_type 走默认）。
 	config := cardsapp.APIConfig{URL: server.URL, Method: http.MethodPost, Timeout: 5}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := client.doAPIRequest(context.Background(), config, server.URL, nil, []byte("{}"), 1); err == nil {
 		t.Fatal("空白响应应失败")
 	}
@@ -258,11 +247,9 @@ func TestAPIDeliveryDoRequestResponseBranches(t *testing.T) {
 	// pathConfig 要求不存在的响应路径。
 	pathConfig := config
 	pathConfig.ResponsePath = "missing"
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := client.doAPIRequest(context.Background(), pathConfig, server.URL, nil, nil, 1); err == nil {
 		t.Fatal("路径缺失应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := client.doAPIRequest(context.Background(), config, "http://a\x7f", nil, nil, 1); err == nil {
 		t.Fatal("非法 URL 应失败")
 	}
@@ -304,11 +291,9 @@ func TestAPIDeliveryHelperEdgeCases(t *testing.T) {
 	if apiDeliveryCarriesIdempotencyKey("GET", nil, nil, nil, "") {
 		t.Fatal("空幂等键不应判定为携带")
 	}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := apiJSONScalar(map[string]any{"a": 1}); got != `{"a":1}` {
 		t.Fatalf("复杂值: %q", got)
 	}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := apiJSONScalar(make(chan int)); got == "" {
 		t.Fatal("不可编码值应回退 Sprint")
 	}
@@ -323,15 +308,12 @@ func TestAPIDeliveryHelperEdgeCases(t *testing.T) {
 	if got, err := readAPIDeliveryResponse(strings.NewReader(`{"z":1}`), "", ""); err != nil || got != `{"z":1}` {
 		t.Fatalf("无默认字段: %q %v", got, err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := readAPIDeliveryResponse(strings.NewReader(" "), "", ""); err == nil {
 		t.Fatal("空响应应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := readAPIDeliveryResponse(errReader{}, "", ""); err == nil {
 		t.Fatal("读取错误应上抛")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := readAPIDeliveryBody(errReader{}); err == nil {
 		t.Fatal("读取错误应上抛")
 	}

@@ -26,8 +26,7 @@ func TestActionPlannerPaidEventKeepsCardBeforeShipment(t *testing.T) {
 	planner := actionPlanner{}
 	// plan 是按发卡优先规则生成的不可变动作快照。
 	plan := planner.plan(task, actions)
-	if // got 用于本次流程后续判断的got
-	got := []int64{plan[0].ID, plan[1].ID}; !reflect.DeepEqual(got, []int64{2, 1}) {
+	if got := []int64{plan[0].ID, plan[1].ID}; !reflect.DeepEqual(got, []int64{2, 1}) {
 		t.Fatalf("付款事件动作顺序=%v，want [2 1]", got)
 	}
 	if !reflect.DeepEqual(actions, original) {
@@ -108,15 +107,13 @@ func TestRuleAllowsAllItemsRequiresExplicitAccountPaidConfirmation(t *testing.T)
 func TestEventFactRecorderWithoutOrderIsNoOp(t *testing.T) {
 	// recorder 未注入数据库时应对无订单任务安全忽略。
 	recorder := newEventFactRecorder(nil)
-	if // err 用于本次流程后续判断的err
-	err := recorder.record(context.Background(), Task{AccountID: "cid", TriggerType: TriggerBuyerReviewed}); err != nil {
+	if err := recorder.record(context.Background(), Task{AccountID: "cid", TriggerType: TriggerBuyerReviewed}); err != nil {
 		t.Fatalf("无订单事实应安全忽略，err=%v", err)
 	}
 }
 
 // TestEventFactRecorderPersistsPaidCompletedAndReviewedFacts 验证付款、确认收货与买家评价事件分别写入正确的订单事实和时间。
 func TestEventFactRecorderPersistsPaidCompletedAndReviewedFacts(t *testing.T) {
-	// ctx 保存本地数据库测试共用的上下文。
 	ctx := context.Background()
 	// database、dialect、openErr 保存内存隔离数据库的打开结果。
 	database, dialect, openErr := db.Open(ctx, filepath.Join(t.TempDir(), "automation-events.db"))
@@ -244,7 +241,6 @@ func TestEventFactRecorderWrapsPersistenceFailure(t *testing.T) {
 
 // TestRuleMatcherCoversRunSnapshotAndNormalLookup 验证恢复运行快照、非运行状态和普通规则匹配路径。
 func TestRuleMatcherCoversRunSnapshotAndNormalLookup(t *testing.T) {
-	// ctx 保存规则匹配数据库测试共用的上下文。
 	ctx := context.Background()
 	// database、dialect、openErr 保存规则匹配本地数据库的打开结果。
 	database, dialect, openErr := db.Open(ctx, filepath.Join(t.TempDir(), "automation-matcher.db"))

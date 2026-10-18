@@ -107,7 +107,6 @@ func TestCoordinatorStartsAndClosesInDeterministicOrder(t *testing.T) {
 	if err := coordinator.Close(context.Background()); err != nil {
 		t.Fatalf("重复关闭应幂等: %v", err)
 	}
-	// want 是生命周期回调必须产生的确定性顺序。
 	want := []string{"start:first", "start:second", "close:second", "close:first"}
 	if !equalStrings(events, want) {
 		t.Fatalf("生命周期顺序=%v，期望=%v", events, want)
@@ -145,28 +144,28 @@ func TestCoordinatorRollsBackOnStartFailure(t *testing.T) {
 
 // TestCoordinatorValidatesInputsAndRollbackErrors 验证协调器参数校验和回滚错误聚合。
 func TestCoordinatorValidatesInputsAndRollbackErrors(t *testing.T) {
-	if // err 是 nil 协调器追加组件时的初始化错误。
-	err := (*Coordinator)(nil).Add(NamedComponent{}); err == nil {
+	// err 是 nil 协调器追加组件时的初始化错误。
+	if err := (*Coordinator)(nil).Add(NamedComponent{}); err == nil {
 		t.Fatal("nil 协调器应拒绝追加组件")
 	}
 	// coordinator 保存用于参数校验的空协调器。
 	coordinator := NewCoordinator()
 	// nilContext 是专门验证协调器 nil Context 防护的空接口值。
 	var nilContext context.Context
-	if // err 是空组件实现被拒绝的参数错误。
-	err := coordinator.Add(NamedComponent{Name: "empty"}); err == nil {
+	// err 是空组件实现被拒绝的参数错误。
+	if err := coordinator.Add(NamedComponent{Name: "empty"}); err == nil {
 		t.Fatal("空组件实现应被拒绝")
 	}
-	if // err 是空组件名称被拒绝的参数错误。
-	err := coordinator.Add(NamedComponent{Component: FuncComponent{}}); err == nil {
+	// err 是空组件名称被拒绝的参数错误。
+	if err := coordinator.Add(NamedComponent{Component: FuncComponent{}}); err == nil {
 		t.Fatal("空组件名称应被拒绝")
 	}
-	if // err 是未启动协调器返回的父 Context。
-	err := coordinator.Context(); err == nil {
+	// err 是未启动协调器返回的父 Context。
+	if err := coordinator.Context(); err == nil {
 		t.Fatal("Context 返回值不应为 nil")
 	}
-	if // err 是 nil 父 Context 被拒绝的启动错误。
-	err := coordinator.Start(nilContext); err == nil {
+	// err 是 nil 父 Context 被拒绝的启动错误。
+	if err := coordinator.Start(nilContext); err == nil {
 		t.Fatal("nil 父 Context 应被拒绝")
 	}
 	// closeFailure 保存失败组件关闭时产生的回滚错误。
@@ -384,16 +383,16 @@ func TestCoordinatorRetrySkipsClosedComponents(t *testing.T) {
 	coordinator := NewCoordinator()
 	_ = coordinator.Add(NamedComponent{Name: "first", Component: first})
 	_ = coordinator.Add(NamedComponent{Name: "second", Component: second})
-	if // err 是启动两个测试组件的结果。
-	err := coordinator.Start(context.Background()); err != nil {
+	// err 是启动两个测试组件的结果。
+	if err := coordinator.Start(context.Background()); err != nil {
 		t.Fatalf("启动协调器失败: %v", err)
 	}
-	if // err 是首轮关闭聚合的组件错误。
-	err := coordinator.Close(context.Background()); !errors.Is(err, closeFailure) {
+	// err 是首轮关闭聚合的组件错误。
+	if err := coordinator.Close(context.Background()); !errors.Is(err, closeFailure) {
 		t.Fatalf("首轮关闭应保留组件错误: %v", err)
 	}
-	if // err 是重试关闭剩余组件的结果。
-	err := coordinator.Close(context.Background()); err != nil {
+	// err 是重试关闭剩余组件的结果。
+	if err := coordinator.Close(context.Background()); err != nil {
 		t.Fatalf("重试关闭失败: %v", err)
 	}
 	if firstCloseCalls != 1 || secondCloseCalls != 2 {
@@ -408,34 +407,34 @@ func TestCoordinatorWaitAndCloseNilSemantics(t *testing.T) {
 	// nilContext 是专门验证关闭和等待 nil Context 防护的空接口值。
 	var nilContext context.Context
 	nilCoordinator.Wait()
-	if // lifecycleContext 是空协调器的默认生命周期 Context。
-	lifecycleContext := nilCoordinator.Context(); lifecycleContext == nil {
+	// lifecycleContext 是空协调器的默认生命周期 Context。
+	if lifecycleContext := nilCoordinator.Context(); lifecycleContext == nil {
 		t.Fatal("nil 协调器应返回默认 Context")
 	}
-	if // startErr 是空协调器的初始化错误。
-	startErr := nilCoordinator.Start(context.Background()); startErr == nil {
+	// startErr 是空协调器的初始化错误。
+	if startErr := nilCoordinator.Start(context.Background()); startErr == nil {
 		t.Fatal("nil 协调器应拒绝启动")
 	}
-	if // err 是空协调器等待的结果。
-	err := nilCoordinator.WaitContext(context.Background()); err != nil {
+	// err 是空协调器等待的结果。
+	if err := nilCoordinator.WaitContext(context.Background()); err != nil {
 		t.Fatalf("nil 协调器等待不应失败: %v", err)
 	}
-	if // closeErr 是空协调器的关闭结果。
-	closeErr := nilCoordinator.Close(context.Background()); closeErr != nil {
+	// closeErr 是空协调器的关闭结果。
+	if closeErr := nilCoordinator.Close(context.Background()); closeErr != nil {
 		t.Fatalf("nil 协调器关闭不应失败: %v", closeErr)
 	}
-	if // err 是 nil 关闭 Context 的参数错误。
-	err := NewCoordinator().Close(nilContext); err == nil {
+	// err 是 nil 关闭 Context 的参数错误。
+	if err := NewCoordinator().Close(nilContext); err == nil {
 		t.Fatal("nil 关闭 Context 应被拒绝")
 	}
-	if // err 是 nil 等待 Context 的参数错误。
-	err := NewCoordinator().WaitContext(nilContext); err == nil {
+	// err 是 nil 等待 Context 的参数错误。
+	if err := NewCoordinator().WaitContext(nilContext); err == nil {
 		t.Fatal("nil 等待 Context 应被拒绝")
 	}
 	// coordinator 保存已完成关闭的协调器。
 	coordinator := NewCoordinator()
-	if // err 是空组件协调器的关闭结果。
-	err := coordinator.Close(context.Background()); err != nil {
+	// err 是空组件协调器的关闭结果。
+	if err := coordinator.Close(context.Background()); err != nil {
 		t.Fatalf("空协调器关闭失败: %v", err)
 	}
 	coordinator.Wait()

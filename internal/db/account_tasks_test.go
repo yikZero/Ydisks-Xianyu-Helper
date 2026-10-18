@@ -129,7 +129,6 @@ func TestDueAutoRateOrderIDsOnlyReturnsLocallyCompletedOrders(t *testing.T) {
 	// store、cleanup 保存本地迁移数据库及其释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本地订单事实写入和候选读取共用的数据库上下文。
 	ctx := context.Background()
 	// created、createErr 保存候选订单测试用户初始化结果。
 	created, createErr := store.Users.Create(ctx, "rate-candidate-user", "rate-candidate@example.com", "pw")

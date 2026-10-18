@@ -23,15 +23,12 @@ func TestParsePublishSheetBranches(t *testing.T) {
 	if rows, err := parsePublishSheetBytes(okZip, "a.xlsx"); err != nil || len(rows) != 1 {
 		t.Fatalf("xlsx rows=%v err=%v", rows, err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parsePublishSheetBytes(okZip, "a.xlsx"); err != nil {
 		t.Fatal(err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parsePublishSheetBytes([]byte("x"), "a.xls"); err == nil {
 		t.Error("xls should be rejected")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parsePublishSheetBytes([]byte("标题\n"), "a.txt"); err == nil {
 		t.Error("header-only default csv should fail")
 	}
@@ -39,48 +36,38 @@ func TestParsePublishSheetBranches(t *testing.T) {
 	if rows, err := parsePublishSheetBytes([]byte("标题\tprice\na\t1\n"), "a.tsv"); err != nil || len(rows) != 1 {
 		t.Errorf("tsv rows=%v err=%v", rows, err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parsePublishSheetBytes([]byte("标题\na\n\n b\n"), "a.csv"); err != nil {
 		t.Errorf("csv with blank row: %v", err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parsePublishSheetBytesWithLimit([]byte("标题\na\nb\n"), "a.csv", 1); err == nil {
 		t.Error("csv row limit should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseDelimitedPublishSheet(nil, ',', 0); err == nil {
 		t.Error("empty header should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXPublishSheet(okZip); err != nil {
 		t.Errorf("parseXLSXPublishSheet: %v", err)
 	}
 
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXPublishSheetWithLimit([]byte("bad"), 0); err == nil {
 		t.Error("bad zip should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{"x"}, map[string]string{"x": "y"}), 0); err == nil {
 		t.Error("missing sheet should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{sheetName}, map[string]string{sheetName: "<w"}), 0); err == nil {
 		t.Error("bad sheet xml should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{"xl/sharedStrings.xml", sheetName}, map[string]string{"xl/sharedStrings.xml": "<s", sheetName: okSheet}), 0); err == nil {
 		t.Error("bad shared strings should fail")
 	}
 	// headerOnly 仅有表头，应报错。
 	headerOnly := importSheetXML([][]string{{"标题"}})
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{sheetName}, map[string]string{sheetName: headerOnly}), 0); err == nil {
 		t.Error("header-only xlsx should fail")
 	}
 	// threeRows 有两条数据，限制为 1 时必须报错。
 	threeRows := importSheetXML([][]string{{"标题"}, {"a"}, {"b"}})
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := parseXLSXPublishSheetWithLimit(buildImportZip(t, []string{sheetName}, map[string]string{sheetName: threeRows}), 1); err == nil {
 		t.Error("xlsx row limit should fail")
 	}
@@ -92,21 +79,17 @@ func TestParseItemPublishSpecsBranches(t *testing.T) {
 	if specs, skus, err := parseItemPublishSpecs(" ", "", 0); err != nil || specs != nil || skus != nil {
 		t.Errorf("empty should be nil: %v", err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, _, err := parseItemPublishSpecs("[]", "", 0); err == nil {
 		t.Error("incomplete should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, _, err := parseItemPublishSpecs("{", "[]", 0); err == nil {
 		t.Error("bad specs json should fail")
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, _, err := parseItemPublishSpecs("[]", "{", 0); err == nil {
 		t.Error("bad skus json should fail")
 	}
 	// badImage 引用了超出范围的规格图片下标。
 	badImage := `[{"propertyName":"颜色","propertyValues":[{"propertyValue":"红","image_index":3}]}]`
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, _, err := parseItemPublishSpecs(badImage, "[]", 1); err == nil {
 		t.Error("out of range image should fail")
 	}
@@ -127,7 +110,6 @@ func TestParseItemPublishSpecsBranches(t *testing.T) {
 func TestChatSessionCursorInvalidAndNil(t *testing.T) {
 	// notJSON 是合法 Base64 但内容不是 JSON 的游标。
 	notJSON := base64.RawURLEncoding.EncodeToString([]byte("not-json"))
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := decodeChatSessionCursor(notJSON); err == nil {
 		t.Error("non-json cursor should fail")
 	}
@@ -135,7 +117,6 @@ func TestChatSessionCursorInvalidAndNil(t *testing.T) {
 	if got, err := encodeChatSessionCursor(nil); err != nil || got != "" {
 		t.Errorf("nil cursor => %q %v", got, err)
 	}
-	// err 本步骤返回的错误，用于断言失败或成功路径
 	if _, err := encodeChatSessionCursor(&chatapp.SessionCursor{ChatID: " "}); err == nil {
 		t.Error("blank chat id should fail")
 	}
@@ -146,7 +127,6 @@ func TestLoginLimiterHelpers(t *testing.T) {
 	// req 的 RemoteAddr 不含端口。
 	req := httptest.NewRequest("GET", "/", nil)
 	req.RemoteAddr = "10.0.0.9"
-	// got 被测函数的实际返回值，用于与期望值比较
 	if got := loginClientIP(req); got != "10.0.0.9" {
 		t.Errorf("ip = %q", got)
 	}

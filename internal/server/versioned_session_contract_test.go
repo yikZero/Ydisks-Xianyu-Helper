@@ -13,7 +13,6 @@ func TestVersionedSessionRoutesPreserveLegacyContracts(t *testing.T) {
 	// srv 是用于验证版本化会话路由的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
 	// loginBody 是版本化登录请求体。
 	loginBody := `{"username":"admin","password":"pw"}`

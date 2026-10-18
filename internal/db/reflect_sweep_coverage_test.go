@@ -114,10 +114,8 @@ func TestSweepClosedDatabaseReturnsErrors(t *testing.T) {
 	if raceDetectorEnabled {
 		t.Skip("重型故障注入遍历在竞态检测模式下耗时过长，常规模式已覆盖")
 	}
-	// store、cleanup 是随后被关闭连接的测试存储。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// closeErr 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -135,7 +133,6 @@ func TestSweepEmptyDatabaseHandlesZeroInputs(t *testing.T) {
 	if raceDetectorEnabled {
 		t.Skip("重型故障注入遍历在竞态检测模式下耗时过长，常规模式已覆盖")
 	}
-	// store、cleanup 是带种子数据的 SQLite 测试存储。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	seedSweepData(t, store)

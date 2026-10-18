@@ -7,10 +7,8 @@ import (
 
 // TestBargainFreeShippingStageClaim 验证免拼阶段只允许一个 WS 任务执行，并且明确失败才允许后续事件重试。
 func TestBargainFreeShippingStageClaim(t *testing.T) {
-	// store、cleanup 保存隔离数据库及资源释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// claimed、claimErr 保存首次领取免拼阶段的结果。
 	claimed, claimErr := store.Automation.ClaimBargainFreeShipping(ctx, "order-1", "account-1")

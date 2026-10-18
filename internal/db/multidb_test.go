@@ -77,7 +77,6 @@ func TestMultiDB_AISettingsConstraintsAndCascade(t *testing.T) {
 		target := target
 		t.Run(target.name, func(t *testing.T) {
 			defer target.cleanup()
-			// ctx 是当前方言内用户、账号和 AI 配置操作共用的测试上下文。
 			ctx := context.Background()
 			// suffix 保证外部数据库并行或重复执行时使用唯一业务标识。
 			suffix := fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
@@ -95,20 +94,20 @@ func TestMultiDB_AISettingsConstraintsAndCascade(t *testing.T) {
 			if userErr != nil {
 				t.Fatal(userErr)
 			}
-			if // saveErr 是创建测试账号记录的数据库错误。
-			saveErr := target.store.Cookies.Save(ctx, cookieID, "cookie-value", user.ID); saveErr != nil {
+			// saveErr 是创建测试账号记录的数据库错误。
+			if saveErr := target.store.Cookies.Save(ctx, cookieID, "cookie-value", user.ID); saveErr != nil {
 				t.Fatal(saveErr)
 			}
 			// accountSettings 是要跨方言写入并读回的账号级全客服策略。
 			accountSettings := AIReplySettings{AIEnabled: true, MaxDiscountPercent: 10, MaxDiscountAmount: 20, MaxBargainRounds: 3, AIMode: "full_service"}
-			if // upsertErr 是写入账号级 AI 策略的当前方言错误。
-			upsertErr := target.store.AIReply.UpsertSettings(ctx, cookieID, accountSettings); upsertErr != nil {
+			// upsertErr 是写入账号级 AI 策略的当前方言错误。
+			if upsertErr := target.store.AIReply.UpsertSettings(ctx, cookieID, accountSettings); upsertErr != nil {
 				t.Fatalf("upsert account AI settings: %v", upsertErr)
 			}
 			// itemSettings 是要跨方言写入并读回的商品级覆盖和专属资料。
 			itemSettings := ItemAISettingsRow{CookieID: cookieID, ItemID: "item-1", Override: ItemAIOverrideEnabled, Context: "当天发货"}
-			if // upsertErr 是写入商品级 AI 配置的当前方言错误。
-			upsertErr := target.store.ItemAISettings.Upsert(ctx, itemSettings); upsertErr != nil {
+			// upsertErr 是写入商品级 AI 配置的当前方言错误。
+			if upsertErr := target.store.ItemAISettings.Upsert(ctx, itemSettings); upsertErr != nil {
 				t.Fatalf("upsert item AI settings: %v", upsertErr)
 			}
 			// storedAccount、accountErr 验证账号模式 UPSERT 后能从当前方言读回。
@@ -135,12 +134,12 @@ func TestMultiDB_AISettingsConstraintsAndCascade(t *testing.T) {
 			}
 			// remainingAccount、remainingItem 是删除账号后两个 AI 配置表的残留行数。
 			var remainingAccount, remainingItem int
-			if // countErr 是查询账号 AI 配置残留数量的数据库错误。
-			countErr := target.store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM ai_reply_settings WHERE cookie_id=?`, cookieID).Scan(&remainingAccount); countErr != nil {
+			// countErr 是查询账号 AI 配置残留数量的数据库错误。
+			if countErr := target.store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM ai_reply_settings WHERE cookie_id=?`, cookieID).Scan(&remainingAccount); countErr != nil {
 				t.Fatal(countErr)
 			}
-			if // countErr 是查询商品 AI 配置残留数量的数据库错误。
-			countErr := target.store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM item_ai_settings WHERE cookie_id=?`, cookieID).Scan(&remainingItem); countErr != nil {
+			// countErr 是查询商品 AI 配置残留数量的数据库错误。
+			if countErr := target.store.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM item_ai_settings WHERE cookie_id=?`, cookieID).Scan(&remainingItem); countErr != nil {
 				t.Fatal(countErr)
 			}
 			if remainingAccount != 0 || remainingItem != 0 {
@@ -193,25 +192,19 @@ type testTarget struct {
 func allTestTargets(t *testing.T) []testTarget {
 	t.Helper()
 	requireConfiguredExternalTargets(t)
-	// targets 用于本次流程后续判断的targets
 	targets := []testTarget{sqliteTarget(t)}
-	if // u 用于本次流程后续判断的u
-	u := os.Getenv("TEST_MYSQL_URL"); u != "" {
+	if u := os.Getenv("TEST_MYSQL_URL"); u != "" {
 		targets = append(targets, mysqlTarget(t, u))
 	}
-	if // u 用于本次流程后续判断的u
-	u := os.Getenv("TEST_POSTGRES_URL"); u != "" {
+	if u := os.Getenv("TEST_POSTGRES_URL"); u != "" {
 		targets = append(targets, postgresTarget(t, u))
 	}
 	return targets
 }
 
-// sqliteTarget 封装sqliteTarget业务协调。
 func sqliteTarget(t *testing.T) testTarget {
 	t.Helper()
-	// dbPath 用于本次流程后续判断的db路径
 	dbPath := filepath.Join(t.TempDir(), "multidb.db")
-	// db、err 用于本次流程后续判断的db、err
 	db, _, err := Open(context.Background(), dbPath)
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
@@ -221,13 +214,11 @@ func sqliteTarget(t *testing.T) testTarget {
 
 // mysqlTarget 在 MySQL 服务器上创建一次性数据库，跑迁移后返回 store。
 // 测试结束 DROP 该库，保证隔离。
-// mysqlTarget 封装mysqlTarget业务协调。
 func mysqlTarget(t *testing.T, url string) testTarget {
 	t.Helper()
 	// baseDSN、query 保存 MySQL 连接 authority 与查询参数，供临时库连接复用。
 	baseDSN, query := externalTargetURLParts(t, "TEST_MYSQL_URL", url)
 
-	// admin、err 用于本次流程后续判断的admin、err
 	adminDSN := baseDSN + "/"
 	if query != "" {
 		adminDSN += "?" + query
@@ -237,14 +228,11 @@ func mysqlTarget(t *testing.T, url string) testTarget {
 	if err != nil {
 		t.Fatalf("open mysql admin: %v", err)
 	}
-	// dbName 用于本次流程后续判断的db名称
 	dbName := fmt.Sprintf("xytest_%d", atomic.AddUint64(&multidbCounter, 1))
-	if // err 用于本次流程后续判断的err
-	_, err := admin.Exec("DROP DATABASE IF EXISTS " + dbName); err != nil {
+	if _, err := admin.Exec("DROP DATABASE IF EXISTS " + dbName); err != nil {
 		t.Fatalf("drop stale mysql db: %v", err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := admin.Exec("CREATE DATABASE " + dbName); err != nil {
+	if _, err := admin.Exec("CREATE DATABASE " + dbName); err != nil {
 		t.Fatalf("create mysql db: %v", err)
 	}
 	// db、err 保存临时 MySQL 数据库连接及打开错误；query 保留 SSL、时区等测试配置。
@@ -253,7 +241,6 @@ func mysqlTarget(t *testing.T, url string) testTarget {
 		_, _ = admin.Exec("DROP DATABASE " + dbName)
 		t.Fatalf("open mysql test db: %v", err)
 	}
-	// cleanup 用于本次流程后续判断的cleanup
 	cleanup := func() {
 		db.Close()
 		_, _ = admin.Exec("DROP DATABASE " + dbName)
@@ -264,7 +251,6 @@ func mysqlTarget(t *testing.T, url string) testTarget {
 
 // postgresTarget 在 Postgres 服务器上创建一次性数据库。
 // 连接到 maintenance 库（postgres）执行 CREATE DATABASE，再连到新库跑迁移。
-// postgresTarget 封装postgresTarget业务协调。
 func postgresTarget(t *testing.T, url string) testTarget {
 	t.Helper()
 	// server、query 保存 PostgreSQL 连接 authority 与查询参数，供临时库连接复用。
@@ -277,14 +263,11 @@ func postgresTarget(t *testing.T, url string) testTarget {
 	if err != nil {
 		t.Fatalf("open pg admin: %v", err)
 	}
-	// dbName 用于本次流程后续判断的db名称
 	dbName := fmt.Sprintf("xytest_%d", atomic.AddUint64(&multidbCounter, 1))
-	if // err 用于本次流程后续判断的err
-	_, err := admin.Exec("DROP DATABASE IF EXISTS " + dbName); err != nil {
+	if _, err := admin.Exec("DROP DATABASE IF EXISTS " + dbName); err != nil {
 		t.Fatalf("drop stale pg db: %v", err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := admin.Exec("CREATE DATABASE " + dbName); err != nil {
+	if _, err := admin.Exec("CREATE DATABASE " + dbName); err != nil {
 		t.Fatalf("create pg db: %v", err)
 	}
 	// db、err 保存临时 PostgreSQL 数据库连接及打开错误；query 保留 sslmode 与时区配置。
@@ -293,7 +276,6 @@ func postgresTarget(t *testing.T, url string) testTarget {
 		_, _ = admin.Exec("DROP DATABASE " + dbName)
 		t.Fatalf("open pg test db: %v", err)
 	}
-	// cleanup 用于本次流程后续判断的cleanup
 	cleanup := func() {
 		db.Close()
 		_, _ = admin.Exec("DROP DATABASE " + dbName)
@@ -410,36 +392,28 @@ func TestSplitExternalTargetURLDoesNotEchoSecrets(t *testing.T) {
 
 // TestMultiDB_CookiesUpsertBool 验证 cookie UPSERT 及两个自动化开关的布尔读写跨三库一致。
 func TestMultiDB_CookiesUpsertBool(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
 
 			// 先建用户（cookies.user_id 外键）。
 			uid := tg.name + "_user_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Users.Create(ctx, uid, uid+"@e.com", "pw"); err != nil || !ok {
+			if ok, err := s.Users.Create(ctx, uid, uid+"@e.com", "pw"); err != nil || !ok {
 				t.Fatalf("create user: ok=%v err=%v", ok, err)
 			}
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, uid)
 
-			// cid 用于本次流程后续判断的cid
 			cid := tg.name + "_cookie_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
 				t.Fatalf("Save: %v", err)
 			}
 			// 二次 Save 走 UPSERT 分支（更新 value）。
 			if err := s.Cookies.Save(ctx, cid, "cv2", user.ID); err != nil {
 				t.Fatalf("Save upsert: %v", err)
 			}
-			if // v、err 用于本次流程后续判断的v、err
-			v, err := s.Cookies.GetValue(ctx, cid); err != nil || v != "cv2" {
+			if v, err := s.Cookies.GetValue(ctx, cid); err != nil || v != "cv2" {
 				t.Fatalf("GetValue=%q err=%v want cv2", v, err)
 			}
 
@@ -477,13 +451,11 @@ func TestMultiDB_CookiesUpsertBool(t *testing.T) {
 			if bargainEnabled, bargainErr := s.Cookies.GetAutoBargain(ctx, cid); bargainErr != nil || !bargainEnabled {
 				t.Fatalf("enabled auto_bargain=%v err=%v want true", bargainEnabled, bargainErr)
 			}
-			if // err 用于本次流程后续判断的err
-			_, err := s.DB.ExecContext(ctx,
+			if _, err := s.DB.ExecContext(ctx,
 				`UPDATE cookies SET auto_confirm=0 WHERE id=?`, cid); err != nil {
 				t.Fatalf("disable auto_confirm: %v", err)
 			}
-			if // enabled、err 用于本次流程后续判断的enabled、err
-			enabled, err := s.Cookies.GetAutoConfirm(ctx, cid); err != nil || enabled {
+			if enabled, err := s.Cookies.GetAutoConfirm(ctx, cid); err != nil || enabled {
 				t.Fatalf("after disable auto_confirm=%v err=%v want false", enabled, err)
 			}
 
@@ -495,123 +467,89 @@ func TestMultiDB_CookiesUpsertBool(t *testing.T) {
 	}
 }
 
-// TestMultiDB_ReliabilityStateAndSearch 封装TestMultiDBReliability状态And搜索业务协调。
 func TestMultiDB_ReliabilityStateAndSearch(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
-			// suffix 用于本次流程后续判断的suffix
 			suffix := fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			// username 用于本次流程后续判断的username
 			username := tg.name + "_reliability_" + suffix
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
+			if ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
 				t.Fatalf("create user: ok=%v err=%v", ok, err)
 			}
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, username)
-			// cookieID 用于本次流程后续判断的登录凭证ID
 			cookieID := tg.name + "_reliability_cookie_" + suffix
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cookieID, "unb=test", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cookieID, "unb=test", user.ID); err != nil {
 				t.Fatal(err)
 			}
-			// keywordID、err 用于本次流程后续判断的关键词ID、err
 			keywordID, err := s.Keywords.Add(ctx, cookieID, "same", "same reply", "", "text", "")
 			if err != nil {
 				t.Fatal(err)
 			}
-			// unchangedKeyword 用于本次流程后续判断的unchanged关键词
 			unchangedKeyword := KeywordRow{ID: keywordID, CookieID: cookieID, Keyword: "same", Reply: "same reply", Type: "text"}
-			if // err 用于本次流程后续判断的err
-			err := s.Keywords.UpdateByID(ctx, unchangedKeyword); err != nil {
+			if err := s.Keywords.UpdateByID(ctx, unchangedKeyword); err != nil {
 				t.Fatalf("no-op keyword update must succeed on %s: %v", tg.name, err)
 			}
-			if // err 用于本次流程后续判断的err
-			_, err := s.Cookies.SetPause(ctx, cookieID, 1); err != nil {
+			if _, err := s.Cookies.SetPause(ctx, cookieID, 1); err != nil {
 				t.Fatal(err)
 			}
-			if // paused、err 用于本次流程后续判断的paused、err
-			paused, _, err := s.Cookies.IsPaused(ctx, cookieID); err != nil || !paused {
+			if paused, _, err := s.Cookies.IsPaused(ctx, cookieID); err != nil || !paused {
 				t.Fatalf("pause state: paused=%v err=%v", paused, err)
 			}
 
-			// batchID 用于本次流程后续判断的批次ID
 			batchID := tg.name + "_batch_" + suffix
-			if // err 用于本次流程后续判断的err
-			err := s.PublishBatches.Create(ctx, &ItemPublishBatch{
+			if err := s.PublishBatches.Create(ctx, &ItemPublishBatch{
 				ID: batchID, UserID: user.ID, DefaultCookieID: cookieID, Filename: "test.csv", Status: "pending",
 			}, []ItemPublishBatchRow{{RowNo: 1, CookieID: cookieID, Title: "item", Price: "1"}}); err != nil {
 				t.Fatal(err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.PublishBatches.ClaimBatch(ctx, batchID, "worker", time.Now().UTC().Add(time.Minute).Unix()); err != nil || !claimed {
+			if claimed, err := s.PublishBatches.ClaimBatch(ctx, batchID, "worker", time.Now().UTC().Add(time.Minute).Unix()); err != nil || !claimed {
 				t.Fatalf("claim batch: claimed=%v err=%v", claimed, err)
 			}
-			// batchRows 用于本次流程后续判断的批次Rows
 			batchRows, _ := s.PublishBatches.Rows(ctx, batchID)
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.PublishBatches.ClaimRow(ctx, batchRows[0].ID, "worker"); err != nil || !claimed {
+			if claimed, err := s.PublishBatches.ClaimRow(ctx, batchRows[0].ID, "worker"); err != nil || !claimed {
 				t.Fatalf("claim row: claimed=%v err=%v", claimed, err)
 			}
-			if // marked、err 用于本次流程后续判断的marked、err
-			marked, err := s.PublishBatches.MarkClaimedRowSuccess(ctx, batchRows[0].ID, "worker", "published", "", "{}"); err != nil || !marked {
+			if marked, err := s.PublishBatches.MarkClaimedRowSuccess(ctx, batchRows[0].ID, "worker", "published", "", "{}"); err != nil || !marked {
 				t.Fatalf("mark row: marked=%v err=%v", marked, err)
 			}
-			if // finished、err 用于本次流程后续判断的finished、err
-			finished, err := s.PublishBatches.FinishBatchStatus(ctx, batchID, "worker", "completed"); err != nil || !finished {
+			if finished, err := s.PublishBatches.FinishBatchStatus(ctx, batchID, "worker", "completed"); err != nil || !finished {
 				t.Fatalf("finish batch: finished=%v err=%v", finished, err)
 			}
-			// cancelBatchID 用于本次流程后续判断的取消批次ID
 			cancelBatchID := tg.name + "_cancel_batch_" + suffix
-			if // err 用于本次流程后续判断的err
-			err := s.PublishBatches.Create(ctx, &ItemPublishBatch{
+			if err := s.PublishBatches.Create(ctx, &ItemPublishBatch{
 				ID: cancelBatchID, UserID: user.ID, DefaultCookieID: cookieID, Filename: "test.csv", Status: "pending",
 			}, []ItemPublishBatchRow{{RowNo: 1, CookieID: cookieID, Title: "cancel", Price: "1"}}); err != nil {
 				t.Fatal(err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.PublishBatches.ClaimBatch(ctx, cancelBatchID, "cancel-worker", time.Now().Add(time.Minute).Unix()); err != nil || !claimed {
+			if claimed, err := s.PublishBatches.ClaimBatch(ctx, cancelBatchID, "cancel-worker", time.Now().Add(time.Minute).Unix()); err != nil || !claimed {
 				t.Fatalf("claim cancel batch=%v err=%v", claimed, err)
 			}
-			if // token、running、err 用于本次流程后续判断的token、running、err
-			token, running, err := s.PublishBatches.RequestCancel(ctx, cancelBatchID); err != nil || !running || token != "cancel-worker" {
+			if token, running, err := s.PublishBatches.RequestCancel(ctx, cancelBatchID); err != nil || !running || token != "cancel-worker" {
 				t.Fatalf("request cancel token=%q running=%v err=%v", token, running, err)
 			}
-			if // finalized、err 用于本次流程后续判断的finalized、err
-			finalized, err := s.PublishBatches.FinalizeCanceled(ctx, cancelBatchID, "cancel-worker"); err != nil || !finalized {
+			if finalized, err := s.PublishBatches.FinalizeCanceled(ctx, cancelBatchID, "cancel-worker"); err != nil || !finalized {
 				t.Fatalf("finalize cancel=%v err=%v", finalized, err)
 			}
 
-			// uncertainBatchID 用于本次流程后续判断的uncertain批次ID
 			uncertainBatchID := tg.name + "_uncertain_batch_" + suffix
-			if // err 用于本次流程后续判断的err
-			err := s.PublishBatches.Create(ctx, &ItemPublishBatch{
+			if err := s.PublishBatches.Create(ctx, &ItemPublishBatch{
 				ID: uncertainBatchID, UserID: user.ID, DefaultCookieID: cookieID, Filename: "test.csv", Status: "pending",
 			}, []ItemPublishBatchRow{{RowNo: 1, CookieID: cookieID, Title: "item", Price: "1"}}); err != nil {
 				t.Fatal(err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.PublishBatches.ClaimBatch(ctx, uncertainBatchID, "old", 1); err != nil || !claimed {
+			if claimed, err := s.PublishBatches.ClaimBatch(ctx, uncertainBatchID, "old", 1); err != nil || !claimed {
 				t.Fatalf("claim uncertain batch=%v err=%v", claimed, err)
 			}
-			// uncertainRows 用于本次流程后续判断的uncertainRows
 			uncertainRows, _ := s.PublishBatches.Rows(ctx, uncertainBatchID)
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.PublishBatches.ClaimRow(ctx, uncertainRows[0].ID, "old"); err != nil || !claimed {
+			if claimed, err := s.PublishBatches.ClaimRow(ctx, uncertainRows[0].ID, "old"); err != nil || !claimed {
 				t.Fatalf("claim uncertain row=%v err=%v", claimed, err)
 			}
-			if // marked、err 用于本次流程后续判断的marked、err
-			marked, err := s.PublishBatches.MarkClaimedRemoteStarted(ctx, uncertainRows[0].ID, "old"); err != nil || !marked {
+			if marked, err := s.PublishBatches.MarkClaimedRemoteStarted(ctx, uncertainRows[0].ID, "old"); err != nil || !marked {
 				t.Fatalf("mark remote started=%v err=%v", marked, err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.PublishBatches.ClaimBatch(ctx, uncertainBatchID, "new", time.Now().Add(time.Minute).Unix()); err != nil || !claimed {
+			if claimed, err := s.PublishBatches.ClaimBatch(ctx, uncertainBatchID, "new", time.Now().Add(time.Minute).Unix()); err != nil || !claimed {
 				t.Fatalf("take over uncertain batch=%v err=%v", claimed, err)
 			}
 			uncertainRows, _ = s.PublishBatches.Rows(ctx, uncertainBatchID)
@@ -619,102 +557,78 @@ func TestMultiDB_ReliabilityStateAndSearch(t *testing.T) {
 				t.Fatalf("uncertain row=%+v", uncertainRows[0])
 			}
 
-			// ruleID、err 用于本次流程后续判断的规则ID、err
 			ruleID, err := s.Automation.Create(ctx, AutomationRuleInput{UserID: user.ID, CookieID: cookieID, Name: "issue",
 				TriggerType: "buyer_reviewed", Enabled: true,
 				Actions: []AutomationActionInput{{ActionType: "send_text", MessageTemplate: "x", Enabled: true}}})
 			if err != nil {
 				t.Fatal(err)
 			}
-			// runID、started、err 用于本次流程后续判断的运行ID、started、err
 			runID, started, err := s.Automation.TryStartRun(ctx, AutomationRun{RuleID: ruleID, CookieID: cookieID,
 				TriggerType: "buyer_reviewed", TriggerKey: "issue-" + suffix, RawEventJSON: `{}`, LeaseExpiresAt: 1})
 			if err != nil || !started {
 				t.Fatalf("start issue run=%v err=%v", started, err)
 			}
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Automation.StartRunAction(ctx, runID, 1, 0, 1); err != nil || !ok {
+			if ok, err := s.Automation.StartRunAction(ctx, runID, 1, 0, 1); err != nil || !ok {
 				t.Fatalf("start issue action=%v err=%v", ok, err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.QuarantineRunResult(ctx, runID, 1, 1, "unknown"); err != nil {
+			if err := s.Automation.QuarantineRunResult(ctx, runID, 1, 1, "unknown"); err != nil {
 				t.Fatal(err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.Delete(ctx, user.ID, ruleID); err != ErrAutomationRunActive {
+			if err := s.Automation.Delete(ctx, user.ID, ruleID); err != ErrAutomationRunActive {
 				t.Fatalf("active rule delete err=%v", err)
 			}
-			// runIssues、err 用于本次流程后续判断的运行Issues、err
 			runIssues, _, err := s.Automation.ListIssues(ctx, user.ID)
 			if err != nil || len(runIssues) != 1 {
 				t.Fatalf("issues=%+v err=%v", runIssues, err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.ResolveRunIssue(ctx, user.ID, runID, "cancel"); err != nil {
+			if err := s.Automation.ResolveRunIssue(ctx, user.ID, runID, "cancel"); err != nil {
 				t.Fatal(err)
 			}
-			// fencedRunID、started、err 用于本次流程后续判断的fenced运行ID、started、err
 			fencedRunID, started, err := s.Automation.TryStartRun(ctx, AutomationRun{RuleID: ruleID, CookieID: cookieID,
 				TriggerType: "buyer_reviewed", TriggerKey: "fenced-" + suffix, RawEventJSON: `{}`})
 			if err != nil || !started {
 				t.Fatalf("start fenced run=%v err=%v", started, err)
 			}
-			if // err 用于本次流程后续判断的err
-			_, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=?`, fencedRunID); err != nil {
+			if _, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=?`, fencedRunID); err != nil {
 				t.Fatal(err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.Automation.ClaimRecoveryRun(ctx, fencedRunID, time.Now().Add(time.Minute).Unix()); err != nil || !claimed {
+			if claimed, err := s.Automation.ClaimRecoveryRun(ctx, fencedRunID, time.Now().Add(time.Minute).Unix()); err != nil || !claimed {
 				t.Fatalf("claim fenced run=%v err=%v", claimed, err)
 			}
-			// fencedRun、err 用于本次流程后续判断的fencedRun、err
 			fencedRun, err := s.Automation.GetRun(ctx, fencedRunID)
 			if err != nil || fencedRun.AttemptCount != 2 {
 				t.Fatalf("fenced run=%+v err=%v", fencedRun, err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.FinishRun(ctx, fencedRunID, 1, "failed", 0, "stale"); !errors.Is(err, ErrAutomationRunLeaseLost) {
+			if err := s.Automation.FinishRun(ctx, fencedRunID, 1, "failed", 0, "stale"); !errors.Is(err, ErrAutomationRunLeaseLost) {
 				t.Fatalf("stale finish err=%v", err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.FinishRun(ctx, fencedRunID, fencedRun.AttemptCount, "success", 0, ""); err != nil {
+			if err := s.Automation.FinishRun(ctx, fencedRunID, fencedRun.AttemptCount, "success", 0, ""); err != nil {
 				t.Fatal(err)
 			}
-			// deferred 用于本次流程后续判断的deferred
 			deferred := DeferredAutomationTask{TaskKey: "dead-" + suffix, CookieID: cookieID, TriggerType: "buyer_reviewed", TaskJSON: `{}`, DueAt: 0}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.DeferTask(ctx, deferred); err != nil {
+			if err := s.Automation.DeferTask(ctx, deferred); err != nil {
 				t.Fatal(err)
 			}
 			_, _ = s.DB.ExecContext(ctx, `UPDATE automation_pending_tasks SET status='dead_letter',attempt_count=5 WHERE task_key=?`, deferred.TaskKey)
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.DeferTask(ctx, deferred); err != nil {
+			if err := s.Automation.DeferTask(ctx, deferred); err != nil {
 				t.Fatal(err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.Automation.ClaimDueDeferredTasks(ctx, 10); err != nil || len(claimed) != 1 {
+			if claimed, err := s.Automation.ClaimDueDeferredTasks(ctx, 10); err != nil || len(claimed) != 1 {
 				t.Fatalf("revived deferred=%+v err=%v", claimed, err)
 			}
 
-			// itemID 用于本次流程后续判断的商品ID
 			itemID := "search-item-" + suffix
-			// orderID 用于本次流程后续判断的订单ID
 			orderID := "search-order-" + suffix
-			if // err 用于本次流程后续判断的err
-			err := s.Items.Upsert(ctx, &ItemInfoRow{CookieID: cookieID, ItemID: itemID, ItemTitle: "Cross Database Search"}); err != nil {
+			if err := s.Items.Upsert(ctx, &ItemInfoRow{CookieID: cookieID, ItemID: itemID, ItemTitle: "Cross Database Search"}); err != nil {
 				t.Fatal(err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Orders.Upsert(ctx, orderID, OrderUpsertOpts{CookieID: cookieID, ItemID: itemID, Amount: "9.9"}); err != nil {
+			if err := s.Orders.Upsert(ctx, orderID, OrderUpsertOpts{CookieID: cookieID, ItemID: itemID, Amount: "9.9"}); err != nil {
 				t.Fatal(err)
 			}
-			// empty 用于本次流程后续判断的empty
 			empty := ""
-			if // err 用于本次流程后续判断的err
-			err := s.Orders.Patch(ctx, orderID, OrderPatch{Amount: &empty}); err != nil {
+			if err := s.Orders.Patch(ctx, orderID, OrderPatch{Amount: &empty}); err != nil {
 				t.Fatal(err)
 			}
-			// orders、total、err 用于本次流程后续判断的orders、total、err
 			orders, total, err := s.Orders.ListForUser(ctx, OrderListFilter{UserID: user.ID, Search: "cross database", Limit: 10})
 			if err != nil || total != 1 || len(orders) != 1 || orders[0].Amount != "" {
 				t.Fatalf("search/patch orders=%+v total=%d err=%v", orders, total, err)
@@ -723,31 +637,23 @@ func TestMultiDB_ReliabilityStateAndSearch(t *testing.T) {
 	}
 }
 
-// TestMultiDB_SettingsQuoteKey 封装TestMultiDB设置QuoteKey业务协调。
 func TestMultiDB_SettingsQuoteKey(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "multidb-settings-secret-key")
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
 
-			if // err 用于本次流程后续判断的err
-			err := s.Settings.Set(ctx, "theme_color", "green"); err != nil {
+			if err := s.Settings.Set(ctx, "theme_color", "green"); err != nil {
 				t.Fatalf("Settings.Set: %v", err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Settings.SetMany(ctx, map[string]string{"theme_color": "blue", "bulk_key": "bulk_value"}); err != nil {
+			if err := s.Settings.SetMany(ctx, map[string]string{"theme_color": "blue", "bulk_key": "bulk_value"}); err != nil {
 				t.Fatalf("Settings.SetMany: %v", err)
 			}
-			if // got 用于本次流程后续判断的got
-			got, _ := s.Settings.Get(ctx, "theme_color"); got != "blue" {
+			if got, _ := s.Settings.Get(ctx, "theme_color"); got != "blue" {
 				t.Fatalf("SetMany theme_color=%q", got)
 			}
-			// got、err 用于本次流程后续判断的got、err
 			got, err := s.Settings.Get(ctx, "theme_color")
 			if err != nil || got != "blue" {
 				t.Fatalf("Settings.Get=%q err=%v want blue", got, err)
@@ -785,24 +691,18 @@ func TestMultiDB_SettingsQuoteKey(t *testing.T) {
 			if err != nil || secret != "" {
 				t.Fatalf("Settings.Get cleared secret=%q err=%v", secret, err)
 			}
-			// all、err 用于本次流程后续判断的all、err
 			all, err := s.Settings.All(ctx)
 			if err != nil || all["theme_color"] != "blue" || all["bulk_key"] != "bulk_value" {
 				t.Fatalf("Settings.All=%v err=%v", all, err)
 			}
 
-			// username 用于本次流程后续判断的username
 			username := tg.name + "_settings_user_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
+			if ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
 				t.Fatalf("create user: ok=%v err=%v", ok, err)
 			}
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, username)
-			// keyCol 用于本次流程后续判断的keyCol
 			keyCol := dialectQuote(tg.dialect, "key")
-			if // err 用于本次流程后续判断的err
-			_, err := s.DB.ExecContext(ctx,
+			if _, err := s.DB.ExecContext(ctx,
 				`INSERT INTO user_settings (user_id, `+keyCol+`, value, updated_at) VALUES (?,?,?,CURRENT_TIMESTAMP)`+
 					dialectUpsert(tg.dialect, []string{"user_id", keyCol}, map[string]string{
 						"value":      "EXCLUDED.value",
@@ -811,10 +711,8 @@ func TestMultiDB_SettingsQuoteKey(t *testing.T) {
 				user.ID, "dashboard_range", "30"); err != nil {
 				t.Fatalf("insert user_settings: %v", err)
 			}
-			// value 用于本次流程后续判断的值
 			var value string
-			if // err 用于本次流程后续判断的err
-			err := s.DB.QueryRowContext(ctx,
+			if err := s.DB.QueryRowContext(ctx,
 				`SELECT value FROM user_settings WHERE user_id=? AND `+keyCol+`=?`,
 				user.ID, "dashboard_range").Scan(&value); err != nil || value != "30" {
 				t.Fatalf("select user_settings=%q err=%v want 30", value, err)
@@ -829,7 +727,6 @@ func TestMultiDB_SecurityAudit(t *testing.T) {
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 保存当前方言审计测试上下文。
 			ctx := context.Background()
 			// err 保存当前方言审计记录写入错误。
 			if err := tg.store.SecurityAudit.Add(ctx, SecurityAuditLog{UserID: 1, Action: "settings.read", Resource: "system_settings", Keys: []string{"ai_api_key"}, CreatedAt: 7}); err != nil {
@@ -846,26 +743,19 @@ func TestMultiDB_SecurityAudit(t *testing.T) {
 
 // TestMultiDB_OrdersUpsertNullScan 验证订单部分字段 Upsert 后 Get 能正确扫描 NULL 列。
 func TestMultiDB_OrdersUpsertNullScan(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
 
-			// oid 用于本次流程后续判断的oid
 			oid := tg.name + "_order_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
 			// orders.cookie_id 外键 cookies.id，需先建账号。
 			uid := tg.name + "_order_user_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
 			s.Users.Create(ctx, uid, uid+"@e.com", "pw")
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, uid)
-			// cid 用于本次流程后续判断的cid
 			cid := tg.name + "_order_cookie_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
 				t.Fatalf("Save cookie: %v", err)
 			}
 			// 首次 Upsert 只给少量字段，其余列留 NULL/默认。
@@ -877,7 +767,6 @@ func TestMultiDB_OrdersUpsertNullScan(t *testing.T) {
 			}); err != nil {
 				t.Fatalf("Upsert insert: %v", err)
 			}
-			// got、err 用于本次流程后续判断的got、err
 			got, err := s.Orders.Get(ctx, oid)
 			if err != nil {
 				t.Fatalf("Get: %v", err)
@@ -1046,28 +935,21 @@ func TestMultiDB_OrderReconciliationIdempotency(t *testing.T) {
 
 // TestMultiDB_ItemsUpsert 验证 item_info Upsert + 布尔开关跨三库一致。
 func TestMultiDB_ItemsUpsert(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
 
-			// cid 用于本次流程后续判断的cid
 			cid := tg.name + "_item_cookie_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
 			// item_info.cookie_id 外键 cookies.id，需先建账号。
 			uid := tg.name + "_item_user_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
 			s.Users.Create(ctx, uid, uid+"@e.com", "pw")
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, uid)
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
 				t.Fatalf("Save cookie: %v", err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Items.Upsert(ctx, &ItemInfoRow{
+			if err := s.Items.Upsert(ctx, &ItemInfoRow{
 				CookieID: cid, ItemID: "i1", ItemTitle: "标题", ItemPrice: "9.9",
 			}); err != nil {
 				t.Fatalf("Upsert: %v", err)
@@ -1078,7 +960,6 @@ func TestMultiDB_ItemsUpsert(t *testing.T) {
 			}); err != nil {
 				t.Fatalf("Upsert update: %v", err)
 			}
-			// items、err 用于本次流程后续判断的items、err
 			items, err := s.Items.AllForCookie(ctx, cid)
 			if err != nil {
 				t.Fatalf("AllForCookie: %v", err)
@@ -1100,30 +981,21 @@ func TestMultiDB_ItemsUpsert(t *testing.T) {
 
 // TestMultiDB_AutomationTryStartRunDedup 验证 TryStartRun 的 UNIQUE 防重：
 // 同 rule_id + trigger_key 第二次插入应返回 started=false。
-// TestMultiDB_AutomationTryStartRunDedup 封装TestMultiDB自动化Try开始运行Dedup业务协调。
 func TestMultiDB_AutomationTryStartRunDedup(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
 
-			// uid 用于本次流程后续判断的uid
 			uid := tg.name + "_auto_user_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
 			s.Users.Create(ctx, uid, uid+"@e.com", "pw")
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, uid)
-			// cid 用于本次流程后续判断的cid
 			cid := tg.name + "_auto_cookie_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
 				t.Fatalf("Save cookie: %v", err)
 			}
 
-			// ruleID、err 用于本次流程后续判断的规则ID、err
 			ruleID, err := s.Automation.Create(ctx, AutomationRuleInput{
 				UserID:      user.ID,
 				CookieID:    cid,
@@ -1142,7 +1014,6 @@ func TestMultiDB_AutomationTryStartRunDedup(t *testing.T) {
 				t.Fatalf("Create rule: %v", err)
 			}
 
-			// run 用于本次流程后续判断的运行
 			run := AutomationRun{
 				RuleID:      ruleID,
 				CookieID:    cid,
@@ -1151,7 +1022,6 @@ func TestMultiDB_AutomationTryStartRunDedup(t *testing.T) {
 				TriggerType: "paid",
 				TriggerKey:  "paid:o1",
 			}
-			// id1、started、err 用于本次流程后续判断的id1、started、err
 			id1, started, err := s.Automation.TryStartRun(ctx, run)
 			if err != nil || !started || id1 == 0 {
 				t.Fatalf("首次 TryStartRun: id=%d started=%v err=%v", id1, started, err)
@@ -1169,7 +1039,6 @@ func TestMultiDB_AutomationTryStartRunDedup(t *testing.T) {
 			}
 			// 不同 trigger_key 可再次启动。
 			run.TriggerKey = "paid:o2"
-			// id3、started3、err 用于本次流程后续判断的id3、started3、err
 			id3, started3, err := s.Automation.TryStartRun(ctx, run)
 			if err != nil || !started3 || id3 == 0 {
 				t.Fatalf("不同 trigger_key 应启动: id=%d started=%v err=%v", id3, started3, err)
@@ -1238,74 +1107,54 @@ func TestMultiDB_OrdersUpsertManyMixedCreatedAt(t *testing.T) {
 
 // TestMultiDB_DeferredAutomationCredentialWake 验证延迟任务的失败退避和凭证恢复唤醒
 // 在各数据库方言下行为一致，同时确保正常的业务延迟不会被提前唤醒。
-// TestMultiDB_DeferredAutomationCredentialWake 封装TestMultiDBDeferred自动化CredentialWake业务协调。
 func TestMultiDB_DeferredAutomationCredentialWake(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
-			// suffix 用于本次流程后续判断的suffix
 			suffix := fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			// username 用于本次流程后续判断的username
 			username := tg.name + "_deferred_user_" + suffix
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
+			if ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
 				t.Fatalf("create user: ok=%v err=%v", ok, err)
 			}
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, username)
-			// cookieID 用于本次流程后续判断的登录凭证ID
 			cookieID := tg.name + "_deferred_cookie_" + suffix
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cookieID, "cv", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cookieID, "cv", user.ID); err != nil {
 				t.Fatalf("save cookie: %v", err)
 			}
 
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.DeferTask(ctx, DeferredAutomationTask{
+			if err := s.Automation.DeferTask(ctx, DeferredAutomationTask{
 				TaskKey: "credential-" + suffix, CookieID: cookieID, TriggerType: "order_paid",
 				TaskJSON: `{}`, DueAt: 0, ErrorMessage: "FAIL_SYS_SESSION_EXPIRED",
 			}); err != nil {
 				t.Fatalf("defer credential task: %v", err)
 			}
-			// claimed、err 用于本次流程后续判断的claimed、err
 			claimed, err := s.Automation.ClaimDueDeferredTasks(ctx, 1)
 			if err != nil || len(claimed) != 1 {
 				t.Fatalf("claim credential task: tasks=%+v err=%v", claimed, err)
 			}
-			// before 用于本次流程后续判断的before
 			before := time.Now().UTC().Unix()
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.FinishDeferredTask(ctx, claimed[0].ID, claimed[0].ClaimVersion, false, "session expired"); err != nil {
+			if err := s.Automation.FinishDeferredTask(ctx, claimed[0].ID, claimed[0].ClaimVersion, false, "session expired"); err != nil {
 				t.Fatalf("finish failed task: %v", err)
 			}
 
-			// intentionalDue 用于本次流程后续判断的intentionalDue
 			intentionalDue := before + 3600
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.DeferTask(ctx, DeferredAutomationTask{
+			if err := s.Automation.DeferTask(ctx, DeferredAutomationTask{
 				TaskKey: "intentional-" + suffix, CookieID: cookieID, TriggerType: "buyer_reviewed",
 				TaskJSON: `{}`, DueAt: intentionalDue,
 			}); err != nil {
 				t.Fatalf("defer intentional task: %v", err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.WakeCredentialBlocked(ctx, cookieID); err != nil {
+			if err := s.Automation.WakeCredentialBlocked(ctx, cookieID); err != nil {
 				t.Fatalf("wake credential tasks: %v", err)
 			}
 
-			// credentialDue、normalDue 用于本次流程后续判断的credentialDue、normalDue
 			var credentialDue, normalDue int64
-			if // err 用于本次流程后续判断的err
-			err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key=?`, "credential-"+suffix).Scan(&credentialDue); err != nil {
+			if err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key=?`, "credential-"+suffix).Scan(&credentialDue); err != nil {
 				t.Fatalf("read credential due_at: %v", err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key=?`, "intentional-"+suffix).Scan(&normalDue); err != nil {
+			if err := s.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key=?`, "intentional-"+suffix).Scan(&normalDue); err != nil {
 				t.Fatalf("read intentional due_at: %v", err)
 			}
 			if credentialDue != 0 {
@@ -1318,33 +1167,22 @@ func TestMultiDB_DeferredAutomationCredentialWake(t *testing.T) {
 	}
 }
 
-// TestMultiDB_AutomationSafeCheckpointRetry 封装TestMultiDB自动化SafeCheckpoint重试业务协调。
 func TestMultiDB_AutomationSafeCheckpointRetry(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
-			// suffix 用于本次流程后续判断的suffix
 			suffix := fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			// username 用于本次流程后续判断的username
 			username := tg.name + "_checkpoint_user_" + suffix
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
+			if ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
 				t.Fatalf("create user: ok=%v err=%v", ok, err)
 			}
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, username)
-			// cookieID 用于本次流程后续判断的登录凭证ID
 			cookieID := tg.name + "_checkpoint_cookie_" + suffix
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cookieID, "cv", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cookieID, "cv", user.ID); err != nil {
 				t.Fatal(err)
 			}
-			// ruleID、err 用于本次流程后续判断的规则ID、err
 			ruleID, err := s.Automation.Create(ctx, AutomationRuleInput{
 				UserID: user.ID, CookieID: cookieID, Name: "checkpoint", TriggerType: "order_paid", Enabled: true,
 				Actions: []AutomationActionInput{{ActionType: "send_text", Enabled: true}},
@@ -1352,7 +1190,6 @@ func TestMultiDB_AutomationSafeCheckpointRetry(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// runID、started、err 用于本次流程后续判断的运行ID、started、err
 			runID, started, err := s.Automation.TryStartRun(ctx, AutomationRun{
 				RuleID: ruleID, CookieID: cookieID, OrderID: "order-" + suffix,
 				TriggerType: "order_paid", TriggerKey: "order_paid:order-" + suffix, RawEventJSON: `{}`,
@@ -1360,47 +1197,36 @@ func TestMultiDB_AutomationSafeCheckpointRetry(t *testing.T) {
 			if err != nil || !started {
 				t.Fatalf("start run: started=%v err=%v", started, err)
 			}
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Automation.StartRunAction(ctx, runID, 1, 0, time.Now().Add(time.Minute).Unix()); err != nil || !ok {
+			if ok, err := s.Automation.StartRunAction(ctx, runID, 1, 0, time.Now().Add(time.Minute).Unix()); err != nil || !ok {
 				t.Fatalf("start first action: ok=%v err=%v", ok, err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.AdvanceRunAction(ctx, AutomationRunActionAdvance{RunID: runID, Attempt: 1, Cursor: 0, SentDelta: 1}); err != nil {
+			if err := s.Automation.AdvanceRunAction(ctx, AutomationRunActionAdvance{RunID: runID, Attempt: 1, Cursor: 0, SentDelta: 1}); err != nil {
 				t.Fatal(err)
 			}
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Automation.StartRunAction(ctx, runID, 1, 1, time.Now().Add(time.Minute).Unix()); err != nil || !ok {
+			if ok, err := s.Automation.StartRunAction(ctx, runID, 1, 1, time.Now().Add(time.Minute).Unix()); err != nil || !ok {
 				t.Fatalf("start second action: ok=%v err=%v", ok, err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.AbortRunAction(ctx, runID, 1, 1); err != nil {
+			if err := s.Automation.AbortRunAction(ctx, runID, 1, 1); err != nil {
 				t.Fatal(err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.FinishRun(ctx, runID, 1, "failed", 1, SafeRetryErrorPrefix+"session expired"); err != nil {
+			if err := s.Automation.FinishRun(ctx, runID, 1, "failed", 1, SafeRetryErrorPrefix+"session expired"); err != nil {
 				t.Fatal(err)
 			}
-			if // err 用于本次流程后续判断的err
-			_, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET next_retry_at=0 WHERE id=?`, runID); err != nil {
+			if _, err := s.DB.ExecContext(ctx, `UPDATE automation_runs SET next_retry_at=0 WHERE id=?`, runID); err != nil {
 				t.Fatal(err)
 			}
-			// due、err 用于本次流程后续判断的due、err
 			due, err := s.Automation.DueRecoveryRuns(ctx, 10)
 			if err != nil || len(due) != 1 || due[0].ID != runID || due[0].ActionCursor != 1 || due[0].SentCount != 1 {
 				t.Fatalf("due=%+v err=%v", due, err)
 			}
-			// newLease 用于本次流程后续判断的newLease
 			newLease := time.Now().Add(5 * time.Minute).Unix()
-			// claimed、err 用于本次流程后续判断的claimed、err
 			claimed, err := s.Automation.ClaimRecoveryRun(ctx, runID, newLease)
 			if err != nil || !claimed {
 				t.Fatalf("claim safe checkpoint: claimed=%v err=%v", claimed, err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.PostponeRecoveryRun(ctx, runID, due[0].AttemptCount, time.Now().Add(time.Minute).Unix()); !errors.Is(err, ErrAutomationRunLeaseLost) {
+			if err := s.Automation.PostponeRecoveryRun(ctx, runID, due[0].AttemptCount, time.Now().Add(time.Minute).Unix()); !errors.Is(err, ErrAutomationRunLeaseLost) {
 				t.Fatalf("stale postpone err=%v want lease lost", err)
 			}
-			// current、err 用于本次流程后续判断的current、err
 			current, err := s.Automation.GetRun(ctx, runID)
 			if err != nil || current.LeaseExpiresAt != newLease {
 				t.Fatalf("claimed lease overwritten: run=%+v err=%v", current, err)
@@ -1411,35 +1237,26 @@ func TestMultiDB_AutomationSafeCheckpointRetry(t *testing.T) {
 
 // TestMultiDB_Notifications 验证通知渠道创建 + 账号绑定读写。
 func TestMultiDB_Notifications(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
 
-			// uid 用于本次流程后续判断的uid
 			uid := tg.name + "_notif_user_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
 			s.Users.Create(ctx, uid, uid+"@e.com", "pw")
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, uid)
-			// cid 用于本次流程后续判断的cid
 			cid := tg.name + "_notif_cookie_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
 				t.Fatalf("Save cookie: %v", err)
 			}
 
-			// chID、err 用于本次流程后续判断的chID、err
 			chID, err := s.Notifications.CreateChannel(ctx, &NotificationChannelRow{
 				Name: "wh", Type: "webhook", Config: `{"url":"x"}`, Enabled: true, UserID: user.ID,
 			})
 			if err != nil || chID == 0 {
 				t.Fatalf("CreateChannel: id=%d err=%v", chID, err)
 			}
-			// channels 用于本次流程后续判断的渠道列表
 			channels, _ := s.Notifications.AllChannelsForUser(ctx, user.ID)
 			if len(channels) != 1 || !channels[0].Enabled || channels[0].Config != `{"url":"x"}` {
 				t.Fatalf("channels = %#v", channels)
@@ -1449,11 +1266,9 @@ func TestMultiDB_Notifications(t *testing.T) {
 			if summaryErr != nil || len(summaries) != 1 || summaries[0].Name != "wh" || summaries[0].UserID != user.ID {
 				t.Fatalf("channel summaries = %+v err=%v", summaries, summaryErr)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Notifications.SetBindings(ctx, cid, []int64{chID}); err != nil {
+			if err := s.Notifications.SetBindings(ctx, cid, []int64{chID}); err != nil {
 				t.Fatalf("SetBindings: %v", err)
 			}
-			// bindings 用于本次流程后续判断的bindings
 			bindings, _ := s.Notifications.AccountBindings(ctx, cid)
 			if len(bindings) != 1 || bindings[0] != chID {
 				t.Fatalf("bindings = %#v", bindings)
@@ -1466,11 +1281,9 @@ func TestMultiDB_Notifications(t *testing.T) {
 			if len(bindings) != 0 {
 				t.Fatalf("清空后 bindings = %#v", bindings)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Notifications.EnqueueOutbox(ctx, []NotificationOutboxInput{{ChannelID: chID, EventType: "test", Body: "body"}}); err != nil {
+			if err := s.Notifications.EnqueueOutbox(ctx, []NotificationOutboxInput{{ChannelID: chID, EventType: "test", Body: "body"}}); err != nil {
 				t.Fatalf("EnqueueOutbox: %v", err)
 			}
-			// messages、err 用于本次流程后续判断的messages、err
 			messages, err := s.Notifications.ClaimOutbox(ctx, "worker", time.Now(), 10)
 			if err != nil || len(messages) != 1 {
 				t.Fatalf("ClaimOutbox: messages=%+v err=%v", messages, err)
@@ -1494,24 +1307,19 @@ func TestMultiDB_Notifications(t *testing.T) {
 			if err != nil || len(completeMessages) != 1 {
 				t.Fatalf("ClaimOutbox complete: messages=%+v err=%v", completeMessages, err)
 			}
-			if // completed、err 用于本次流程后续判断的completed、err
-			completed, err := s.Notifications.CompleteOutbox(ctx, completeMessages[0].ID, "worker-3"); err != nil || !completed {
+			if completed, err := s.Notifications.CompleteOutbox(ctx, completeMessages[0].ID, "worker-3"); err != nil || !completed {
 				t.Fatalf("CompleteOutbox: completed=%v err=%v", completed, err)
 			}
 		})
 	}
 }
 
-// TestMultiDB_LatestMigrationsDownUp 封装TestMultiDBLatestMigrationsDownUp业务协调。
 func TestMultiDB_LatestMigrationsDownUp(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// subdir、gooseDialect 用于本次流程后续判断的subdir、gooseDialect
 			subdir, gooseDialect := migrationTestSubdir(t, tg.dialect)
-			if // err 用于本次流程后续判断的err
-			err := goose.SetDialect(gooseDialect); err != nil {
+			if err := goose.SetDialect(gooseDialect); err != nil {
 				t.Fatalf("set goose dialect: %v", err)
 			}
 			goose.SetBaseFS(migrationsFS)
@@ -1522,8 +1330,8 @@ func TestMultiDB_LatestMigrationsDownUp(t *testing.T) {
 			}
 			// i 表示本次回滚操作序号。
 			for i := 0; version >= 14; i++ {
-				if // err 保存当前方言迁移回滚错误，失败时保留步骤号诊断。
-				err := goose.Down(tg.store.DB, "migrations/"+subdir); err != nil {
+				// err 保存当前方言迁移回滚错误，失败时保留步骤号诊断。
+				if err := goose.Down(tg.store.DB, "migrations/"+subdir); err != nil {
 					t.Fatalf("migration down #%d: %v", i+1, err)
 				}
 				version, err = goose.GetDBVersion(tg.store.DB)
@@ -1549,18 +1357,15 @@ func TestMultiDB_LatestMigrationsDownUp(t *testing.T) {
 			if columnExistsForDialect(t, tg.store.DB, tg.dialect, "item_publish_batches", "location_json") {
 				t.Fatal("item_publish_batches.location_json should be removed after down")
 			}
-			// table 表示当前遍历过程中的table
 			for _, table := range []string{"account_task_settings", "account_task_runs", "chat_sessions", "chat_messages"} {
 				if tableExistsForDialect(t, tg.store.DB, tg.dialect, table) {
 					t.Fatalf("table should be removed after migration 24 down: %s", table)
 				}
 			}
 
-			if // err 用于本次流程后续判断的err
-			err := goose.Up(tg.store.DB, "migrations/"+subdir); err != nil {
+			if err := goose.Up(tg.store.DB, "migrations/"+subdir); err != nil {
 				t.Fatalf("migration up after down: %v", err)
 			}
-			// c 表示当前遍历过程中的c
 			for _, c := range []struct {
 				table string
 				col   string
@@ -1601,34 +1406,23 @@ func TestMultiDB_LatestMigrationsDownUp(t *testing.T) {
 	}
 }
 
-// TestMultiDB_ChatAndAccountTasks 封装TestMultiDB聊天And账号任务列表业务协调。
 func TestMultiDB_ChatAndAccountTasks(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
-			// suffix 用于本次流程后续判断的suffix
 			suffix := fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			// username 用于本次流程后续判断的username
 			username := tg.name + "_chat_" + suffix
-			if // ok、err 用于本次流程后续判断的ok、err
-			ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
+			if ok, err := s.Users.Create(ctx, username, username+"@e.com", "pw"); err != nil || !ok {
 				t.Fatalf("create user: ok=%v err=%v", ok, err)
 			}
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, username)
-			// cookieID 用于本次流程后续判断的登录凭证ID
 			cookieID := tg.name + "_chat_cookie_" + suffix
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cookieID, "unb=1; _m_h5_tk=token_1", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cookieID, "unb=1; _m_h5_tk=token_1", user.ID); err != nil {
 				t.Fatal(err)
 			}
 
-			// settings、err 用于本次流程后续判断的settings、err
 			settings, err := s.AccountTasks.Get(ctx, cookieID)
 			if err != nil || settings.RateContent == "" || settings.PolishTime != "03:00" {
 				t.Fatalf("default settings=%+v err=%v", settings, err)
@@ -1637,76 +1431,57 @@ func TestMultiDB_ChatAndAccountTasks(t *testing.T) {
 			settings.AutoPolishEnabled = true
 			settings.RateContent = "交易愉快"
 			settings.PolishTime = "04:30"
-			if // err 用于本次流程后续判断的err
-			err := s.AccountTasks.Upsert(ctx, settings); err != nil {
+			if err := s.AccountTasks.Upsert(ctx, settings); err != nil {
 				t.Fatalf("upsert settings: %v", err)
 			}
-			// stored、err 用于本次流程后续判断的stored、err
 			stored, err := s.AccountTasks.Get(ctx, cookieID)
 			if err != nil || !stored.AutoRateEnabled || !stored.AutoPolishEnabled || stored.RateContent != "交易愉快" || stored.PolishTime != "04:30" {
 				t.Fatalf("stored settings=%+v err=%v", stored, err)
 			}
-			// enabled、err 用于本次流程后续判断的enabled、err
 			enabled, err := s.AccountTasks.Enabled(ctx)
 			if err != nil || len(enabled) != 1 {
 				t.Fatalf("enabled=%+v err=%v", enabled, err)
 			}
 
-			// run 用于本次流程后续判断的运行
 			run := AccountTaskRun{RunKey: "rate:" + cookieID + ":order-1", CookieID: cookieID, TaskType: "auto_rate", TargetID: "order-1"}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.AccountTasks.ClaimRun(ctx, run, 100); err != nil || !claimed {
+			if claimed, err := s.AccountTasks.ClaimRun(ctx, run, 100); err != nil || !claimed {
 				t.Fatalf("first claim=%v err=%v", claimed, err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.AccountTasks.ClaimRun(ctx, run, 100); err != nil || claimed {
+			if claimed, err := s.AccountTasks.ClaimRun(ctx, run, 100); err != nil || claimed {
 				t.Fatalf("duplicate claim=%v err=%v", claimed, err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.AccountTasks.FinishRun(ctx, run.RunKey, "failed", 0, 1, "retry", 200); err != nil {
+			if err := s.AccountTasks.FinishRun(ctx, run.RunKey, "failed", 0, 1, "retry", 200); err != nil {
 				t.Fatal(err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.AccountTasks.ClaimRun(ctx, run, 199); err != nil || claimed {
+			if claimed, err := s.AccountTasks.ClaimRun(ctx, run, 199); err != nil || claimed {
 				t.Fatalf("early retry claim=%v err=%v", claimed, err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.AccountTasks.ClaimRunImmediately(ctx, run, 199); err != nil || !claimed {
+			if claimed, err := s.AccountTasks.ClaimRunImmediately(ctx, run, 199); err != nil || !claimed {
 				t.Fatalf("manual retry claim=%v err=%v", claimed, err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.AccountTasks.FinishRun(ctx, run.RunKey, "failed", 0, 1, "retry", 200); err != nil {
+			if err := s.AccountTasks.FinishRun(ctx, run.RunKey, "failed", 0, 1, "retry", 200); err != nil {
 				t.Fatal(err)
 			}
-			if // claimed、err 用于本次流程后续判断的claimed、err
-			claimed, err := s.AccountTasks.ClaimRun(ctx, run, 200); err != nil || !claimed {
+			if claimed, err := s.AccountTasks.ClaimRun(ctx, run, 200); err != nil || !claimed {
 				t.Fatalf("due retry claim=%v err=%v", claimed, err)
 			}
 
-			// session 用于本次流程后续判断的会话
 			session := ChatSession{CookieID: cookieID, ChatID: "chat-1", BuyerID: "buyer-1", BuyerName: "买家甲", ItemID: "item-1"}
-			// incoming 用于本次流程后续判断的incoming
 			incoming := ChatMessage{MessageKey: "platform-1", Direction: "incoming", SenderID: "buyer-1", SenderName: "买家甲", MessageType: "text", Content: "你好", Status: "received", SentAt: 1000}
-			if // inserted、err 用于本次流程后续判断的inserted、err
-			_, inserted, err := s.Chats.SaveMessage(ctx, session, incoming, true); err != nil || !inserted {
+			if _, inserted, err := s.Chats.SaveMessage(ctx, session, incoming, true); err != nil || !inserted {
 				t.Fatalf("save incoming inserted=%v err=%v", inserted, err)
 			}
-			if // inserted、err 用于本次流程后续判断的inserted、err
-			_, inserted, err := s.Chats.SaveMessage(ctx, session, incoming, true); err != nil || inserted {
+			if _, inserted, err := s.Chats.SaveMessage(ctx, session, incoming, true); err != nil || inserted {
 				t.Fatalf("duplicate incoming inserted=%v err=%v", inserted, err)
 			}
-			// outgoing 用于本次流程后续判断的outgoing
 			outgoing := ChatMessage{MessageKey: "local-1", Direction: "outgoing", SenderID: cookieID, SenderName: "我", MessageType: "text", Content: "您好", Status: "sent", SentAt: 2000}
-			if // inserted、err 用于本次流程后续判断的inserted、err
-			_, inserted, err := s.Chats.SaveMessage(ctx, session, outgoing, false); err != nil || !inserted {
+			if _, inserted, err := s.Chats.SaveMessage(ctx, session, outgoing, false); err != nil || !inserted {
 				t.Fatalf("save outgoing inserted=%v err=%v", inserted, err)
 			}
-			// sessions、err 用于本次流程后续判断的sessions、err
 			sessions, err := s.Chats.ListSessions(ctx, user.ID, cookieID, 20)
 			if err != nil || len(sessions) != 1 || sessions[0].UnreadCount != 1 || sessions[0].LastMessage != "您好" {
 				t.Fatalf("sessions=%+v err=%v", sessions, err)
 			}
-			// messages、err 用于本次流程后续判断的messages、err
 			messages, err := s.Chats.ListMessages(ctx, user.ID, cookieID, "chat-1", 0, 20)
 			if err != nil || len(messages) != 2 || messages[0].Content != "你好" || messages[1].Content != "您好" {
 				t.Fatalf("messages=%+v err=%v", messages, err)
@@ -1734,8 +1509,7 @@ func TestMultiDB_ChatAndAccountTasks(t *testing.T) {
 			if restoredErr != nil || len(restoredSessions) != 1 {
 				t.Fatalf("restored sessions=%+v err=%v", restoredSessions, restoredErr)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Chats.MarkRead(ctx, user.ID, cookieID, "chat-1"); err != nil {
+			if err := s.Chats.MarkRead(ctx, user.ID, cookieID, "chat-1"); err != nil {
 				t.Fatal(err)
 			}
 			sessions, _ = s.Chats.ListSessions(ctx, user.ID, cookieID, 20)
@@ -1753,22 +1527,16 @@ func TestMultiDB_ChatAndAccountTasks(t *testing.T) {
 
 // TestMultiDB_CardsCreateGet 验证 cards Create + Get 的 NULL 列扫描（含 nullable 字段）。
 func TestMultiDB_CardsCreateGet(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
 
-			// uid 用于本次流程后续判断的uid
 			uid := tg.name + "_card_user_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
 			s.Users.Create(ctx, uid, uid+"@e.com", "pw")
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, uid)
 
-			// cf 用于本次流程后续判断的cf
 			cf := &CardFull{
 				Name:        "测试卡密",
 				Type:        "text",
@@ -1776,12 +1544,10 @@ func TestMultiDB_CardsCreateGet(t *testing.T) {
 				Enabled:     true,
 				UserID:      user.ID,
 			}
-			// id、err 用于本次流程后续判断的id、err
 			id, err := s.Cards.Create(ctx, cf)
 			if err != nil || id == 0 {
 				t.Fatalf("Create: id=%d err=%v", id, err)
 			}
-			// got、err 用于本次流程后续判断的got、err
 			got, err := s.Cards.Get(ctx, id)
 			if err != nil {
 				t.Fatalf("Get: %v", err)
@@ -1801,43 +1567,31 @@ func TestMultiDB_CardsCreateGet(t *testing.T) {
 // Postgres 回归：CASE WHEN ... THEN CURRENT_TIMESTAMP ELSE field END 会因
 // THEN(timestamptz) 与 ELSE(text) 分支类型不可匹配而报 SQLSTATE 42804。
 // 语义：字段为空时写入当前时间，已有值时不得覆盖（幂等）。
-// TestMultiDB_MarkOrderEventTime 封装TestMultiDBMark订单Event时间业务协调。
 func TestMultiDB_MarkOrderEventTime(t *testing.T) {
-	// tg 表示当前遍历过程中的tg
 	for _, tg := range allTestTargets(t) {
 		t.Run(tg.name, func(t *testing.T) {
 			defer tg.cleanup()
-			// ctx 用于本次流程后续判断的ctx
 			ctx := context.Background()
-			// s 用于本次流程后续判断的s
 			s := tg.store
 
-			// uid 用于本次流程后续判断的uid
 			uid := tg.name + "_evt_user_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
 			s.Users.Create(ctx, uid, uid+"@e.com", "pw")
-			// user 用于本次流程后续判断的用户
 			user, _ := s.Users.GetByUsername(ctx, uid)
-			// cid 用于本次流程后续判断的cid
 			cid := tg.name + "_evt_cookie_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			if // err 用于本次流程后续判断的err
-			err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
+			if err := s.Cookies.Save(ctx, cid, "cv", user.ID); err != nil {
 				t.Fatalf("Save cookie: %v", err)
 			}
-			// oid 用于本次流程后续判断的oid
 			oid := tg.name + "_evt_order_" + fmt.Sprintf("%d", atomic.AddUint64(&multidbCounter, 1))
-			if // err 用于本次流程后续判断的err
-			err := s.Orders.Upsert(ctx, oid, OrderUpsertOpts{ItemID: "i1", BuyerID: "b1", CookieID: cid}); err != nil {
+			if err := s.Orders.Upsert(ctx, oid, OrderUpsertOpts{ItemID: "i1", BuyerID: "b1", CookieID: cid}); err != nil {
 				t.Fatalf("Upsert: %v", err)
 			}
 
 			// 白名单字段为空时全部写入当前时间。
 			for _, f := range []string{"paid_at", "shipped_at", "completed_at", "buyer_reviewed_at", "last_review_request_at"} {
-				if // err 用于本次流程后续判断的err
-				err := s.Automation.MarkOrderEventTime(ctx, oid, f); err != nil {
+				if err := s.Automation.MarkOrderEventTime(ctx, oid, f); err != nil {
 					t.Fatalf("MarkOrderEventTime(%s) on %s: %v", f, tg.name, err)
 				}
 			}
-			// got、err 用于本次流程后续判断的got、err
 			got, err := s.Orders.Get(ctx, oid)
 			if err != nil {
 				t.Fatalf("Get: %v", err)
@@ -1848,18 +1602,14 @@ func TestMultiDB_MarkOrderEventTime(t *testing.T) {
 
 			// 已有值时不得覆盖。
 			const original = "2020-01-02 03:04:05"
-			if // err 用于本次流程后续判断的err
-			_, err := s.DB.ExecContext(ctx, `UPDATE orders SET shipped_at=? WHERE order_id=?`, original, oid); err != nil {
+			if _, err := s.DB.ExecContext(ctx, `UPDATE orders SET shipped_at=? WHERE order_id=?`, original, oid); err != nil {
 				t.Fatal(err)
 			}
-			if // err 用于本次流程后续判断的err
-			err := s.Automation.MarkOrderEventTime(ctx, oid, "shipped_at"); err != nil {
+			if err := s.Automation.MarkOrderEventTime(ctx, oid, "shipped_at"); err != nil {
 				t.Fatalf("MarkOrderEventTime(shipped_at) overwrite on %s: %v", tg.name, err)
 			}
-			// shippedAt 用于本次流程后续判断的shippedAt
 			var shippedAt string
-			if // err 用于本次流程后续判断的err
-			err := s.DB.QueryRowContext(ctx, `SELECT shipped_at FROM orders WHERE order_id=?`, oid).Scan(&shippedAt); err != nil {
+			if err := s.DB.QueryRowContext(ctx, `SELECT shipped_at FROM orders WHERE order_id=?`, oid).Scan(&shippedAt); err != nil {
 				t.Fatal(err)
 			}
 			if shippedAt != original {
@@ -1874,7 +1624,6 @@ func TestMultiDB_MarkOrderEventTime(t *testing.T) {
 	}
 }
 
-// migrationTestSubdir 封装migrationTestSubdir业务协调。
 func migrationTestSubdir(t *testing.T, dialect Dialect) (string, string) {
 	t.Helper()
 	switch dialect {
@@ -1890,34 +1639,27 @@ func migrationTestSubdir(t *testing.T, dialect Dialect) (string, string) {
 	}
 }
 
-// columnExistsForDialect 封装columnExistsForDialect业务协调。
 func columnExistsForDialect(t *testing.T, db *sql.DB, dialect Dialect, table, col string) bool {
 	t.Helper()
-	// query 用于本次流程后续判断的查询
 	var query string
-	// args 用于本次流程后续判断的args
 	var args []any
 	switch dialect {
 	case DialectSQLite:
-		// rows、err 用于本次流程后续判断的rows、err
 		rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, table)
 		if err != nil {
 			t.Fatalf("pragma_table_info(%s): %v", table, err)
 		}
 		defer rows.Close()
 		for rows.Next() {
-			// name 用于本次流程后续判断的名称
 			var name string
-			if // err 用于本次流程后续判断的err
-			err := rows.Scan(&name); err != nil {
+			if err := rows.Scan(&name); err != nil {
 				t.Fatalf("scan column name: %v", err)
 			}
 			if name == col {
 				return true
 			}
 		}
-		if // err 用于本次流程后续判断的err
-		err := rows.Err(); err != nil {
+		if err := rows.Err(); err != nil {
 			t.Fatalf("column rows: %v", err)
 		}
 		return false
@@ -1930,21 +1672,16 @@ func columnExistsForDialect(t *testing.T, db *sql.DB, dialect Dialect, table, co
 	default:
 		t.Fatalf("unknown dialect: %s", dialect)
 	}
-	// count 用于本次流程后续判断的数量
 	var count int
-	if // err 用于本次流程后续判断的err
-	err := db.QueryRow(query, args...).Scan(&count); err != nil {
+	if err := db.QueryRow(query, args...).Scan(&count); err != nil {
 		t.Fatalf("column exists query %s.%s: %v", table, col, err)
 	}
 	return count > 0
 }
 
-// tableExistsForDialect 封装tableExistsForDialect业务协调。
 func tableExistsForDialect(t *testing.T, db *sql.DB, dialect Dialect, table string) bool {
 	t.Helper()
-	// query 用于本次流程后续判断的查询
 	var query string
-	// args 用于本次流程后续判断的args
 	var args []any
 	switch dialect {
 	case DialectSQLite:
@@ -1959,14 +1696,11 @@ func tableExistsForDialect(t *testing.T, db *sql.DB, dialect Dialect, table stri
 	default:
 		t.Fatalf("unknown dialect: %s", dialect)
 	}
-	// count 用于本次流程后续判断的数量
 	var count int
-	if // err 用于本次流程后续判断的err
-	err := db.QueryRow(query, args...).Scan(&count); err != nil {
+	if err := db.QueryRow(query, args...).Scan(&count); err != nil {
 		t.Fatalf("table exists query %s: %v", table, err)
 	}
 	return count > 0
 }
 
-// boolPtr 封装boolPtr业务协调。
 func boolPtr(b bool) *bool { return &b }

@@ -23,10 +23,8 @@ func (f *minimalCredentialSessionPortFake) UpdateRenewalCookie(context.Context, 
 
 // TestCookieSessionAdapterPersistsAuthoritativeSnapshot 验证平台 Cookie 会话快照经凭证 Port 写回并保留作用域。
 func TestCookieSessionAdapterPersistsAuthoritativeSnapshot(t *testing.T) {
-	// store、cleanup 保存测试数据库及其资源清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是当前凭证会话测试共用的上下文。
 	ctx := context.Background()
 	// repository 是将 Cookie 写回 SQLite 的账号凭证适配器。
 	repository := NewAccountLoginRepository(store)

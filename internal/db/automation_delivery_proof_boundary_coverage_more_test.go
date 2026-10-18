@@ -11,10 +11,8 @@ import (
 // TestAutomationDeliveryProofBoundaryBranches 覆盖发货凭证读取、清除、无凭证推进、租约丢失和数据库取消分支。
 func TestAutomationDeliveryProofBoundaryBranches(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "")
-	// store、cleanup 保存不启用数据密钥的本地测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存本次数据库操作共用的上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存创建自动化规则所需的本地账号归属。
 	userID, cookieID := seedAccount(t, store)

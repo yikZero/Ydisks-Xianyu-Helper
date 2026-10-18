@@ -41,7 +41,6 @@ func (h *recordingHandler) HandleSystemEvent(_ context.Context, task automation.
 	return nil
 }
 
-// OnPasswordLoginRefresh 封装On密码登录Refresh业务协调。
 func (h *recordingHandler) OnPasswordLoginRefresh(_ context.Context, _ string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -49,7 +48,6 @@ func (h *recordingHandler) OnPasswordLoginRefresh(_ context.Context, _ string) b
 	return true
 }
 
-// OnAccountAlert 封装On账号Alert业务协调。
 func (h *recordingHandler) OnAccountAlert(_ context.Context, _, _, _, _ string) {}
 
 // HandleOutgoingChatMessage 记录出站观察消息，供测试确认官方客户端回显不进入自动回复链但仍可被持久化。
@@ -60,27 +58,20 @@ func (h *recordingHandler) HandleOutgoingChatMessage(_ context.Context, message 
 	return nil
 }
 
-// newAccountForTest 封装new账号ForTest业务协调。
 func newAccountForTest(t *testing.T) (*Account, *recordingHandler, *db.Store, func()) {
 	t.Helper()
-	// dbPath 用于本次流程后续判断的db路径
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	// d、err 用于本次流程后续判断的d、err
 	d, _, err := db.Open(context.Background(), dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	// store 用于本次流程后续判断的store
 	store := db.NewStore(d, db.DialectSQLite)
 	store.Users.Create(context.Background(), "admin", "a@e.com", "pw")
-	// admin 用于本次流程后续判断的admin
 	admin, _ := store.Users.GetByUsername(context.Background(), "admin")
 	store.Cookies.Save(context.Background(), "cid", "unb=123; _m_h5_tk=tk_1;", admin.ID)
 	store.Cookies.SetStatus(context.Background(), "cid", true)
 
-	// h 用于本次流程后续判断的h
 	h := &recordingHandler{}
-	// acc 用于本次流程后续判断的acc
 	acc := New(Config{
 		CookieID:  "cid",
 		CookieStr: "unb=123; _m_h5_tk=tk_1;",
@@ -95,9 +86,7 @@ func newAccountForTest(t *testing.T) (*Account, *recordingHandler, *db.Store, fu
 
 // TestExtractChatMessage_RealSample 用真实抓包样本验证消息字段提取。
 func TestExtractChatMessage_RealSample(t *testing.T) {
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := mustDecryptGoldenSample(t)
-	// chat 用于本次流程后续判断的聊天
 	chat := extractChatMessage(decrypted, "cid", "cookie")
 	if chat == nil {
 		t.Fatal("应为聊天消息")
@@ -113,24 +102,18 @@ func TestExtractChatMessage_RealSample(t *testing.T) {
 	}
 }
 
-// TestExtractChatMessage_FiltersContentType14Notice 封装TestExtract聊天消息Filters内容Type14Notice业务协调。
 func TestExtractChatMessage_FiltersContentType14Notice(t *testing.T) {
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := mustContentType14Notice(t)
-	if // chat 用于本次流程后续判断的聊天
-	chat := extractChatMessage(decrypted, "cid", "cookie"); chat != nil {
+	if chat := extractChatMessage(decrypted, "cid", "cookie"); chat != nil {
 		t.Fatalf("contentType=14 系统提示不应进入聊天回复: %+v", chat)
 	}
 }
 
-// TestExtractChatMessageUsesReminderTitleAsNickname 封装TestExtract聊天消息UsesReminder标题AsNickname业务协调。
 func TestExtractChatMessageUsesReminderTitleAsNickname(t *testing.T) {
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := map[string]any{"1": map[string]any{
 		"2":  "chat-1@goofish",
 		"10": map[string]any{"reminderContent": "你好", "reminderTitle": "真实昵称", "senderUserId": "buyer-1", "sessionType": "1"},
 	}}
-	// chat 用于本次流程后续判断的聊天
 	chat := extractChatMessage(decrypted, "account-1", "cookie")
 	if chat == nil || chat.SenderName != "真实昵称" {
 		t.Fatalf("chat=%+v", chat)
@@ -152,23 +135,17 @@ func TestExtractChatMessageIgnoresOwnWebSocketEcho(t *testing.T) {
 
 // TestExtractChatMessage_FiltersRefundTradeCard 验证退款交易卡不会被识别为用户聊天。
 func TestExtractChatMessage_FiltersRefundTradeCard(t *testing.T) {
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := mustRefundTradeCard(t)
-	if // chat 用于本次流程后续判断的聊天
-	chat := extractChatMessage(decrypted, "cid", "cookie"); chat != nil {
+	if chat := extractChatMessage(decrypted, "cid", "cookie"); chat != nil {
 		t.Fatalf("退款交易卡片不应进入聊天回复: %+v", chat)
 	}
 }
 
-// TestExtractChatMessage_FiltersPaidDeliveryCardFromChat 封装TestExtract聊天消息FiltersPaid发货卡密From聊天业务协调。
 func TestExtractChatMessage_FiltersPaidDeliveryCardFromChat(t *testing.T) {
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := mustPaidDeliveryCard(t)
-	if // chat 用于本次流程后续判断的聊天
-	chat := extractChatMessage(decrypted, "cid", "cookie"); chat != nil {
+	if chat := extractChatMessage(decrypted, "cid", "cookie"); chat != nil {
 		t.Fatalf("付款待发货系统卡片不应进入聊天回复链: %+v", chat)
 	}
-	// task 用于本次流程后续判断的任务
 	task := automation.ExtractTaskFromWS("cid", "cookie", decrypted)
 	if task == nil || task.TriggerType != automation.TriggerOrderPaid {
 		t.Fatalf("付款待发货卡片应进入自动化中心: %+v", task)
@@ -177,14 +154,11 @@ func TestExtractChatMessage_FiltersPaidDeliveryCardFromChat(t *testing.T) {
 
 // TestDedup_SkipsDuplicateWithinExpiry 同一消息 ID 1 小时内只处理一次。
 func TestDedup_SkipsDuplicateWithinExpiry(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := mustDecryptGoldenSample(t)
-	// chat 用于本次流程后续判断的聊天
 	chat := extractChatMessage(decrypted, "cid", "cookie")
 
 	// 首次：标记并应继续。
@@ -204,22 +178,17 @@ func TestDedup_SkipsDuplicateWithinExpiry(t *testing.T) {
 
 // TestDebounce_CoalescesRapidMessages 连续消息只投递最后一条。
 func TestDebounce_CoalescesRapidMessages(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := mustDecryptGoldenSample(t)
-	// chat 用于本次流程后续判断的聊天
 	chat := extractChatMessage(decrypted, "cid", "cookie")
 	// 修改文本模拟连续多条。
 	chat1 := *chat
 	chat1.Text = "第一条"
-	// chat2 用于本次流程后续判断的chat2
 	chat2 := *chat
 	chat2.Text = "第二条"
-	// chat3 用于本次流程后续判断的chat3
 	chat3 := *chat
 	chat3.Text = "第三条"
 
@@ -243,16 +212,13 @@ func TestDebounce_CoalescesRapidMessages(t *testing.T) {
 
 // TestExtractItemID reminderUrl 中提取 itemId。
 func TestExtractItemID(t *testing.T) {
-	// cases 用于本次流程后续判断的cases
 	cases := map[string]string{
 		"fleamarket://message_chat?itemId=900052644277&peerUserId=3149637063": "900052644277",
 		"noitemid":                     "",
 		"fleamarket://x?itemId=ABC123": "ABC123",
 	}
-	// in、want 表示当前遍历过程中的in、want
 	for in, want := range cases {
-		if // got 用于本次流程后续判断的got
-		got := extractItemID(in); got != want {
+		if got := extractItemID(in); got != want {
 			t.Errorf("extractItemID(%q)=%q want %q", in, got, want)
 		}
 	}
@@ -260,13 +226,11 @@ func TestExtractItemID(t *testing.T) {
 
 // mustDecryptGoldenSample 复用 protocol 包的真实样本：直接硬编码一条最小解密结构，
 // 避免循环依赖。这里构造一个等价的最小消息用于字段提取测试。
-// mustDecryptGoldenSample 封装mustDecryptGoldenSample业务协调。
 func mustDecryptGoldenSample(t *testing.T) map[string]any {
 	t.Helper()
 	// 真实样本关键字段（来自 protocol golden test 解密输出）：
 	// message["1"]["2"]="47983389009@goofish", ["1"]["10"]["reminderContent"]="[我已拍下，待付款]",
 	// ["1"]["10"]["reminderUrl"] 含 itemId=900052644277
-	// s 用于本次流程后续判断的s
 	s := `{
 	  "1": {
 	    "2": "47983389009@goofish",
@@ -282,19 +246,15 @@ func mustDecryptGoldenSample(t *testing.T) map[string]any {
 	    "userId": "3149637063"
 	  }
 	}`
-	// m 用于本次流程后续判断的m
 	var m map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal([]byte(s), &m); err != nil {
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	return m
 }
 
-// mustContentType14Notice 封装must内容Type14Notice业务协调。
 func mustContentType14Notice(t *testing.T) map[string]any {
 	t.Helper()
-	// s 用于本次流程后续判断的s
 	s := "{" +
 		"\"1\":{" +
 		"\"2\":\"63107041124@goofish\"," +
@@ -307,19 +267,15 @@ func mustContentType14Notice(t *testing.T) map[string]any {
 		"\"6\":{\"3\":{\"4\":14,\"5\":\"{\\\"contentType\\\":14,\\\"tip\\\":{\\\"argInfo\\\":{\\\"arg1\\\":\\\"NoBargainGuide\\\"}}}\"}}" +
 		"}" +
 		"}"
-	// m 用于本次流程后续判断的m
 	var m map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal([]byte(s), &m); err != nil {
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	return m
 }
 
-// mustRefundTradeCard 封装mustRefundTrade卡密业务协调。
 func mustRefundTradeCard(t *testing.T) map[string]any {
 	t.Helper()
-	// s 用于本次流程后续判断的s
 	s := "{" +
 		"\"1\":{" +
 		"\"2\":\"63107041124@goofish\"," +
@@ -334,10 +290,8 @@ func mustRefundTradeCard(t *testing.T) map[string]any {
 		"\"6\":{\"3\":{\"4\":26,\"5\":\"{\\\"contentType\\\":26}\"}}" +
 		"}" +
 		"}"
-	// m 用于本次流程后续判断的m
 	var m map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal([]byte(s), &m); err != nil {
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	return m
@@ -361,10 +315,8 @@ func mustPaidDeliveryCard(t *testing.T) map[string]any {
 		"\"6\":{\"3\":{\"4\":26,\"5\":\"{\\\"contentType\\\":26}\"}}" +
 		"}" +
 		"}"
-	// m 用于本次流程后续判断的m
 	var m map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal([]byte(s), &m); err != nil {
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	return m
@@ -372,7 +324,6 @@ func mustPaidDeliveryCard(t *testing.T) map[string]any {
 
 // TestRetryDelay 复刻 _calculate_retry_delay 的分段逻辑。
 func TestRetryDelay(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -389,24 +340,19 @@ func TestRetryDelay(t *testing.T) {
 	expectDelayRange(t, acc.retryDelay("some other error"), 2*time.Second)
 }
 
-// expectDelayRange 封装expect延迟Range业务协调。
 func expectDelayRange(t *testing.T, got, base time.Duration) {
 	t.Helper()
-	// max 用于本次流程后续判断的max
 	max := base + base*3/10
 	if got < base || got > max {
 		t.Fatalf("retryDelay=%v want in [%v,%v]", got, base, max)
 	}
 }
 
-// TestRuntimeStatusClassifiesAuthenticationFailures 封装TestRuntime状态ClassifiesAuthenticationFailures业务协调。
 func TestRuntimeStatusClassifiesAuthenticationFailures(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 
 	acc.setRuntimeError(context.Background(), fmt.Errorf("token API 登录凭证已失效: FAIL_SYS_TOKEN_EXOIRED"))
-	// status 用于本次流程后续判断的状态
 	status := acc.RuntimeStatus()
 	if status.State != RuntimeReconnecting || status.Connected {
 		t.Fatalf("status=%+v", status)

@@ -166,7 +166,6 @@ func (s *Store) ReadSensitiveSettingForAccount(ctx context.Context, cookieID, ke
 // LockAccountCredentials serializes Cookie/token state transitions for one
 // account across the IM runtime and renewal scheduler. The returned function
 // must be called exactly once.
-// LockAccountCredentials 封装锁账号Credentials业务协调。
 func (s *Store) LockAccountCredentials(cookieID string) func() {
 	if s == nil {
 		return func() {}

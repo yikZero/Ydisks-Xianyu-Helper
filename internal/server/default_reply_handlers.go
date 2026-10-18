@@ -39,7 +39,6 @@ func (s *Server) mountDefaultRepliesReal(r chi.Router) {
 	r.Post("/api/default-reply/{cid}/clear-records", s.clearDefaultReplyRecords)
 }
 
-// getDefaultReply 封装getDefault回复业务协调。
 func (s *Server) getDefaultReply(w http.ResponseWriter, r *http.Request) {
 	// cid 是路径中的默认回复所属账号标识。
 	cid := chi.URLParam(r, "cid")
@@ -124,7 +123,6 @@ func (s *Server) listDefaultReplies(w http.ResponseWriter, r *http.Request) {
 	}
 	// out 是默认回复列表响应。
 	var out []defaultReplyResponse
-	// row 表示当前遍历过程中的应用层默认回复摘要。
 	for _, row := range rows {
 		out = append(out, defaultReplyResponse{
 			CookieID: row.CookieID, Enabled: row.Reply.Enabled, ReplyContent: row.Reply.ReplyContent,
@@ -151,7 +149,6 @@ func (s *Server) listDefaultRepliesMap(w http.ResponseWriter, r *http.Request) {
 	}
 	// out 是按账号标识索引的默认回复映射。
 	out := make(map[string]defaultReplyResponse)
-	// row 表示当前遍历过程中的应用层默认回复摘要。
 	for _, row := range rows {
 		out[row.CookieID] = defaultReplyResponse{
 			CookieID:      row.CookieID,

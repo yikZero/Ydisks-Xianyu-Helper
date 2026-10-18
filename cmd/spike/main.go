@@ -36,11 +36,8 @@ import (
 	"xianyu-go/internal/xianyu/ws"
 )
 
-// main 封装main业务协调。
 func main() {
-	// cookieFile 用于本次流程后续判断的登录凭证文件
 	cookieFile := flag.String("cookie-file", "", "从文件读取 cookie（首行）")
-	// verbose 用于本次流程后续判断的verbose
 	verbose := flag.Bool("v", false, "调试日志")
 	flag.Parse()
 
@@ -53,10 +50,8 @@ func main() {
 		}
 	}
 
-	// cookieStr 用于本次流程后续判断的登录凭证Str
 	cookieStr := strings.TrimSpace(os.Getenv("XIANYU_COOKIE"))
 	if *cookieFile != "" {
-		// b、err 用于本次流程后续判断的b、err
 		b, err := os.ReadFile(*cookieFile)
 		if err != nil {
 			logger.Error("读取 cookie 文件失败", "err", logsafe.Error(err))
@@ -77,15 +72,12 @@ func main() {
 	}
 	logger.Info("cookie 已加载", "account_hash", logsafe.ID(c["unb"]), "fields", len(c))
 
-	// ctx、cancel 用于本次流程后续判断的ctx、cancel
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	// 1) mtop token API → accessToken。
-	// mc 用于本次流程后续判断的mc
 	mc := mtop.NewClient()
 	logger.Info("步骤 1/3：刷新 token")
-	// res、err 用于本次流程后续判断的res、err
 	res, err := mc.RefreshToken(cookieStr)
 	if err != nil {
 		logger.Error("刷新 token 失败", "err", logsafe.Error(err))
@@ -95,14 +87,12 @@ func main() {
 
 	// 2) WS 连接 + 注册。
 	deviceID := protocol.GenerateDeviceID(c["unb"])
-	// cfg 用于本次流程后续判断的cfg
 	cfg := ws.Config{
 		CookieStr:   res.UpdatedCookies,
 		DeviceID:    deviceID,
 		AccessToken: res.AccessToken,
 	}
 	logger.Info("步骤 2/3：连接 WebSocket", "device_id", deviceID)
-	// conn、err 用于本次流程后续判断的conn、err
 	conn, err := ws.Dial(ctx, cfg, logger)
 	if err != nil {
 		logger.Error("WS 连接/注册失败", "err", logsafe.Error(err))
@@ -113,14 +103,12 @@ func main() {
 	// 3) 心跳 + 收消息。
 	logger.Info("步骤 3/3：心跳与消息接收（等待闲鱼消息…）")
 	go func() {
-		if // err 用于本次流程后续判断的err
-		err := conn.HeartbeatLoop(ctx, 15*time.Second); err != nil {
+		if err := conn.HeartbeatLoop(ctx, 15*time.Second); err != nil {
 			logger.Error("心跳循环退出", "err", logsafe.Error(err))
 			cancel()
 		}
 	}()
 
-	// gotMessage 用于本次流程后续判断的got消息
 	gotMessage := false
 	err = conn.ReceiveLoop(ctx, func(decrypted map[string]any) {
 		gotMessage = true

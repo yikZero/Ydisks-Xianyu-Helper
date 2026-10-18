@@ -50,10 +50,8 @@ func (f *longLoginClientFake) SetLongLoginSettings(context.Context, string, bool
 
 // TestAccountTaskRepositoryCRUDAndRunMapping 验证账号任务设置、运行记录和空依赖边界。
 func TestAccountTaskRepositoryCRUDAndRunMapping(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试所有数据库调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的账号任务适配器。
 	repository := NewAccountTaskRepository(store)
@@ -103,7 +101,6 @@ func TestAccountTaskRepositoryCRUDAndRunMapping(t *testing.T) {
 	defer closedCleanup()
 	// closedRepository 保存底层数据库连接已关闭的账号任务适配器。
 	closedRepository := NewAccountTaskRepository(closedStore)
-	// closeErr 保存关闭账号任务测试数据库连接的结果。
 	if closeErr := closedStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -204,10 +201,8 @@ func TestAccountPlatformAdaptersRejectMissingDependencies(t *testing.T) {
 
 // TestAccountProfileAndLongLoginSuccessPaths 验证平台成功结果、响应 Cookie 写回和展示资料保存。
 func TestAccountProfileAndLongLoginSuccessPaths(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试所有平台和数据库调用共用的非取消上下文。
 	ctx := context.Background()
 	// repository 是绑定测试存储的账号登录适配器。
 	repository := NewAccountLoginRepository(store)

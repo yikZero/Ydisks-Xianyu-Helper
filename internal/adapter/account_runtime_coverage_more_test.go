@@ -31,12 +31,10 @@ func (runtimePortHandler) OnAccountAlert(context.Context, string, string, string
 
 // TestAccountRuntimePortForwardsStartedManagerOperations 验证运行时适配器透传在线查询、Cookie 同步、状态和凭证恢复。
 func TestAccountRuntimePortForwardsStartedManagerOperations(t *testing.T) {
-	// store、cleanup 保存账号管理器启动和 Cookie 同步使用的隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// manager 保存拥有一个测试账号运行实例的账号管理器。
 	manager := accountmanager.NewManager(store, runtimePortHandler{refreshResult: true}, nil)
-	// ctx、cancel 保存运行实例的生命周期上下文。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// startErr 保存测试账号运行实例登记结果。

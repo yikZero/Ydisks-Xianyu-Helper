@@ -14,7 +14,6 @@ func TestCookieSnapshotMatchesDBSkipsLoginSecret(t *testing.T) {
 	// acc 和 store 是本测试的账号及数据库；cleanup 负责关闭临时数据库。
 	acc, _, store, cleanup := newAccountForTest(t)
 	defer cleanup()
-	// ctx 是 WS 注册前凭证校验共用的上下文。
 	ctx := context.Background()
 	// cookieValue 是数据库中待校验的 Cookie 明文。
 	cookieValue := "unb=123; _m_h5_tk=ws-register"
@@ -43,7 +42,6 @@ func TestUpdateCookieUsesRuntimeData(t *testing.T) {
 	// acc 和 store 是本测试的账号及数据库；cleanup 负责关闭临时数据库。
 	acc, _, store, cleanup := newAccountForTest(t)
 	defer cleanup()
-	// ctx 是运行时 Cookie 同步共用的上下文。
 	ctx := context.Background()
 	// cookieValue 是数据库中待同步到运行时的 Cookie 明文。
 	cookieValue := "unb=123; _m_h5_tk=update-runtime"

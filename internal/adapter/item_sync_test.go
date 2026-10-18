@@ -13,7 +13,6 @@ import (
 
 // TestItemSyncRepositoryUsesListMultiSpecMarkers 验证商品同步只使用列表模型的多规格标记。
 func TestItemSyncRepositoryUsesListMultiSpecMarkers(t *testing.T) {
-	// store、cleanup 保存隔离数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// logs 收集商品同步日志，用于验证日志明确说明多规格判断来源。

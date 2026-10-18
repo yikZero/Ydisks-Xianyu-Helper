@@ -57,8 +57,7 @@ type chatGapAuth struct {
 	calls atomic.Int32
 	// failFrom 是开始失败的调用序号（从 1 开始）；0 表示永不失败。
 	failFrom int32
-	// err 是失败时返回的错误。
-	err error
+	err      error
 }
 
 // ValidateSession 在达到失败序号后返回预设错误。
@@ -81,38 +80,30 @@ func TestChatSessionListGapBranches(t *testing.T) {
 	// port 在通用桩上扩展分页游标。
 	port := &chatGapPort{chatHandlerCoveragePort: base, ownedAccount: "acc1"}
 	srv.applications.chat = port
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/sessions?account_id=acc1&stored_cursor=!!!", ""); rec.Code != http.StatusBadRequest {
 		t.Errorf("bad cursor status=%d", rec.Code)
 	}
 	base.refreshConversationsErr = errors.New("platform down")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/sessions?account_id=acc1&refresh=1", ""); rec.Code != http.StatusBadGateway {
 		t.Errorf("refresh failure status=%d", rec.Code)
 	}
 	base.refreshConversationsErr = nil
 	base.refreshIdentitiesErr = errors.New("identity down")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/sessions?account_id=acc1&refresh=1", ""); rec.Code != http.StatusOK {
 		t.Errorf("identity failure status=%d", rec.Code)
 	}
 	port.nextCursor = &chatapp.SessionCursor{ChatID: " "}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/sessions?account_id=acc1", ""); rec.Code != http.StatusInternalServerError {
 		t.Errorf("bad next cursor status=%d", rec.Code)
 	}
 	// 历史刷新出现未分类错误时仍应回退本地消息。
 	base.refreshHistoryErr = errors.New("history down")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/messages?account_id=acc1&chat_id=c1", ""); rec.Code != http.StatusOK {
 		t.Errorf("history fallback status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/messages?account_id=other&chat_id=c1", ""); rec.Code != http.StatusForbidden {
 		t.Errorf("foreign messages status=%d", rec.Code)
 	}
@@ -120,7 +111,6 @@ func TestChatSessionListGapBranches(t *testing.T) {
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/items?account_id=acc1&chat_id=c1&role=peer&page=0", ""); rec.Code != http.StatusBadRequest {
 		t.Errorf("bad item page status=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/items?account_id=acc1&chat_id=c1&role=peer", ""); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("item catalog unsupported status=%d", rec.Code)
 	}
@@ -134,9 +124,7 @@ func TestChatImageAndReadGapBranches(t *testing.T) {
 	// port 是聊天桩，已读标识解析为固定 PNM。
 	port := &chatHandlerCoveragePort{ownsAccountResult: true, sendingAvailable: true, imageUploadAvailable: true, resolvedReadID: "m1.PNM"}
 	srv.applications.chat = port
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// emptyRequest 上传了空图片。
@@ -161,13 +149,11 @@ func TestChatImageAndReadGapBranches(t *testing.T) {
 	port.reportReadErr = context.Canceled
 	// ids 含非字符串、空白、重复与可解析的消息标识，只应保留一条。
 	body := `{"account_id":"acc1","chat_id":"c1","message_ids":[{"messageId":5},{"messageId":" "},{"messageId":"m1"},{"messageId":"m1"}]}`
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/api/v1/chat/read", body); rec.Code != http.StatusOK {
 		t.Errorf("read status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	// 解析不到 PNM 的消息会被忽略。
 	port.resolvedReadID = "legacy"
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/api/v1/chat/read", body); rec.Code != http.StatusOK {
 		t.Errorf("read unresolved status=%d", rec.Code)
 	}
@@ -183,8 +169,7 @@ func TestWriteChatItemErrorMapsEveryApplicationError(t *testing.T) {
 		err error
 		// operation 是 list 或 send。
 		operation string
-		// want 是期望状态码。
-		want int
+		want      int
 	}{
 		{chatapp.ErrChatItemInvalid, "send", 400}, {chatapp.ErrSendInvalidInput, "send", 400},
 		{chatapp.ErrChatItemForbidden, "send", 403}, {chatapp.ErrChatSessionNotFound, "send", 404},
@@ -213,9 +198,7 @@ func chatGapWebSocketServer(t *testing.T, port *chatGapPort, authPort *chatGapAu
 	authPort.AuthenticationPort = srv.applications.authentication
 	srv.applications.chat = port
 	srv.applications.authentication = authPort
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// httpServer 是真实监听的测试服务。
 	httpServer := httptest.NewServer(handler)
@@ -336,17 +319,13 @@ func TestChatWebSocketEventFilteringAndSessionRevocation(t *testing.T) {
 		authPort := &chatGapAuth{AuthenticationPort: srv.applications.authentication, failFrom: 1, err: accountapp.ErrSessionInvalid}
 		srv.applications.authentication = authPort
 		srv.applications.chat = &chatGapPort{chatHandlerCoveragePort: &chatHandlerCoveragePort{}, ownedAccount: "acc1"}
-		// handler 是真实路由。
 		handler := srv.Router()
-		// cookie 是管理员会话。
 		cookie := loginHelper(t, handler)
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/ws", ""); rec.Code != http.StatusUnauthorized {
 			t.Errorf("revoked status=%d", rec.Code)
 		}
 		authPort.failFrom = 0
 		srv.applications.chat = &chatGapPort{chatHandlerCoveragePort: &chatHandlerCoveragePort{}, subscribeErr: errors.New("subscribe failed")}
-		// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 		if rec := serveChatCoverageRequest(handler, cookie, "GET", "/api/v1/chat/ws", ""); rec.Code != http.StatusInternalServerError {
 			t.Errorf("subscribe error status=%d", rec.Code)
 		}

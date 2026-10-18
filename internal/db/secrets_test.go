@@ -23,7 +23,6 @@ func TestReadSensitiveSettingForAccountAuditsWithoutSecret(t *testing.T) {
 	// store、cleanup 保存审计读取测试使用的数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存当前敏感设置访问测试上下文。
 	ctx := context.Background()
 	// createErr 表示创建测试用户时返回的错误。
 	if _, createErr := store.Users.Create(ctx, "audit-owner", "audit-owner@example.com", "pw"); createErr != nil {
@@ -71,7 +70,6 @@ func TestReadSensitiveSettingRejectsUnownedOrUnauditedAccess(t *testing.T) {
 	// store、cleanup 保存拒绝路径测试使用的数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 保存当前拒绝路径测试上下文。
 	ctx := context.Background()
 	// missingErr 表示不存在账号的所有者查询错误。
 	_, missingErr := store.ReadSensitiveSettingForAccount(ctx, "missing-account", "ai_api_key", "settings.use", "ai_reply")
@@ -104,41 +102,30 @@ func TestReadSensitiveSettingRejectsUnownedOrUnauditedAccess(t *testing.T) {
 	}
 }
 
-// TestSensitiveRepositoriesEncryptAtRestAndDecryptOnRead 封装TestSensitiveRepositoriesEncryptAtRestAndDecryptOnRead业务协调。
 func TestSensitiveRepositoriesEncryptAtRestAndDecryptOnRead(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "unit-test-data-key")
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	if // ok、err 用于本次流程后续判断的ok、err
-	ok, err := store.Users.Create(ctx, "secret-owner", "secret-owner@example.com", "pw"); err != nil || !ok {
+	if ok, err := store.Users.Create(ctx, "secret-owner", "secret-owner@example.com", "pw"); err != nil || !ok {
 		t.Fatalf("create owner: ok=%v err=%v", ok, err)
 	}
-	// owner 用于本次流程后续判断的所有者
 	owner, _ := store.Users.GetByUsername(ctx, "secret-owner")
-	if // err 用于本次流程后续判断的err
-	err := store.Cookies.CreateOwned(ctx, "secret-cookie", "unb=secret; token=plain", owner.ID); err != nil {
+	if err := store.Cookies.CreateOwned(ctx, "secret-cookie", "unb=secret; token=plain", owner.ID); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.Cookies.UpdateLoginInfo(ctx, "secret-cookie", "login", "password-plain", false); err != nil {
+	if err := store.Cookies.UpdateLoginInfo(ctx, "secret-cookie", "login", "password-plain", false); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.Tokens.Save(ctx, "secret-cookie", "device-plain", "access-plain", time.Now().Add(time.Hour).Unix()); err != nil {
+	if err := store.Tokens.Save(ctx, "secret-cookie", "device-plain", "access-plain", time.Now().Add(time.Hour).Unix()); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.Settings.Set(ctx, "ai_api_key", "sk-plain"); err != nil {
+	if err := store.Settings.Set(ctx, "ai_api_key", "sk-plain"); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.Settings.Set(ctx, "captcha.remote_secret_key", "captcha-secret-plain"); err != nil {
+	if err := store.Settings.Set(ctx, "captcha.remote_secret_key", "captcha-secret-plain"); err != nil {
 		t.Fatal(err)
 	}
-	// channelID、err 用于本次流程后续判断的渠道ID、err
 	channelID, err := store.Notifications.CreateChannel(ctx, &NotificationChannelRow{
 		Name: "secret", Type: "webhook", Config: `{"webhook_url":"https://example.test/plain-token"}`, Enabled: true, UserID: owner.ID,
 	})
@@ -146,56 +133,43 @@ func TestSensitiveRepositoriesEncryptAtRestAndDecryptOnRead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// rawCookie、rawPassword、rawDevice、rawToken、rawSetting、rawCaptchaSecret、rawConfig 用于本次流程后续判断的原始Cookie、rawPassword、rawDevice、rawToken、rawSetting、rawCaptchaSecret、raw配置
 	var rawCookie, rawPassword, rawDevice, rawToken, rawSetting, rawCaptchaSecret, rawConfig string
-	if // err 用于本次流程后续判断的err
-	err := store.DB.QueryRowContext(ctx, `SELECT value,password FROM cookies WHERE id=?`, "secret-cookie").Scan(&rawCookie, &rawPassword); err != nil {
+	if err := store.DB.QueryRowContext(ctx, `SELECT value,password FROM cookies WHERE id=?`, "secret-cookie").Scan(&rawCookie, &rawPassword); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.DB.QueryRowContext(ctx, `SELECT device_id,access_token FROM account_tokens WHERE cookie_id=?`, "secret-cookie").Scan(&rawDevice, &rawToken); err != nil {
+	if err := store.DB.QueryRowContext(ctx, `SELECT device_id,access_token FROM account_tokens WHERE cookie_id=?`, "secret-cookie").Scan(&rawDevice, &rawToken); err != nil {
 		t.Fatal(err)
 	}
-	// keyCol 用于本次流程后续判断的keyCol
 	keyCol := dialectQuote(store.Dialect, "key")
-	if // err 用于本次流程后续判断的err
-	err := store.DB.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE `+keyCol+`=?`, "ai_api_key").Scan(&rawSetting); err != nil {
+	if err := store.DB.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE `+keyCol+`=?`, "ai_api_key").Scan(&rawSetting); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.DB.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE `+keyCol+`=?`, "captcha.remote_secret_key").Scan(&rawCaptchaSecret); err != nil {
+	if err := store.DB.QueryRowContext(ctx, `SELECT value FROM system_settings WHERE `+keyCol+`=?`, "captcha.remote_secret_key").Scan(&rawCaptchaSecret); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.DB.QueryRowContext(ctx, `SELECT config FROM notification_channels WHERE id=?`, channelID).Scan(&rawConfig); err != nil {
+	if err := store.DB.QueryRowContext(ctx, `SELECT config FROM notification_channels WHERE id=?`, channelID).Scan(&rawConfig); err != nil {
 		t.Fatal(err)
 	}
-	// name、raw 表示当前遍历过程中的name、raw
 	for name, raw := range map[string]string{"cookie": rawCookie, "password": rawPassword, "device": rawDevice, "token": rawToken, "setting": rawSetting, "captcha-secret": rawCaptchaSecret, "config": rawConfig} {
 		if !strings.HasPrefix(raw, encryptedValuePrefix) || strings.Contains(raw, "plain") {
 			t.Fatalf("%s was not encrypted at rest: %q", name, raw)
 		}
 	}
 
-	// detail、err 用于本次流程后续判断的detail、err
 	detail, err := store.Cookies.GetDetails(ctx, "secret-cookie")
 	if err != nil || detail.Value != "unb=secret; token=plain" || detail.Password != "password-plain" {
 		t.Fatalf("cookie detail=%+v err=%v", detail, err)
 	}
-	// token、err 用于本次流程后续判断的token、err
 	token, err := store.Tokens.Get(ctx, "secret-cookie")
 	if err != nil || token.DeviceID != "device-plain" || token.AccessToken != "access-plain" {
 		t.Fatalf("token=%+v err=%v", token, err)
 	}
-	if // setting、err 用于本次流程后续判断的setting、err
-	setting, err := store.Settings.Get(ctx, "ai_api_key"); err != nil || setting != "sk-plain" {
+	if setting, err := store.Settings.Get(ctx, "ai_api_key"); err != nil || setting != "sk-plain" {
 		t.Fatalf("setting=%q err=%v", setting, err)
 	}
-	if // setting、err 用于本次流程后续判断的setting、err
-	setting, err := store.Settings.Get(ctx, "captcha.remote_secret_key"); err != nil || setting != "captcha-secret-plain" {
+	if setting, err := store.Settings.Get(ctx, "captcha.remote_secret_key"); err != nil || setting != "captcha-secret-plain" {
 		t.Fatalf("captcha secret=%q err=%v", setting, err)
 	}
-	// channel、err 用于本次流程后续判断的channel、err
 	channel, err := store.Notifications.GetChannel(ctx, channelID)
 	if err != nil || channel == nil || !strings.Contains(channel.Config, "plain-token") {
 		t.Fatalf("channel=%+v err=%v", channel, err)
@@ -205,12 +179,10 @@ func TestSensitiveRepositoriesEncryptAtRestAndDecryptOnRead(t *testing.T) {
 // TestSystemSettingsRedactedNeverReturnsSensitivePlaintext 验证管理端设置视图只返回敏感配置状态。
 func TestSystemSettingsRedactedNeverReturnsSensitivePlaintext(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "redacted-test-key")
-	// store、cleanup 是测试数据库及其清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// ctx 是当前测试使用的请求上下文。
 	ctx := context.Background()
-	// err 是批量保存设置时返回的错误。
 	if err := store.Settings.SetMany(ctx, map[string]string{
 		"theme_color":               "blue",
 		"ai_api_key":                "sk-never-return",
@@ -242,7 +214,6 @@ func TestSystemSettingsRedactedNeverReturnsSensitivePlaintext(t *testing.T) {
 // TestSystemSettingsApplyChangesUsesExplicitSecretCommands 验证敏感设置只能通过三态命令更新。
 func TestSystemSettingsApplyChangesUsesExplicitSecretCommands(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "apply-change-test-key")
-	// store、cleanup 是测试数据库及其清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// ctx 是当前测试使用的请求上下文。
@@ -296,16 +267,13 @@ func TestSystemSettingsApplyChangesUsesExplicitSecretCommands(t *testing.T) {
 // TestSensitiveSettingEmptyValueClearsSecret 验证敏感设置显式提交空值时会删除密文。
 func TestSensitiveSettingEmptyValueClearsSecret(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "clear-test-key")
-	// store、cleanup 是测试数据库及其清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
 	// ctx 是当前测试使用的请求上下文。
 	ctx := context.Background()
-	// err 是首次写入敏感设置时返回的错误。
 	if err := store.Settings.Set(ctx, "ai_api_key", "sk-to-clear"); err != nil {
 		t.Fatal(err)
 	}
-	// err 是显式清除敏感设置时返回的错误。
 	if err := store.Settings.Set(ctx, "ai_api_key", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -327,49 +295,35 @@ func TestSensitiveSettingEmptyValueClearsSecret(t *testing.T) {
 	}
 }
 
-// TestSecretCodecReadsLegacyPlaintextAndRejectsWrongKey 封装TestSecretCodecReadsLegacyPlaintextAndRejectsWrongKey业务协调。
 func TestSecretCodecReadsLegacyPlaintextAndRejectsWrongKey(t *testing.T) {
-	// codec 用于本次流程后续判断的codec
 	codec, _ := newSecretCodec("correct")
-	// encrypted、err 用于本次流程后续判断的encrypted、err
 	encrypted, err := codec.encrypt("cookie", "owner", "secret")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if // plain、err 用于本次流程后续判断的plain、err
-	plain, err := codec.decrypt("cookie", "owner", "legacy-plaintext"); err != nil || plain != "legacy-plaintext" {
+	if plain, err := codec.decrypt("cookie", "owner", "legacy-plaintext"); err != nil || plain != "legacy-plaintext" {
 		t.Fatalf("legacy plain=%q err=%v", plain, err)
 	}
-	// wrong 用于本次流程后续判断的wrong
 	wrong, _ := newSecretCodec("wrong")
-	if // err 用于本次流程后续判断的err
-	_, err := wrong.decrypt("cookie", "owner", encrypted); err == nil {
+	if _, err := wrong.decrypt("cookie", "owner", encrypted); err == nil {
 		t.Fatal("wrong key must not return ciphertext as plaintext")
 	}
-	// withoutKey 用于本次流程后续判断的withoutKey
 	withoutKey, _ := newSecretCodec("")
-	if // err 用于本次流程后续判断的err
-	_, err := withoutKey.decrypt("cookie", "owner", encrypted); err == nil {
+	if _, err := withoutKey.decrypt("cookie", "owner", encrypted); err == nil {
 		t.Fatal("missing key must reject encrypted data")
 	}
 }
 
-// TestEncryptLegacySecretsUpgradesPlaintextAndValidatesKey 封装TestEncryptLegacySecretsUpgradesPlaintextAndValidatesKey业务协调。
 func TestEncryptLegacySecretsUpgradesPlaintextAndValidatesKey(t *testing.T) {
 	t.Setenv("XIANYU_DATA_KEY", "migration-key")
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	if // ok、err 用于本次流程后续判断的ok、err
-	ok, err := store.Users.Create(ctx, "legacy-owner", "legacy-owner@example.com", "pw"); err != nil || !ok {
+	if ok, err := store.Users.Create(ctx, "legacy-owner", "legacy-owner@example.com", "pw"); err != nil || !ok {
 		t.Fatalf("create owner: ok=%v err=%v", ok, err)
 	}
-	// owner 用于本次流程后续判断的所有者
 	owner, _ := store.Users.GetByUsername(ctx, "legacy-owner")
-	if // err 用于本次流程后续判断的err
-	_, err := store.DB.ExecContext(ctx, `INSERT INTO cookies (id,value,user_id,password) VALUES (?,?,?,?)`, "legacy-secret", "legacy-cookie", owner.ID, "legacy-password"); err != nil {
+	if _, err := store.DB.ExecContext(ctx, `INSERT INTO cookies (id,value,user_id,password) VALUES (?,?,?,?)`, "legacy-secret", "legacy-cookie", owner.ID, "legacy-password"); err != nil {
 		t.Fatal(err)
 	}
 	// cardResult、cardInsertErr 保存插入历史明文 API 卡券配置的结果。
@@ -382,14 +336,11 @@ func TestEncryptLegacySecretsUpgradesPlaintextAndValidatesKey(t *testing.T) {
 	if cardIDErr != nil {
 		t.Fatal(cardIDErr)
 	}
-	if // err 用于本次流程后续判断的err
-	err := store.EncryptLegacySecrets(ctx); err != nil {
+	if err := store.EncryptLegacySecrets(ctx); err != nil {
 		t.Fatal(err)
 	}
-	// raw 用于本次流程后续判断的原始
 	var raw string
-	if // err 用于本次流程后续判断的err
-	err := store.DB.QueryRowContext(ctx, `SELECT value FROM cookies WHERE id='legacy-secret'`).Scan(&raw); err != nil {
+	if err := store.DB.QueryRowContext(ctx, `SELECT value FROM cookies WHERE id='legacy-secret'`).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(raw, encryptedValuePrefix) {
@@ -409,13 +360,10 @@ func TestEncryptLegacySecretsUpgradesPlaintextAndValidatesKey(t *testing.T) {
 	if cardErr != nil || card == nil || !strings.Contains(card.APIConfig, "legacy-card-secret") {
 		t.Fatalf("API config decrypt failed card=%+v err=%v", card, cardErr)
 	}
-	// wrongCodec 用于本次流程后续判断的wrongCodec
 	wrongCodec, _ := newSecretCodec("wrong-key")
-	// wrongStore 用于本次流程后续判断的wrongStore
 	wrongStore := NewStore(store.DB, store.Dialect)
 	wrongStore.Cookies.codec = wrongCodec
-	if // err 用于本次流程后续判断的err
-	err := wrongStore.EncryptLegacySecrets(ctx); err == nil {
+	if err := wrongStore.EncryptLegacySecrets(ctx); err == nil {
 		t.Fatal("startup validation must reject the wrong data key")
 	}
 }

@@ -12,10 +12,8 @@ import (
 
 // TestUnknownWebSocketPaidEventWithoutLocalSellerOrderIsDeferredBeforeFacts 验证未知角色付款事件在本地订单尚未同步时会延期核验，不写错订单或创建运行。
 func TestUnknownWebSocketPaidEventWithoutLocalSellerOrderIsDeferredBeforeFacts(t *testing.T) {
-	// store、cleanup 提供隔离数据库及测试结束后的连接释放责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制当前测试的订单事实和自动化处理生命周期。
 	ctx := context.Background()
 	// sender 记录任何不应发生的买家消息发送副作用。
 	sender := &testSender{}
@@ -50,10 +48,8 @@ func TestUnknownWebSocketPaidEventWithoutLocalSellerOrderIsDeferredBeforeFacts(t
 
 // TestUnknownWebSocketPaidEventDeferredThenResumesAfterLocalFacts 验证首条未知角色事件不会漏发：订单和商品同步后，延期任务可安全恢复并只执行一次。
 func TestUnknownWebSocketPaidEventDeferredThenResumesAfterLocalFacts(t *testing.T) {
-	// store、cleanup 提供隔离数据库及测试结束后的连接释放责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制延期任务、订单同步事实和恢复执行的生命周期。
 	ctx := context.Background()
 	// admin、adminErr 提供卡密组和付款规则的管理用户归属。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -116,7 +112,6 @@ func TestUnknownWebSocketOrderCreatedUsesLocalItemOwnership(t *testing.T) {
 	// t 负责隔离本测试数据库、事件事实和延期队列。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制本测试内的商品归属与事件记录生命周期。
 	ctx := context.Background()
 	// itemErr 保存本账号卖家商品事实写入错误。
 	if itemErr := store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "cid", ItemID: "created-item", ItemTitle: "拍下商品"}); itemErr != nil {
@@ -150,10 +145,8 @@ func TestUnknownWebSocketOrderCreatedUsesLocalItemOwnership(t *testing.T) {
 
 // TestUnknownWebSocketPaidEventWithLocalSellerFactsContinuesAutomation 验证旧协议缺少 role 时，本账号待发货订单和本地商品事实仍能恢复正常发货。
 func TestUnknownWebSocketPaidEventWithLocalSellerFactsContinuesAutomation(t *testing.T) {
-	// store、cleanup 提供隔离数据库及测试结束后的连接释放责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制当前测试的商品、订单和自动化动作生命周期。
 	ctx := context.Background()
 	// admin、adminErr 提供卡密组和付款规则的管理用户归属。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -208,10 +201,8 @@ func TestUnknownWebSocketPaidEventWithMismatchedLocalOrderIsRejected(t *testing.
 	// mismatchField、task 保存当前待验证的不一致字段及其事件副本。
 	for _, mismatchField := range []string{"item", "buyer", "chat"} {
 		t.Run(mismatchField, func(t *testing.T) {
-			// store、cleanup 提供本轮隔离数据库及资源释放责任。
 			store, cleanup := newAutomationTestStore(t)
 			defer cleanup()
-			// ctx 限制当前子测试的同步数据库操作生命周期。
 			ctx := context.Background()
 			// itemErr 保存卖家商品事实写入结果。
 			itemErr := store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "cid", ItemID: "owned-item", ItemTitle: "本账号商品"})
@@ -258,10 +249,8 @@ func TestUnknownWebSocketPaidEventWithMismatchedLocalOrderIsRejected(t *testing.
 
 // TestUnknownWebSocketRecoveryRequiresSellerEvidence 验证历史未知角色付款运行在恢复前仍需重新核对本地商品归属。
 func TestUnknownWebSocketRecoveryRequiresSellerEvidence(t *testing.T) {
-	// store、cleanup 提供恢复路径所需的隔离数据库及资源释放责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 限制规则、订单和恢复扫描的同步生命周期。
 	ctx := context.Background()
 	// admin、adminErr 提供恢复规则的管理用户归属。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

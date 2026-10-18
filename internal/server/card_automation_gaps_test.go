@@ -50,12 +50,9 @@ func (p issuesGapPort) ResolveDeferredIssue(context.Context, int64, int64, strin
 
 // TestCardBatchAndAppendGapBranches 覆盖卡密批量创建的逐行校验、上传失败与追加库存错误映射。
 func TestCardBatchAndAppendGapBranches(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// upload 以 multipart 上传卡密表格，fileName 为空时不带文件。
@@ -79,25 +76,20 @@ func TestCardBatchAndAppendGapBranches(t *testing.T) {
 		handler.ServeHTTP(recorder, request)
 		return recorder
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := upload("", ""); rec.Code != http.StatusBadRequest {
 		t.Errorf("missing file=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := upload("cards.csv", strings.Repeat("a", 5<<20+1)); rec.Code != http.StatusBadRequest {
 		t.Errorf("oversize=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := upload("cards.xls", "x"); rec.Code != http.StatusBadRequest {
 		t.Errorf("xls=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := upload("/", "name,type,content\n"); rec.Code != http.StatusBadRequest {
 		t.Errorf("header only with default name=%d", rec.Code)
 	}
 	// rows 覆盖缺名称、坏类型、缺内容、图片类型成功和延时越界。
 	rows := "name,type,content,delay_seconds\n,text,x,0\nbad,weird,x,0\nempty,text,,0\nimg,image,https://example.test/a.png,0\nslow,text,x,9999\n"
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	rec := upload("cards.csv", rows)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"failed":4`) {
 		t.Errorf("rows status=%d body=%s", rec.Code, rec.Body.String())
@@ -140,55 +132,43 @@ func TestCardBatchAndAppendGapBranches(t *testing.T) {
 
 // TestAutomationIssueHandlersGapBranches 覆盖自动化异常列表与处理接口的错误映射。
 func TestAutomationIssueHandlersGapBranches(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// port 是可变异常端口桩。
 	port := &issuesGapPort{}
 	srv.applications.automationIssues = port
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/automation-issues", ""); rec.Code != http.StatusOK {
 		t.Errorf("list=%d", rec.Code)
 	}
 	port.listErr = errors.New("db")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "GET", "/automation-issues", ""); rec.Code != http.StatusInternalServerError {
 		t.Errorf("list failure=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/automation-runs/x/resolve", `{}`); rec.Code != http.StatusBadRequest {
 		t.Errorf("bad run id=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/automation-runs/1/resolve", `{`); rec.Code != http.StatusBadRequest {
 		t.Errorf("bad run body=%d", rec.Code)
 	}
 	port.runErr = errors.New("invalid")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/automation-runs/1/resolve", `{"resolution":"x"}`); rec.Code != http.StatusBadRequest {
 		t.Errorf("run invalid=%d", rec.Code)
 	}
 	port.runErr = automationapp.ErrNotFound
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/automation-runs/1/resolve", `{"resolution":"x"}`); rec.Code != http.StatusNotFound {
 		t.Errorf("run missing=%d", rec.Code)
 	}
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/automation-pending-tasks/1/resolve", `{`); rec.Code != http.StatusBadRequest {
 		t.Errorf("task bad body=%d", rec.Code)
 	}
 	port.deferredErr = automationapp.ErrInvalidDeferredResolution
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/automation-pending-tasks/1/resolve", `{"resolution":"x"}`); rec.Code != http.StatusBadRequest {
 		t.Errorf("task invalid=%d", rec.Code)
 	}
 	port.deferredErr = errors.New("gone")
-	// rec 本次请求返回的 HTTP 响应记录，用于断言状态码与正文
 	if rec := serveChatCoverageRequest(handler, cookie, "POST", "/automation-pending-tasks/1/resolve", `{"resolution":"retry"}`); rec.Code != http.StatusNotFound {
 		t.Errorf("task missing=%d", rec.Code)
 	}

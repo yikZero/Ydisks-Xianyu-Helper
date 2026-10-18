@@ -9,7 +9,6 @@ import (
 
 // TestParseDBURL 覆盖各 scheme 与向后兼容路径。
 func TestParseDBURL(t *testing.T) {
-	// cases 用于本次流程后续判断的cases
 	cases := []struct {
 		name     string
 		url      string
@@ -32,10 +31,8 @@ func TestParseDBURL(t *testing.T) {
 		{name: "whitespace url", url: "   ", wantErr: true, errMatch: "为空"},
 		{name: "unknown scheme", url: "redis://h:6379", wantErr: true, errMatch: "不支持"},
 	}
-	// c 表示当前遍历过程中的c
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// driver、dialect、dsn、err 用于本次流程后续判断的driver、dialect、dsn、err
 			driver, dialect, dsn, err := parseDBURL(c.url)
 			if c.wantErr {
 				if err == nil {
@@ -105,7 +102,6 @@ func TestParseDBURLForcesUTCSessionTimezone(t *testing.T) {
 
 // TestRewriteQuestionPlaceholders ? → $N，跳过引号内字面量。
 func TestRewriteQuestionPlaceholders(t *testing.T) {
-	// cases 用于本次流程后续判断的cases
 	cases := []struct {
 		name string
 		in   string
@@ -119,10 +115,8 @@ func TestRewriteQuestionPlaceholders(t *testing.T) {
 		{name: "double-quoted identifier with ?", in: `SELECT "col?" FROM t WHERE id=?`, want: `SELECT "col?" FROM t WHERE id=$1`},
 		{name: "empty", in: "", want: ""},
 	}
-	// c 表示当前遍历过程中的c
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// got 用于本次流程后续判断的got
 			got := rewriteQuestionPlaceholders(c.in)
 			if got != c.want {
 				t.Errorf("rewriteQuestionPlaceholders(%q)=%q want %q", c.in, got, c.want)

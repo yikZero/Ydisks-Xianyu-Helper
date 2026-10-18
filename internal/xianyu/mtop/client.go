@@ -47,7 +47,6 @@ const ChatItemSearchAPI = "https://h5api.m.goofish.com/h5/mtop.taobao.idlemessag
 // SoldOrdersAPI 是闲鱼卖家工作台的已售订单列表端点。
 const SoldOrdersAPI = "https://h5api.m.goofish.com/h5/mtop.taobao.idle.trade.merchant.sold.get/1.0/"
 
-// MTopRetryGap 用于本次流程后续判断的MTop重试Gap
 const (
 	MTopRetryGap         = time.Second
 	ItemPageGap          = time.Second
@@ -56,7 +55,6 @@ const (
 
 // Client 是 mtop API 的最小契约，供 server/automation/engine 依赖注入与测试 mock。
 // 具体实现 *ClientImpl 走 HTTP；测试可注入自定义实现以隔离网络。
-// Client 用于本次流程后续判断的Client
 type Client interface {
 	FetchUserProfile(ctx context.Context, cookiesStr string) (*UserProfileResult, error)
 	ConsignContext(ctx context.Context, cookiesStr, orderID string) (ok bool, ret []string, updatedCookies string, err error)
@@ -69,7 +67,6 @@ type Client interface {
 
 // ClientImpl 是 Client 接口的 HTTP 实现。零值可用；HTTP 超时默认 30s。
 // 仍导出 HTTPClient/TokenURL 等字段以便调用方覆盖（如测试注入 RoundTripper）。
-// ClientImpl 用于本次流程后续判断的ClientImpl
 type ClientImpl struct {
 	HTTPClient *http.Client
 	// Logger 记录 MTOP 请求的安全摘要（不会输出 Cookie、签名或响应正文）。
@@ -95,21 +92,16 @@ type ClientImpl struct {
 
 // httpClient 返回带统一请求/响应日志的 HTTP 客户端副本。统一放在传输层，
 // 确保 token、续期、订单、商品和发布等所有 MTOP 调用都具备一致的可观测性。
-// httpClient 封装httpClient业务协调。
 func (c *ClientImpl) httpClient() *http.Client {
 	return c.httpClientWithTimeout(30 * time.Second)
 }
 
-// httpClientWithTimeout 封装httpClientWithTimeout业务协调。
 func (c *ClientImpl) httpClientWithTimeout(defaultTimeout time.Duration) *http.Client {
-	// hc 用于本次流程后续判断的hc
 	hc := c.HTTPClient
 	if hc == nil {
 		hc = &http.Client{Timeout: defaultTimeout}
 	}
-	// clone 用于本次流程后续判断的clone
 	clone := *hc
-	// transport 用于本次流程后续判断的transport
 	transport := hc.Transport
 	if transport == nil {
 		transport = http.DefaultTransport
@@ -128,25 +120,19 @@ func (c *ClientImpl) logInfo(message string, args ...any) {
 	logger.Info(message, args...)
 }
 
-// loggingTransport 用于本次流程后续判断的loggingTransport
 type loggingTransport struct {
 	base   http.RoundTripper
 	logger *slog.Logger
 }
 
-// RoundTrip 封装RoundTrip业务协调。
 func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// logger 用于本次流程后续判断的logger
 	logger := t.logger
 	if logger == nil {
 		logger = slog.Default()
 	}
-	// started 用于本次流程后续判断的started
 	started := time.Now()
 	logger.Debug("MTOP 请求开始", "method", req.Method, "path", req.URL.Path)
-	// resp、err 用于本次流程后续判断的resp、err
 	resp, err := t.base.RoundTrip(req)
-	// attrs 用于本次流程后续判断的attrs
 	attrs := []any{"method", req.Method, "path", req.URL.Path, "duration", time.Since(started).Round(time.Millisecond)}
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -156,7 +142,6 @@ func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		return nil, err
 	}
-	// responseAttrs 用于本次流程后续判断的响应Attrs
 	responseAttrs := append(attrs, "status", resp.StatusCode, "content_length", resp.ContentLength)
 	if resp.StatusCode >= http.StatusBadRequest {
 		logger.Warn("MTOP HTTP 响应异常", responseAttrs...)
@@ -168,7 +153,6 @@ func (t loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // NewClient 构造纯 Go HTTP 的 MTOP 客户端。Chromium 只用于读取本机指纹
 // 和处理滑块，不能成为登录、续期、token 或 WebSocket 的传输层。
-// NewClient 封装NewClient业务协调。
 func NewClient() *ClientImpl {
 	return &ClientImpl{}
 }
@@ -480,9 +464,7 @@ func mtopErrorRet(err error) []string {
 	return nil
 }
 
-// hasMTopSuccess 封装hasMTopSuccess业务协调。
 func hasMTopSuccess(ret []string) bool {
-	// r 表示当前遍历过程中的r
 	for _, r := range ret {
 		if strings.Contains(r, "SUCCESS::调用成功") {
 			return true
@@ -491,9 +473,7 @@ func hasMTopSuccess(ret []string) bool {
 	return false
 }
 
-// isTokenExpiredRet 封装is令牌ExpiredRet业务协调。
 func isTokenExpiredRet(ret []string) bool {
-	// r 表示当前遍历过程中的r
 	for _, r := range ret {
 		if strings.Contains(r, "FAIL_SYS_TOKEN_EXOIRED") ||
 			strings.Contains(r, "FAIL_SYS_TOKEN_EXPIRED") ||
@@ -507,13 +487,11 @@ func isTokenExpiredRet(ret []string) bool {
 // SessionExpiredError 表示平台已经明确判定整个登录 Session 失效。
 // 它与可通过响应 Set-Cookie 重签的普通 MTOP token 过期不同：调用方必须
 // 立刻停止业务 API 重试，转入账号级 Session 续期流程。
-// SessionExpiredError 用于本次流程后续判断的会话Expired错误
 type SessionExpiredError struct {
 	API string
 	Ret []string
 }
 
-// Error 封装错误业务协调。
 func (e *SessionExpiredError) Error() string {
 	if e == nil {
 		return ""
@@ -526,11 +504,8 @@ func (e *SessionExpiredError) Error() string {
 	return fmt.Sprintf("%s Session 过期：平台原因 %s", e.API, ret)
 }
 
-// isSessionExpiredRet 封装is会话ExpiredRet业务协调。
 func isSessionExpiredRet(ret []string) bool {
-	// value 表示当前遍历过程中的值
 	for _, value := range ret {
-		// lower 用于本次流程后续判断的lower
 		lower := strings.ToLower(value)
 		if strings.Contains(lower, "session_expired") ||
 			strings.Contains(lower, "sid_invalid") ||
@@ -545,14 +520,12 @@ func isSessionExpiredRet(ret []string) bool {
 	return false
 }
 
-// sessionExpiredError 封装会话Expired错误业务协调。
 func sessionExpiredError(api string, ret []string) error {
 	return &SessionExpiredError{API: api, Ret: append([]string(nil), ret...)}
 }
 
 // RiskVerificationError 表示闲鱼服务端要求用户验证（滑块/人脸/风控页）。
 // 这类错误不能按普通 token 过期快速重试，否则会持续打接口并放大风控。
-// RiskVerificationError 用于本次流程后续判断的RiskVerification错误
 type RiskVerificationError struct {
 	// API 是触发风控验证的 MTOP 接口名。
 	API             string
@@ -560,7 +533,6 @@ type RiskVerificationError struct {
 	VerificationURL string
 }
 
-// Error 封装错误业务协调。
 func (e *RiskVerificationError) Error() string {
 	if e == nil {
 		return ""
@@ -586,7 +558,6 @@ func IsRiskVerificationErr(err error) bool {
 	if kind, ok := MTopErrorKindOf(err); ok && kind == MTopErrorRiskVerification {
 		return true
 	}
-	// riskErr 用于本次流程后续判断的riskErr
 	var riskErr *RiskVerificationError
 	if errors.As(err, &riskErr) {
 		return true
@@ -594,7 +565,6 @@ func IsRiskVerificationErr(err error) bool {
 	if err == nil {
 		return false
 	}
-	// msg 用于本次流程后续判断的msg
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "fail_sys_user_validate") ||
 		strings.Contains(msg, "rgv587") ||
@@ -603,11 +573,8 @@ func IsRiskVerificationErr(err error) bool {
 		strings.Contains(msg, "x5secdata")
 }
 
-// isRiskVerificationRet 封装isRiskVerificationRet业务协调。
 func isRiskVerificationRet(ret []string) bool {
-	// r 表示当前遍历过程中的r
 	for _, r := range ret {
-		// lower 用于本次流程后续判断的lower
 		lower := strings.ToLower(r)
 		if strings.Contains(lower, "fail_sys_user_validate") ||
 			strings.Contains(lower, "rgv587") ||
@@ -629,12 +596,10 @@ func IsSessionExpiredErr(err error) bool {
 	if kind, ok := MTopErrorKindOf(err); ok {
 		return kind == MTopErrorSessionExpired
 	}
-	// sessionErr 用于本次流程后续判断的会话Err
 	var sessionErr *SessionExpiredError
 	if errors.As(err, &sessionErr) {
 		return true
 	}
-	// msg 用于本次流程后续判断的msg
 	msg := strings.ToLower(err.Error())
 	// 旧适配器可能只返回文本；明确 Token 错误码仍优先于“登录凭证已失效”等包装提示。
 	if isOfficialTokenRetryRet([]string{strings.ToUpper(msg)}) {
@@ -649,10 +614,8 @@ func IsCredentialRefreshableErr(err error) bool {
 	return IsSessionExpiredErr(err)
 }
 
-// mtopString 封装mtopString业务协调。
 func mtopString(v any) string {
-	switch // x 用于本次流程后续判断的x
-	x := v.(type) {
+	switch x := v.(type) {
 	case string:
 		return x
 	case float64:
@@ -666,20 +629,16 @@ func mtopString(v any) string {
 	}
 }
 
-// mtopInt 封装mtopInt业务协调。
 func mtopInt(v any) int {
-	switch // x 用于本次流程后续判断的x
-	x := v.(type) {
+	switch x := v.(type) {
 	case float64:
 		return int(x)
 	case int:
 		return x
 	case string:
-		// n 用于本次流程后续判断的n
 		n, _ := strconv.Atoi(x)
 		return n
 	case json.Number:
-		// n 用于本次流程后续判断的n
 		n, _ := strconv.Atoi(x.String())
 		return n
 	default:
@@ -687,9 +646,7 @@ func mtopInt(v any) int {
 	}
 }
 
-// setCommonHeaders 封装setCommonHeaders业务协调。
 func setCommonHeaders(req *http.Request, cookiesStr string) {
-	// h 用于本次流程后续判断的h
 	h := req.Header
 	h.Set("accept", "application/json")
 	h.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8")
@@ -706,9 +663,7 @@ func setCommonHeaders(req *http.Request, cookiesStr string) {
 	h.Set("cookie", cookiesStr)
 }
 
-// readMTopBody 封装readMTop请求体业务协调。
 func readMTopBody(resp *http.Response) ([]byte, error) {
-	// raw、err 用于本次流程后续判断的raw、err
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxMTopResponseBytes+1))
 	if err != nil {
 		return nil, err
@@ -721,16 +676,12 @@ func readMTopBody(resp *http.Response) ([]byte, error) {
 
 // mergeSetCookie 把响应的 Set-Cookie 合并回 cookie 字符串。
 func mergeSetCookie(orig string, current map[string]string, resp *http.Response) string {
-	// setCookies 用于本次流程后续判断的setCookies
 	setCookies := resp.Header["Set-Cookie"]
 	if len(setCookies) == 0 {
 		return orig
 	}
-	// changed 用于本次流程后续判断的changed
 	changed := false
-	// sc 表示当前遍历过程中的sc
 	for _, sc := range setCookies {
-		// parsed、err 用于本次流程后续判断的parsed、err
 		parsed, err := http.ParseSetCookie(sc)
 		if err != nil || strings.TrimSpace(parsed.Name) == "" {
 			continue
@@ -745,11 +696,8 @@ func mergeSetCookie(orig string, current map[string]string, resp *http.Response)
 	if !changed {
 		return orig
 	}
-	// b 用于本次流程后续判断的b
 	var b strings.Builder
-	// first 用于本次流程后续判断的first
 	first := true
-	// k、v 表示当前遍历过程中的k、v
 	for k, v := range current {
 		if !first {
 			b.WriteString("; ")
@@ -762,7 +710,6 @@ func mergeSetCookie(orig string, current map[string]string, resp *http.Response)
 	return b.String()
 }
 
-// truncate 封装truncate业务协调。
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
@@ -770,12 +717,10 @@ func truncate(s string, n int) string {
 	return s[:n] + "..."
 }
 
-// sleepCtx 封装sleepCtx业务协调。
 func sleepCtx(ctx context.Context, d time.Duration) error {
 	if d <= 0 {
 		return nil
 	}
-	// t 用于本次流程后续判断的t
 	t := time.NewTimer(d)
 	defer t.Stop()
 	select {

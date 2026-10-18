@@ -28,7 +28,6 @@ func TestAccountCookieWriterRejectsMissingPorts(t *testing.T) {
 
 // TestAccountCookieWriterUpdatesOwnedCookie 验证更新成功、跨用户拒绝和版本冲突均发生在适配器内。
 func TestAccountCookieWriterUpdatesOwnedCookie(t *testing.T) {
-	// store、cleanup 保存包含测试账号凭证的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的账号凭证仓储。
@@ -69,7 +68,6 @@ func TestAccountCookieWriterUpdatesOwnedCookie(t *testing.T) {
 
 // TestAccountCookieWriterHonorsContext 验证平台视图查询收到取消信号后不会继续写入 Cookie。
 func TestAccountCookieWriterHonorsContext(t *testing.T) {
-	// store、cleanup 保存用于取消路径验证的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是绑定测试数据库的账号凭证仓储。

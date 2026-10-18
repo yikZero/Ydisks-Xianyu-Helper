@@ -12,10 +12,8 @@ import (
 
 // TestChatRepositoryMapsMessagesAndMetadata 验证聊天适配器把本地非敏感记录转换为应用模型。
 func TestChatRepositoryMapsMessagesAndMetadata(t *testing.T) {
-	// store、cleanup 保存隔离的 SQLite 存储和关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作共用的上下文。
 	ctx := context.Background()
 	// owner 保存测试账号所属用户，用于消息查询的归属过滤。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")
@@ -109,7 +107,6 @@ func TestChatRepositoryRejectsUnavailableDependencies(t *testing.T) {
 	if nilRepository != nil {
 		t.Fatal("空数据库存储不应构造聊天仓储")
 	}
-	// store、cleanup 保存正常测试数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// brokenStore 保存缺少聊天聚合入口的独立数据库存储。
@@ -145,7 +142,6 @@ func TestChatRepositoryCoversClosedDatabaseOperations(t *testing.T) {
 	metadataRepository := repository.(chatapp.MetadataRepository)
 	// diagnosticsRepository 是受限诊断端口视图，用于查询历史入站帧。
 	diagnosticsRepository := repository.(chatapp.ReadMessageIDResolver)
-	// closeErr 表示主动关闭测试数据库连接时的资源释放错误。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

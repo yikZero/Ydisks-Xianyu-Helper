@@ -43,9 +43,7 @@ func TestVersionedSettingsCardNotificationRoutesPreserveLegacyContracts(t *testi
 	// srv 是用于验证设置、卡券和通知路由的 HTTP 测试服务。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 	// cases 是覆盖版本化与旧路径状态码兼容性的测试样例集合。
 	cases := []settingsCardNotificationRouteCase{

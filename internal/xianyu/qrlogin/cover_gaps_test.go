@@ -16,7 +16,6 @@ import (
 func TestLifecycleGuardsOnNilContextAndClosedManager(t *testing.T) {
 	// nilManager 保存空管理器指针，用于验证空接收者调用不会 panic。
 	var nilManager *Manager
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := nilManager.CloseContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -24,14 +23,12 @@ func TestLifecycleGuardsOnNilContextAndClosedManager(t *testing.T) {
 	manager := NewManager(nil)
 	// nilCtx 模拟缺少关闭 Context。
 	var nilCtx context.Context
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := manager.CloseContext(nilCtx); err == nil {
 		t.Fatal("空 Context 必须被拒绝")
 	}
 	// cancelled 是已取消的关闭 Context。
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := manager.CloseContext(cancelled); err == nil {
 		t.Fatal("已取消的关闭 Context 必须返回错误")
 	}
@@ -96,11 +93,9 @@ func TestFaceCookieJarAndHelpers(t *testing.T) {
 	}
 	setJarCookies(nil, u, map[string]string{"a": "1"})
 	setJarCookies(authoritative, nil, map[string]string{"a": "1"})
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := collectJarCookies(nil, u); len(got) != 0 {
 		t.Fatal("空 Jar 应返回空集合")
 	}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := collectJarCookies(authoritative, nil); len(got) != 0 {
 		t.Fatal("空地址应跳过")
 	}
@@ -113,7 +108,6 @@ func TestFaceCookieJarAndHelpers(t *testing.T) {
 	if mustParseURL("http://[::1") != nil {
 		t.Fatal("非法地址应返回空")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := renderQRDataURL(string(make([]byte, 5000))); err == nil {
 		t.Fatal("超长内容无法编码为二维码")
 	}
@@ -123,12 +117,10 @@ func TestFaceCookieJarAndHelpers(t *testing.T) {
 func TestRunFaceVerificationPreconditions(t *testing.T) {
 	// manager 是没有任何会话的管理器。
 	manager := NewManager(nil)
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := manager.runFaceVerification(context.Background(), "none", "https://x"); err == nil {
 		t.Fatal("会话缺失必须报错")
 	}
 	manager.sessions["empty"] = &Session{cookies: map[string]string{}}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if err := manager.runFaceVerification(context.Background(), "empty", "https://x"); err == nil {
 		t.Fatal("缺少临时 Cookie 必须报错")
 	}
@@ -149,7 +141,6 @@ func TestFaceStatusPollingBranches(t *testing.T) {
 	}))
 	// client 复用管理器的桩传输。
 	client := manager.httpc
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, _, err := manager.checkFaceVerification(context.Background(), client, "ht"); err == nil {
 		t.Fatal("非 JSON 必须报错")
 	}
@@ -161,25 +152,20 @@ func TestFaceStatusPollingBranches(t *testing.T) {
 	// cancelled 使请求在发出前失败。
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, _, err := manager.checkFaceVerification(cancelled, client, "ht"); err == nil {
 		t.Fatal("取消的请求必须报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := manager.faceGetHTML(cancelled, client, "https://x", "ref"); err == nil {
 		t.Fatal("取消的请求必须报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := manager.waitFaceVerification(context.Background(), client, "missing", "ht"); err == nil {
 		t.Fatal("会话缺失必须报错")
 	}
 	// expired 会话创建于一小时前且有效期仅一分钟。
 	manager.sessions["expired"] = &Session{createdTime: time.Now().Add(-time.Hour), expireTime: time.Minute}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := manager.waitFaceVerification(context.Background(), client, "expired", "ht"); err == nil {
 		t.Fatal("过期会话必须报错")
 	}
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := json.Marshal(map[string]string{}); err != nil {
 		t.Fatal(err)
 	}

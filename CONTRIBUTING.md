@@ -71,7 +71,7 @@ make test-multidb
 
 ## 代码和文档要求
 
-- Go、TypeScript 和 TSX 的新增或修改声明使用准确的中文注释；
+- 导出的函数和类型写文档注释，其余按需说明业务原因，不写复述标识符的占位注释（见 `docs/architecture/comment-standard.md`）；
 - 保持 `app -> features -> shared` 的前端依赖方向；
 - 新 API 先更新 `api/openapi.yaml`，再生成类型并补充真实契约测试；
 - 敏感数据只能在必要的边界内使用，不能进入日志、错误响应或前端状态；

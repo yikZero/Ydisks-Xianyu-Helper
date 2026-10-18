@@ -4,7 +4,6 @@ import "testing"
 
 // TestNewWithDependenciesFixesCenterDependencies 验证自动化中心在构造阶段固定所有生产协作依赖。
 func TestNewWithDependenciesFixesCenterDependencies(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// sender 保存中心使用的消息发送器提供者。
@@ -40,7 +39,6 @@ func TestNewWithDependenciesFixesCenterDependencies(t *testing.T) {
 
 // TestNewWithDependenciesCopiesConfiguration 验证构造器复制依赖字段，调用方后续修改配置结构不会改变中心状态。
 func TestNewWithDependenciesCopiesConfiguration(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// baseClient 是构造阶段固定的协议客户端。

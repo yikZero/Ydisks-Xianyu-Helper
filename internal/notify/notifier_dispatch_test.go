@@ -108,18 +108,14 @@ func nilLogger() *slog.Logger {
 
 // newNotifyStoreBare 提供一个独立 store，方便各测试用例自由构造数据。
 // 预置一个 admin 用户和一个 cookie_id="cid" 的 cookie 记录以满足外键约束。
-// newNotifyStoreBare 封装newNotifyStoreBare业务协调。
 func newNotifyStoreBare(t *testing.T) (*db.Store, func()) {
 	t.Helper()
-	// d、err 用于本次流程后续判断的d、err
 	d, _, err := db.Open(context.Background(), filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	// s 用于本次流程后续判断的s
 	s := db.NewStore(d, db.DialectSQLite)
 	s.Users.Create(context.Background(), "admin", "a@e.com", "pw")
-	// admin 用于本次流程后续判断的admin
 	admin, _ := s.Users.GetByUsername(context.Background(), "admin")
 	s.Cookies.Save(context.Background(), "cid", "unb=123; _m_h5_tk=tk_1;", admin.ID)
 	return s, func() { _ = d.Close() }
@@ -128,17 +124,14 @@ func newNotifyStoreBare(t *testing.T) (*db.Store, func()) {
 // addWebhookChannel 插入一个 webhook 渠道并绑定到 cookieID，返回渠道 ID。
 func addWebhookChannel(t *testing.T, s *db.Store, cookieID, name, webhookURL string) int64 {
 	t.Helper()
-	// res、err 用于本次流程后续判断的res、err
 	res, err := s.DB.ExecContext(context.Background(),
 		`INSERT INTO notification_channels (name,type,config,enabled,user_id) VALUES (?,?,?,1,1)`,
 		name, "webhook", `{"webhook_url":"`+webhookURL+`"}`)
 	if err != nil {
 		t.Fatalf("insert channel: %v", err)
 	}
-	// id 用于本次流程后续判断的标识
 	id, _ := res.LastInsertId()
-	if // err 用于本次流程后续判断的err
-	_, err := s.DB.ExecContext(context.Background(),
+	if _, err := s.DB.ExecContext(context.Background(),
 		`INSERT INTO message_notifications (cookie_id,channel_id,enabled) VALUES (?,?,1)`,
 		cookieID, id); err != nil {
 		t.Fatalf("insert binding: %v", err)
@@ -148,7 +141,6 @@ func addWebhookChannel(t *testing.T, s *db.Store, cookieID, name, webhookURL str
 
 // TestNotifyAccountAlert_NoStore store 为 nil 时安全返回。
 func TestNotifyAccountAlert_NoStore(t *testing.T) {
-	// n 用于本次流程后续判断的n
 	n := &Notifier{logger: nilLogger()}
 	// 不应 panic。
 	n.NotifyAccountAlert("cid", "warn", "标题", "正文")
@@ -156,25 +148,19 @@ func TestNotifyAccountAlert_NoStore(t *testing.T) {
 
 // TestNotifyAccountAlert_NoChannels 无绑定渠道时不报错。
 func TestNotifyAccountAlert_NoChannels(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
 	n.NotifyAccountAlert("cid", "warn", "标题", "正文")
 }
 
 // TestNotifyAccountAlert_WithChannel 告警通知发送并包含标题与正文。
 func TestNotifyAccountAlert_WithChannel(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
 
-	// gotBody 用于本次流程后续判断的got请求体
 	var gotBody string
-	// srv 用于本次流程后续判断的srv
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// b 用于本次流程后续判断的b
 		b, _ := io.ReadAll(r.Body)
 		gotBody = string(b)
 		w.WriteHeader(200)
@@ -182,7 +168,6 @@ func TestNotifyAccountAlert_WithChannel(t *testing.T) {
 	defer srv.Close()
 
 	addWebhookChannel(t, s, "cid", "告警渠道", srv.URL)
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
 	n.NotifyAccountAlert("cid", "critical", "Token失效", "请重新登录")
 
@@ -194,42 +179,32 @@ func TestNotifyAccountAlert_WithChannel(t *testing.T) {
 	}
 }
 
-// TestNotifyEventUsesPersistentOutboxWhenStarted 封装TestNotifyEventUsesPersistentOutboxWhenStarted业务协调。
 func TestNotifyEventUsesPersistentOutboxWhenStarted(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
-	// calls 用于本次流程后续判断的calls
 	var calls int32
-	// srv 用于本次流程后续判断的srv
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&calls, 1)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
 	addWebhookChannel(t, s, "cid", "outbox", srv.URL)
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nilLogger())
 	// 标记异步模式但不启动循环，精确验证调用返回时尚未发生外部网络请求。
 	n.started.Store(true)
 	n.NotifyAccountAlert("cid", "warn", "持久化通知", "正文")
-	if // got 用于本次流程后续判断的got
-	got := atomic.LoadInt32(&calls); got != 0 {
+	if got := atomic.LoadInt32(&calls); got != 0 {
 		t.Fatalf("business call performed synchronous network I/O: %d", got)
 	}
-	// queued 用于本次流程后续判断的queued
 	var queued int
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRow(`SELECT COUNT(*) FROM notification_outbox WHERE status='pending'`).Scan(&queued); err != nil || queued != 1 {
+	if err := s.DB.QueryRow(`SELECT COUNT(*) FROM notification_outbox WHERE status='pending'`).Scan(&queued); err != nil || queued != 1 {
 		t.Fatalf("queued=%d err=%v", queued, err)
 	}
 	n.drainOutbox(context.Background())
-	if // got 用于本次流程后续判断的got
-	got := atomic.LoadInt32(&calls); got != 1 {
+	if got := atomic.LoadInt32(&calls); got != 1 {
 		t.Fatalf("outbox delivery calls=%d", got)
 	}
-	if // err 用于本次流程后续判断的err
-	err := s.DB.QueryRow(`SELECT COUNT(*) FROM notification_outbox`).Scan(&queued); err != nil || queued != 0 {
+	if err := s.DB.QueryRow(`SELECT COUNT(*) FROM notification_outbox`).Scan(&queued); err != nil || queued != 0 {
 		t.Fatalf("remaining=%d err=%v", queued, err)
 	}
 }
@@ -256,8 +231,8 @@ func TestDrainOutbox_SendSuccessCompletionFailureQuarantines(t *testing.T) {
 	notifier.started.Store(true)
 	notifier.drainOutbox(context.Background())
 	notifier.drainOutbox(context.Background())
-	if // got 保存外部服务收到的请求次数。
-	got := atomic.LoadInt32(&calls); got != 1 {
+	// got 保存外部服务收到的请求次数。
+	if got := atomic.LoadInt32(&calls); got != 1 {
 		t.Fatalf("send count=%d want 1", got)
 	}
 	if repository.uncertainCalls != 1 {
@@ -270,17 +245,14 @@ func TestDrainOutbox_SendSuccessCompletionFailureQuarantines(t *testing.T) {
 
 // TestNotifyAccountAlert_LevelLabels 覆盖 levelLabel 各分支。
 func TestNotifyAccountAlert_LevelLabels(t *testing.T) {
-	// cases 用于本次流程后续判断的cases
 	cases := map[string]string{
 		"critical": "严重",
 		"warn":     "警告",
 		"info":     "提示",
 		"unknown":  "unknown",
 	}
-	// level、want 表示当前遍历过程中的level、want
 	for level, want := range cases {
-		if // got 用于本次流程后续判断的got
-		got := levelLabel(level); got != want {
+		if got := levelLabel(level); got != want {
 			t.Errorf("levelLabel(%q)=%q want %q", level, got, want)
 		}
 	}
@@ -288,27 +260,20 @@ func TestNotifyAccountAlert_LevelLabels(t *testing.T) {
 
 // TestSendToChannel 直接发送到指定渠道。
 func TestSendToChannel(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
 
-	// gotBody 用于本次流程后续判断的got请求体
 	var gotBody string
-	// srv 用于本次流程后续判断的srv
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// b 用于本次流程后续判断的b
 		b, _ := io.ReadAll(r.Body)
 		gotBody = string(b)
 		w.WriteHeader(200)
 	}))
 	defer srv.Close()
 
-	// chID 用于本次流程后续判断的chID
 	chID := addWebhookChannel(t, s, "cid", "直发渠道", srv.URL)
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
-	if // err 用于本次流程后续判断的err
-	err := n.SendToChannel(chID, "直发测试"); err != nil {
+	if err := n.SendToChannel(chID, "直发测试"); err != nil {
 		t.Fatalf("SendToChannel: %v", err)
 	}
 	if !strings.Contains(gotBody, "直发测试") {
@@ -320,15 +285,12 @@ func TestSendToChannel(t *testing.T) {
 func TestSendToChannel_Errors(t *testing.T) {
 	// store 为 nil。
 	n := &Notifier{logger: nilLogger()}
-	if // err 用于本次流程后续判断的err
-	err := n.SendToChannel(1, "x"); err == nil {
+	if err := n.SendToChannel(1, "x"); err == nil {
 		t.Fatal("store 为 nil 应报错")
 	}
 
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
-	// n2 用于本次流程后续判断的n2
 	n2 := New("cid", s, nil)
 	// 不存在的渠道 ID。
 	if err := n2.SendToChannel(99999, "x"); err == nil {
@@ -338,11 +300,9 @@ func TestSendToChannel_Errors(t *testing.T) {
 
 // TestNotifyDelivery_MultiChannel 某渠道失败不影响其他渠道。
 func TestNotifyDelivery_MultiChannel(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
 
-	// okCount 用于本次流程后续判断的ok数量
 	var okCount int32
 	// 成功渠道。
 	okSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -361,26 +321,20 @@ func TestNotifyDelivery_MultiChannel(t *testing.T) {
 	addWebhookChannel(t, s, "cid", "成功渠道", okSrv.URL)
 	addWebhookChannel(t, s, "cid", "失败渠道", failSrv.URL)
 
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
 	n.NotifyDelivery("cid", "买家", "b1", "item1", "成功", "chat1")
-	if // got 用于本次流程后续判断的got
-	got := atomic.LoadInt32(&okCount); got != 1 {
+	if got := atomic.LoadInt32(&okCount); got != 1 {
 		t.Errorf("成功渠道应收到 1 次，实际 %d", got)
 	}
 }
 
 // TestNotifyDelivery_TemplateVars 通知正文应包含买家名、商品ID、结果等变量。
 func TestNotifyDelivery_TemplateVars(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
 
-	// gotBody 用于本次流程后续判断的got请求体
 	var gotBody string
-	// srv 用于本次流程后续判断的srv
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// b 用于本次流程后续判断的b
 		b, _ := io.ReadAll(r.Body)
 		gotBody = string(b)
 		w.WriteHeader(200)
@@ -388,11 +342,9 @@ func TestNotifyDelivery_TemplateVars(t *testing.T) {
 	defer srv.Close()
 
 	addWebhookChannel(t, s, "cid", "模板渠道", srv.URL)
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
 	n.NotifyDelivery("cid", "张三", "BID123", "ITEM456", "发货成功", "CHAT789")
 
-	// want 表示当前遍历过程中的want
 	for _, want := range []string{"张三", "BID123", "ITEM456", "发货成功", "CHAT789"} {
 		if !strings.Contains(gotBody, want) {
 			t.Errorf("正文缺少 %q: %s", want, gotBody)
@@ -402,15 +354,11 @@ func TestNotifyDelivery_TemplateVars(t *testing.T) {
 
 // TestNotifyDelivery_EmptyChatID chatID 为空时回退为“未知”。
 func TestNotifyDelivery_EmptyChatID(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
 
-	// gotBody 用于本次流程后续判断的got请求体
 	var gotBody string
-	// srv 用于本次流程后续判断的srv
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// b 用于本次流程后续判断的b
 		b, _ := io.ReadAll(r.Body)
 		gotBody = string(b)
 		w.WriteHeader(200)
@@ -418,7 +366,6 @@ func TestNotifyDelivery_EmptyChatID(t *testing.T) {
 	defer srv.Close()
 
 	addWebhookChannel(t, s, "cid", "渠道", srv.URL)
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
 	n.NotifyDelivery("cid", "买家", "b1", "item1", "结果", "")
 	if !strings.Contains(gotBody, "未知") {
@@ -489,12 +436,12 @@ func TestNotifyAutomationRunForTriggerFiltersByAutomationCategory(t *testing.T) 
 	notifier.NotifyAutomationRunForTrigger(context.Background(), "order_paid", 91, "cid", "buyer", "item", "success", "付款发货成功", "chat")
 	// counts 保存两个订阅渠道实际入队的消息数。
 	var paidCount, reviewCount int
-	if // countErr 保存读取付款渠道 outbox 数量时的数据库错误。
-	countErr := store.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notification_outbox WHERE channel_id=?`, paidChannelID).Scan(&paidCount); countErr != nil {
+	// countErr 保存读取付款渠道 outbox 数量时的数据库错误。
+	if countErr := store.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notification_outbox WHERE channel_id=?`, paidChannelID).Scan(&paidCount); countErr != nil {
 		t.Fatal(countErr)
 	}
-	if // countErr 保存读取评价渠道 outbox 数量时的数据库错误。
-	countErr := store.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notification_outbox WHERE channel_id=?`, reviewChannelID).Scan(&reviewCount); countErr != nil {
+	// countErr 保存读取评价渠道 outbox 数量时的数据库错误。
+	if countErr := store.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notification_outbox WHERE channel_id=?`, reviewChannelID).Scan(&reviewCount); countErr != nil {
 		t.Fatal(countErr)
 	}
 	if paidCount != 1 || reviewCount != 0 {
@@ -502,8 +449,8 @@ func TestNotifyAutomationRunForTriggerFiltersByAutomationCategory(t *testing.T) 
 	}
 	// eventType 保存 outbox 中实际持久化的细分类别，防止后续 worker 丢失筛选依据。
 	var eventType string
-	if // scanErr 保存读取付款渠道 outbox 事件类型时的数据库错误。
-	scanErr := store.DB.QueryRowContext(context.Background(), `SELECT event_type FROM notification_outbox WHERE channel_id=?`, paidChannelID).Scan(&eventType); scanErr != nil {
+	// scanErr 保存读取付款渠道 outbox 事件类型时的数据库错误。
+	if scanErr := store.DB.QueryRowContext(context.Background(), `SELECT event_type FROM notification_outbox WHERE channel_id=?`, paidChannelID).Scan(&eventType); scanErr != nil {
 		t.Fatal(scanErr)
 	}
 	if eventType != EventAutomationOrderPaid {
@@ -577,7 +524,6 @@ func TestNotifyManualInterventionQueuesStageAlertOnce(t *testing.T) {
 
 // TestParseConfig_InvalidJSON 非法 JSON 走旧格式兼容分支。
 func TestParseConfig_InvalidJSON(t *testing.T) {
-	// m 用于本次流程后续判断的m
 	m := parseConfig("{not json")
 	if m["config"] != "{not json" {
 		t.Errorf("非法 JSON 应放入 config: %v", m)
@@ -586,51 +532,41 @@ func TestParseConfig_InvalidJSON(t *testing.T) {
 
 // TestStrOr 覆盖 string / 非 string / 缺失三个分支。
 func TestStrOr(t *testing.T) {
-	// m 用于本次流程后续判断的m
 	m := map[string]any{
 		"s": "abc",
 		"n": 42,
 		"b": true,
 	}
-	if // got 用于本次流程后续判断的got
-	got := strOr(m, "s", "x"); got != "abc" {
+	if got := strOr(m, "s", "x"); got != "abc" {
 		t.Errorf("strOr(s)=%q", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := strOr(m, "n", "x"); got != "42" {
+	if got := strOr(m, "n", "x"); got != "42" {
 		t.Errorf("strOr(n)=%q", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := strOr(m, "b", "x"); got != "true" {
+	if got := strOr(m, "b", "x"); got != "true" {
 		t.Errorf("strOr(b)=%q", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := strOr(m, "missing", "def"); got != "def" {
+	if got := strOr(m, "missing", "def"); got != "def" {
 		t.Errorf("strOr(missing)=%q", got)
 	}
 }
 
 // TestFallback fallback 空串与非空串。
 func TestFallback(t *testing.T) {
-	if // got 用于本次流程后续判断的got
-	got := fallback("", "默认"); got != "默认" {
+	if got := fallback("", "默认"); got != "默认" {
 		t.Errorf("fallback('')=%q", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := fallback("值", "默认"); got != "值" {
+	if got := fallback("值", "默认"); got != "值" {
 		t.Errorf("fallback('值')=%q", got)
 	}
 }
 
 // TestNotifyAccountAlert_DBError 查询出错时不 panic（err != nil 分支）。
 func TestNotifyAccountAlert_DBError(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
-	// d 用于本次流程后续判断的d
 	d := s.DB
 	cleanup() // 提前关闭 DB，使查询返回错误
 	_ = d
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
 	// store 非 nil 但 DB 已关闭，查询会报错；不应 panic。
 	n.NotifyAccountAlert("cid", "warn", "标题", "正文")
@@ -638,7 +574,6 @@ func TestNotifyAccountAlert_DBError(t *testing.T) {
 
 // TestNotifyDelivery_DBError 查询出错时不 panic（err != nil 分支）。
 func TestNotifyDelivery_DBError(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	cleanup() // 提前关闭 DB
 	n := New("cid", s, nil)
@@ -647,30 +582,25 @@ func TestNotifyDelivery_DBError(t *testing.T) {
 
 // TestSendToChannel_DBError 查询渠道出错时返回包装错误。
 func TestSendToChannel_DBError(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	cleanup() // 提前关闭 DB
 	n := New("cid", s, nil)
-	if // err 用于本次流程后续判断的err
-	err := n.SendToChannel(1, "x"); err == nil {
+	if err := n.SendToChannel(1, "x"); err == nil {
 		t.Fatal("DB 查询出错应返回 error")
 	}
 }
 
 // TestNotifyAccountAlert_SendError 某渠道发送失败时记录错误但不中断。
 func TestNotifyAccountAlert_SendError(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
 
-	// srv 用于本次流程后续判断的srv
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer srv.Close()
 
 	addWebhookChannel(t, s, "cid", "失败渠道", srv.URL)
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
 	// 渠道返回 5xx，send 报错 → 走 logger.Error 分支，但不应 panic。
 	n.NotifyAccountAlert("cid", "warn", "标题", "正文")
@@ -678,10 +608,8 @@ func TestNotifyAccountAlert_SendError(t *testing.T) {
 
 // TestNew_DefaultLogger logger 为 nil 时使用默认 logger。
 func TestNew_DefaultLogger(t *testing.T) {
-	// s、cleanup 用于本次流程后续判断的s、cleanup
 	s, cleanup := newNotifyStoreBare(t)
 	defer cleanup()
-	// n 用于本次流程后续判断的n
 	n := New("cid", s, nil)
 	if n == nil || n.logger == nil || n.httpc == nil {
 		t.Fatal("New 未正确初始化字段")

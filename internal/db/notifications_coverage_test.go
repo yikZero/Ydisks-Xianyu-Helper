@@ -10,7 +10,6 @@ func TestNotificationsBindingRepositoryPaths(t *testing.T) {
 	// store、cleanup 保存带完整迁移的临时数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 限制本测试所有数据库操作的生命周期。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号所属用户和账号标识。
 	userID, cookieID := seedAccount(t, store)
@@ -103,10 +102,8 @@ func TestNotificationsBindingRepositoryPaths(t *testing.T) {
 
 // TestAnalyticsQueriesDelegatesToDatabase 验证分析查询边界透传单行和多行查询。
 func TestAnalyticsQueriesDelegatesToDatabase(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 限制本测试数据库操作的生命周期。
 	ctx := context.Background()
 	// one、oneErr 保存单行查询结果及数据库错误。
 	var one int

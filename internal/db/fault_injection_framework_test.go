@@ -66,7 +66,6 @@ type faultConn struct {
 
 // ExecContext 先检查故障再透传到底层连接。
 func (c *faultConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := c.state.tick(); err != nil {
 		return nil, err
 	}
@@ -80,7 +79,6 @@ func (c *faultConn) ExecContext(ctx context.Context, query string, args []driver
 
 // QueryContext 先检查故障再透传到底层连接。
 func (c *faultConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := c.state.tick(); err != nil {
 		return nil, err
 	}
@@ -94,7 +92,6 @@ func (c *faultConn) QueryContext(ctx context.Context, query string, args []drive
 
 // PrepareContext 先检查故障再透传到底层连接。
 func (c *faultConn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := c.state.tick(); err != nil {
 		return nil, err
 	}
@@ -108,7 +105,6 @@ func (c *faultConn) PrepareContext(ctx context.Context, query string) (driver.St
 
 // BeginTx 先检查故障再开启真实事务，并包装事务以便注入提交失败。
 func (c *faultConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := c.state.tick(); err != nil {
 		return nil, err
 	}
@@ -144,7 +140,6 @@ type faultTx struct {
 
 // Commit 先检查故障；注入失败时回滚真实事务，模拟提交失败不留下半成品。
 func (t *faultTx) Commit() error {
-	// err 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if err := t.state.tick(); err != nil {
 		_ = t.Rollback()
 		return err
@@ -176,7 +171,6 @@ func faultTemplate(t *testing.T) string {
 	if openErr != nil {
 		t.Fatal(openErr)
 	}
-	// closeErr 保存该步骤的返回值或错误，用于断言预期结果或在故障注入场景中忽略其结果。
 	if closeErr := handle.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

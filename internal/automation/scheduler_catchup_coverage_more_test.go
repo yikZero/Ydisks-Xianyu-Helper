@@ -277,10 +277,8 @@ func setRunState(t *testing.T, store *db.Store, runID int64, status string, atte
 // TestScanPendingShipDeliveriesSkipsWhenDisabledOrUninitialized 验证兜底扫描在开关关闭与状态缺失时安全返回。
 // 止血开关与空状态保护是部署异常时的最后一道防线，缺少它们会造成无法回滚的重复发货。
 func TestScanPendingShipDeliveriesSkipsWhenDisabledOrUninitialized(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// 显式关闭止血开关时，兜底扫描必须整体跳过。
 	t.Setenv(pendingShipCatchupEnv, "0")
@@ -304,10 +302,8 @@ func TestScanPendingShipDeliveriesSkipsWhenDisabledOrUninitialized(t *testing.T)
 // TestScanPendingShipDeliveriesCoversGatesCooldownAndSuccess 验证兜底扫描的账号门禁、冷却与补触发主链路。
 // 这条链路就是 09-13 线上“卡密已发出但发货状态未更新”问题的兜底修复，必须覆盖每一类跳过原因。
 func TestScanPendingShipDeliveriesCoversGatesCooldownAndSuccess(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -381,10 +377,8 @@ func TestScanPendingShipDeliveriesCoversGatesCooldownAndSuccess(t *testing.T) {
 // TestPendingShipDeliveryScanHonorsBudget 验证单个慢速外部动作不能把待发货扫描拖过本轮预算。
 // 发送器遵守 Context 取消后，扫描必须及时结束并把尚未处理的订单留给下一轮。
 func TestPendingShipDeliveryScanHonorsBudget(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -450,10 +444,8 @@ func TestPendingShipDeliveryScanHonorsBudget(t *testing.T) {
 // TestPendingShipDeliveryScanHonorsTaskLimit 验证单轮任务上限生效，余下订单仍保留在无运行候选集合。
 // 该上限与时间预算共同保证订单量增长不会让分钟级调度循环失去响应。
 func TestPendingShipDeliveryScanHonorsTaskLimit(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -502,7 +494,6 @@ func TestPendingShipDeliveryScanHonorsTaskLimit(t *testing.T) {
 // TestScanPendingShipDeliveriesReportsStorageFailures 验证存储不可用时兜底扫描返回而不是静默跳过。
 // 兜底扫描漏报比多报更危险：付款消息丢失的订单会永久停在待发货。
 func TestScanPendingShipDeliveriesReportsStorageFailures(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 是仍引用已关闭数据库的自动化中心。
@@ -523,7 +514,6 @@ func TestClaimPendingShipAttemptCooldownsAndCleansExpiredEntries(t *testing.T) {
 	if nilScheduler.claimPendingShipAttempt("o-nil") {
 		t.Fatal("空调度器应拒绝领取兜底尝试")
 	}
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 是带真实存储的自动化中心。
@@ -566,10 +556,8 @@ func TestClaimPendingShipAttemptCooldownsAndCleansExpiredEntries(t *testing.T) {
 // TestScanPendingShipResumesContinuesIdempotentTails 验证续跑扫描能从检查点继续执行幂等收尾动作。
 // 运行被隔离后剩余动作全是确认发货时，续跑不会再次联系买家，是安全的自动恢复路径。
 func TestScanPendingShipResumesContinuesIdempotentTails(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -623,10 +611,8 @@ func TestScanPendingShipResumesContinuesIdempotentTails(t *testing.T) {
 
 // TestScanPendingShipResumesSkipsWhenDisabledOrUninitialized 验证续跑扫描在开关关闭与状态缺失时安全返回。
 func TestScanPendingShipResumesSkipsWhenDisabledOrUninitialized(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// 关闭共用止血开关时，续跑扫描必须整体跳过。
 	t.Setenv(pendingShipCatchupEnv, "0")
@@ -644,7 +630,6 @@ func TestScanPendingShipResumesSkipsWhenDisabledOrUninitialized(t *testing.T) {
 
 // TestScanPendingShipResumesReportsStorageFailures 验证存储不可用时续跑扫描返回而不是静默跳过。
 func TestScanPendingShipResumesReportsStorageFailures(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 是仍引用已关闭数据库的自动化中心。
@@ -717,10 +702,8 @@ func TestPendingShipResumeFrozenPlanBoundaries(t *testing.T) {
 // 闸门关闭时 HandleTask 会直接返回而不收口运行；若先重开运行，它会留在 running 并继续持有租约，
 // 租约到期后失败运行恢复链路直接执行 executeRule，从而绕过账号开关。
 func TestScanPendingShipResumesSkipsWhenAutoConfirmDisabled(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -769,10 +752,8 @@ func TestScanPendingShipResumesSkipsWhenAutoConfirmDisabled(t *testing.T) {
 // 冷却窗口代表「已经尝试过一次兜底」；若在发送器未就绪时提前领取，订单会被白白压制十分钟，
 // 与日志里「等待下次扫描」的语义矛盾。
 func TestScanPendingShipDeliveriesDoesNotClaimCooldownWhenGatesBlock(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

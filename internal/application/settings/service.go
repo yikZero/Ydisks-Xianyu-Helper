@@ -369,8 +369,8 @@ func (s *Service) ListAIModels(ctx context.Context, userID int64, baseURL, apiKe
 		if err != nil {
 			return nil, err
 		}
-	} else if // err 表示外部传入 API 密钥的使用审计失败。
-	err := s.audit(ctx, AuditRecord{UserID: userID, Action: "settings.use", Resource: "ai_models", Keys: []string{"ai_api_key"}}); err != nil {
+	} else if err := s.audit(ctx, AuditRecord{UserID: userID, Action: "settings.use", Resource: "ai_models", Keys: []string{"ai_api_key"}}); err != nil {
+		// err 表示外部传入 API 密钥的使用审计失败。
 		return nil, err
 	}
 	return s.modelClient.Fetch(ctx, baseURL, apiKey)
@@ -406,8 +406,8 @@ func (s *Service) TestAIConnection(ctx context.Context, userID int64, baseURL, a
 		if secretErr != nil {
 			return AIConnectionTestResult{}, secretErr
 		}
-	} else if // auditErr 表示临时 API Key 使用审计未持久化，必须阻止出站请求。
-	auditErr := s.audit(ctx, AuditRecord{UserID: userID, Action: "settings.use", Resource: "ai_connection_test", Keys: []string{"ai_api_key"}}); auditErr != nil {
+	} else if auditErr := s.audit(ctx, AuditRecord{UserID: userID, Action: "settings.use", Resource: "ai_connection_test", Keys: []string{"ai_api_key"}}); auditErr != nil {
+		// auditErr 表示临时 API Key 使用审计未持久化，必须阻止出站请求。
 		return AIConnectionTestResult{}, auditErr
 	}
 	model = strings.TrimSpace(model)

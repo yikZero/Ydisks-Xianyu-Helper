@@ -53,33 +53,33 @@ func TestItemAISettingsServiceValidation(t *testing.T) {
 	if serviceErr != nil {
 		t.Fatal(serviceErr)
 	}
-	if // saveErr 是规范化保存配置时的错误。
-	saveErr := service.Save(context.Background(), 1, ItemAISettings{CookieID: " account ", ItemID: " item ", Override: ItemAIOverrideEnabled, Context: "资料"}); saveErr != nil {
+	// saveErr 是规范化保存配置时的错误。
+	if saveErr := service.Save(context.Background(), 1, ItemAISettings{CookieID: " account ", ItemID: " item ", Override: ItemAIOverrideEnabled, Context: "资料"}); saveErr != nil {
 		t.Fatal(saveErr)
 	}
 	if repository.saved.CookieID != "account" || repository.saved.ItemID != "item" || repository.saved.Override != ItemAIOverrideEnabled {
 		t.Fatalf("规范化保存异常: %+v", repository.saved)
 	}
-	if // resetErr 是默认配置重置操作的错误。
-	resetErr := service.Save(context.Background(), 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: ItemAIOverrideInherit}); resetErr != nil || !repository.deleted {
+	// resetErr 是默认配置重置操作的错误。
+	if resetErr := service.Save(context.Background(), 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: ItemAIOverrideInherit}); resetErr != nil || !repository.deleted {
 		t.Fatalf("默认配置重置异常: deleted=%v err=%v", repository.deleted, resetErr)
 	}
-	if // invalidErr 是非法覆盖值保存错误。
-	invalidErr := service.Save(context.Background(), 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: "invalid"}); !errors.Is(invalidErr, ErrItemAISettingsInvalidOverride) {
+	// invalidErr 是非法覆盖值保存错误。
+	if invalidErr := service.Save(context.Background(), 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: "invalid"}); !errors.Is(invalidErr, ErrItemAISettingsInvalidOverride) {
 		t.Fatalf("非法覆盖值错误异常: %v", invalidErr)
 	}
-	if // longErr 是超长商品资料保存错误。
-	longErr := service.Save(context.Background(), 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: ItemAIOverrideInherit, Context: strings.Repeat("中", ItemAIContextMaxRunes+1)}); !errors.Is(longErr, ErrItemAISettingsContextTooLong) {
+	// longErr 是超长商品资料保存错误。
+	if longErr := service.Save(context.Background(), 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: ItemAIOverrideInherit, Context: strings.Repeat("中", ItemAIContextMaxRunes+1)}); !errors.Is(longErr, ErrItemAISettingsContextTooLong) {
 		t.Fatalf("超长资料错误异常: %v", longErr)
 	}
 	repository.owned = false
-	if // forbiddenErr 是跨用户读取配置错误。
-	_, forbiddenErr := service.Get(context.Background(), 1, "account", "item"); !errors.Is(forbiddenErr, ErrItemAISettingsForbidden) {
+	// forbiddenErr 是跨用户读取配置错误。
+	if _, forbiddenErr := service.Get(context.Background(), 1, "account", "item"); !errors.Is(forbiddenErr, ErrItemAISettingsForbidden) {
 		t.Fatalf("跨用户访问错误异常: %v", forbiddenErr)
 	}
 	repository.owned, repository.exists = true, false
-	if // missingErr 是商品不存在时的读取错误。
-	_, missingErr := service.Get(context.Background(), 1, "account", "item"); !errors.Is(missingErr, ErrItemAISettingsItemNotFound) {
+	// missingErr 是商品不存在时的读取错误。
+	if _, missingErr := service.Get(context.Background(), 1, "account", "item"); !errors.Is(missingErr, ErrItemAISettingsItemNotFound) {
 		t.Fatalf("商品缺失错误异常: %v", missingErr)
 	}
 }
@@ -92,17 +92,14 @@ func TestNewItemAISettingsServiceRequiresRepository(t *testing.T) {
 	}
 	// uninitialized 是没有仓储的零值服务，模拟装配遗漏。
 	uninitialized := &ItemAISettingsService{}
-	// err 保存 Get 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := uninitialized.Get(context.Background(), 1, "account", "item"); err == nil {
 		t.Fatal("未初始化服务的 Get 必须返回错误")
 	}
-	// err 保存 Save 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := uninitialized.Save(context.Background(), 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: ItemAIOverrideInherit}); err == nil {
 		t.Fatal("未初始化服务的 Save 必须返回错误")
 	}
 	// nilService 是 nil 接收者，同样不得 panic。
 	var nilService *ItemAISettingsService
-	// err 保存 Get 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := nilService.Get(context.Background(), 1, "account", "item"); err == nil {
 		t.Fatal("nil 服务的 Get 必须返回错误")
 	}
@@ -118,7 +115,6 @@ func TestItemAISettingsServiceRejectsIncompleteIdentity(t *testing.T) {
 	if serviceErr != nil {
 		t.Fatal(serviceErr)
 	}
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// getCases 覆盖 Get 的三类身份缺失。
 	getCases := []struct {
@@ -136,7 +132,6 @@ func TestItemAISettingsServiceRejectsIncompleteIdentity(t *testing.T) {
 	}
 	// tc 是当前 Get 子用例。
 	for _, tc := range getCases {
-		// err 保存 Get 调用返回的错误，随后断言它是否符合该场景的预期。
 		if _, err := service.Get(ctx, tc.userID, tc.cookieID, tc.itemID); !errors.Is(err, tc.want) {
 			t.Fatalf("Get %s: err=%v want %v", tc.name, err, tc.want)
 		}
@@ -158,7 +153,6 @@ func TestItemAISettingsServiceRejectsIncompleteIdentity(t *testing.T) {
 	}
 	// tc 是当前 Save 子用例。
 	for _, tc := range saveCases {
-		// err 保存 Save 调用返回的错误，随后断言它是否符合该场景的预期。
 		if err := service.Save(ctx, tc.userID, tc.settings); !errors.Is(err, tc.want) {
 			t.Fatalf("Save %s: err=%v want %v", tc.name, err, tc.want)
 		}
@@ -180,13 +174,10 @@ func TestItemAISettingsServiceKeepsInfrastructureErrorsAndSavesContextOnlyInheri
 	if serviceErr != nil {
 		t.Fatal(serviceErr)
 	}
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
-	// err 保存 Get 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := service.Get(ctx, 1, "account", "item"); !errors.Is(err, infraErr) {
 		t.Fatalf("Get 应保留基础设施错误，got %v", err)
 	}
-	// err 保存 Save 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := service.Save(ctx, 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: ItemAIOverrideEnabled}); !errors.Is(err, infraErr) {
 		t.Fatalf("Save 应保留基础设施错误，got %v", err)
 	}
@@ -198,7 +189,6 @@ func TestItemAISettingsServiceKeepsInfrastructureErrorsAndSavesContextOnlyInheri
 	if splitErr != nil {
 		t.Fatal(splitErr)
 	}
-	// err 保存 Save 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := splitService.Save(ctx, 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: ItemAIOverrideEnabled}); !errors.Is(err, infraErr) {
 		t.Fatalf("商品存在性检查失败应原样返回，got %v", err)
 	}
@@ -210,7 +200,6 @@ func TestItemAISettingsServiceKeepsInfrastructureErrorsAndSavesContextOnlyInheri
 	if healthyErr != nil {
 		t.Fatal(healthyErr)
 	}
-	// err 保存 Save 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := healthyService.Save(ctx, 1, ItemAISettings{CookieID: "account", ItemID: "item", Override: ItemAIOverrideInherit, Context: "仅资料"}); err != nil {
 		t.Fatal(err)
 	}

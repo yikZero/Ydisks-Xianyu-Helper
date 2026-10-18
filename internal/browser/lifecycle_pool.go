@@ -18,9 +18,7 @@ import (
 
 // detectBrowserFingerprint 从受控 Chromium 读取运行时指纹，供浏览器与非浏览器协议请求统一使用。
 func (m *Manager) detectBrowserFingerprint() error {
-	// observed 用于本次流程后续判断的observed
 	observed := make(chan http.Header, 1)
-	// server 用于本次流程后续判断的server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		observed <- r.Header.Clone()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -28,7 +26,6 @@ func (m *Manager) detectBrowserFingerprint() error {
 	}))
 	defer server.Close()
 
-	// b、err 用于本次流程后续判断的b、err
 	b, err := m.pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 		Headless:       playwright.Bool(true),
 		Args:           chromiumLaunchArgs(),
@@ -38,22 +35,18 @@ func (m *Manager) detectBrowserFingerprint() error {
 		return err
 	}
 	defer func() { _ = b.Close() }()
-	// ctx、err 用于本次流程后续判断的ctx、err
 	ctx, err := b.NewContext()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = ctx.Close() }()
-	// page、err 用于本次流程后续判断的page、err
 	page, err := ctx.NewPage()
 	if err != nil {
 		return err
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := page.Goto(server.URL, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateDomcontentloaded}); err != nil {
+	if _, err := page.Goto(server.URL, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateDomcontentloaded}); err != nil {
 		return err
 	}
-	// headers 用于本次流程后续判断的headers
 	var headers http.Header
 	select {
 	case headers = <-observed:
@@ -331,16 +324,13 @@ func (m *Manager) CloseContext(ctx context.Context) error {
 	}
 
 	m.mu.Lock()
-	// entries 用于本次流程后续判断的entries
 	entries := make([]*poolEntry, 0, len(m.pool))
-	// e 表示当前遍历过程中的e
 	for _, e := range m.pool {
 		entries = append(entries, e)
 	}
 	m.pool = make(map[string]*poolEntry)
 	m.mu.Unlock()
 
-	// e 表示当前遍历过程中的e
 	for _, e := range entries {
 		closeEntry(e, m.logger)
 	}
@@ -357,7 +347,6 @@ func (m *Manager) CloseContext(ctx context.Context) error {
 
 // newPage 从池中取（或创建）一个 context，返回新 page + 释放函数。
 // 每次请求新建 page，避免并发导航冲突（与 browser_pool.get_browser 一致）。
-// newPage 封装new页码业务协调。
 func (m *Manager) newPage(ctx context.Context, cookieID, cookieStr string, headless bool) (playwright.Page, func(), error) {
 	// err 表示管理器已关闭或调用方已取消，不能继续申请浏览器页。
 	if err := m.beginOperation(ctx); err != nil {
@@ -369,12 +358,10 @@ func (m *Manager) newPage(ctx context.Context, cookieID, cookieStr string, headl
 	finishOperation := func() {
 		operationOnce.Do(m.endOperation)
 	}
-	if // err 用于本次流程后续判断的err
-	err := m.init(); err != nil {
+	if err := m.init(); err != nil {
 		finishOperation()
 		return nil, nil, err
 	}
-	// entry、err 用于本次流程后续判断的entry、err
 	entry, err := m.acquireEntry(cookieID, cookieStr, headless)
 	if err != nil {
 		finishOperation()
@@ -399,7 +386,6 @@ func (m *Manager) newPage(ctx context.Context, cookieID, cookieStr string, headl
 			return nil, nil, fmt.Errorf("新建 page 失败: %w", err)
 		}
 	}
-	// release 用于本次流程后续判断的release
 	release := func() {
 		_ = page.Close()
 		m.releaseEntry(cookieID, entry)
@@ -408,22 +394,18 @@ func (m *Manager) newPage(ctx context.Context, cookieID, cookieStr string, headl
 	return page, release, nil
 }
 
-// acquireEntry 封装acquireEntry业务协调。
 func (m *Manager) acquireEntry(cookieID, cookieStr string, headless bool) (*poolEntry, error) {
 	m.mu.Lock()
-	if // e、ok 用于本次流程后续判断的e、ok
-	e, ok := m.pool[cookieID]; ok && e.browser != nil && e.browser.IsConnected() {
+	if e, ok := m.pool[cookieID]; ok && e.browser != nil && e.browser.IsConnected() {
 		m.claimEntryLocked(e)
 		m.mu.Unlock()
 		return e, nil
 	}
 	m.mu.Unlock()
 
-	// created、err 用于本次流程后续判断的created、err
 	created, err, _ := m.creates.Do(cookieID, func() (any, error) {
 		m.mu.Lock()
-		if // e、ok 用于本次流程后续判断的e、ok
-		e, ok := m.pool[cookieID]; ok && e.browser != nil && e.browser.IsConnected() {
+		if e, ok := m.pool[cookieID]; ok && e.browser != nil && e.browser.IsConnected() {
 			m.mu.Unlock()
 			return e, nil
 		}
@@ -435,14 +417,12 @@ func (m *Manager) acquireEntry(cookieID, cookieStr string, headless bool) (*pool
 	if err != nil {
 		return nil, err
 	}
-	// entry、ok 用于本次流程后续判断的entry、ok
 	entry, ok := created.(*poolEntry)
 	if !ok || entry == nil {
 		return nil, fmt.Errorf("浏览器池创建返回异常")
 	}
 	m.mu.Lock()
-	if // current 用于本次流程后续判断的current
-	current := m.pool[cookieID]; current == entry {
+	if current := m.pool[cookieID]; current == entry {
 		m.claimEntryLocked(entry)
 		m.mu.Unlock()
 	} else {
@@ -452,7 +432,6 @@ func (m *Manager) acquireEntry(cookieID, cookieStr string, headless bool) (*pool
 	return entry, nil
 }
 
-// claimEntryLocked 封装claimEntryLocked业务协调。
 func (m *Manager) claimEntryLocked(entry *poolEntry) {
 	entry.lastUsed = time.Now()
 	if entry.initialLeaseAvailable {
@@ -462,12 +441,10 @@ func (m *Manager) claimEntryLocked(entry *poolEntry) {
 	entry.active++
 }
 
-// releaseEntry 封装releaseEntry业务协调。
 func (m *Manager) releaseEntry(cookieID string, entry *poolEntry) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if // current 用于本次流程后续判断的current
-	current := m.pool[cookieID]; current != entry {
+	if current := m.pool[cookieID]; current != entry {
 		return
 	}
 	if entry.active > 0 {
@@ -476,9 +453,7 @@ func (m *Manager) releaseEntry(cookieID string, entry *poolEntry) {
 	entry.lastUsed = time.Now()
 }
 
-// createEntry 封装createEntry业务协调。
 func (m *Manager) createEntry(cookieID, cookieStr string, headless bool) (*poolEntry, error) {
-	// browser、err 用于本次流程后续判断的browser、err
 	browser, err := m.pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 		Headless:       playwright.Bool(headless),
 		Args:           chromiumLaunchArgs(),
@@ -502,19 +477,16 @@ func (m *Manager) createEntry(cookieID, cookieStr string, headless bool) (*poolE
 		_ = browser.Close()
 		return nil, fmt.Errorf("创建 context 失败: %w", err)
 	}
-	if // err 用于本次流程后续判断的err
-	err := context.AddInitScript(playwright.Script{Content: playwright.String(stealthScript())}); err != nil {
+	if err := context.AddInitScript(playwright.Script{Content: playwright.String(stealthScript())}); err != nil {
 		m.logger.Warn("注入 stealth 脚本失败", "err", err)
 	}
 	if cookieStr != "" {
-		if // err 用于本次流程后续判断的err
-		err := addCookieStr(context, cookieStr); err != nil {
+		if err := addCookieStr(context, cookieStr); err != nil {
 			_ = context.Close()
 			_ = browser.Close()
 			return nil, fmt.Errorf("注入 cookie 失败: %w", err)
 		}
 	}
-	// entry 用于本次流程后续判断的entry
 	entry := &poolEntry{
 		cookieID:              cookieID,
 		browser:               browser,
@@ -529,20 +501,16 @@ func (m *Manager) createEntry(cookieID, cookieStr string, headless bool) (*poolE
 	return entry, nil
 }
 
-// touch 封装touch业务协调。
 func (m *Manager) touch(cookieID string) {
 	m.mu.Lock()
-	if // e、ok 用于本次流程后续判断的e、ok
-	e, ok := m.pool[cookieID]; ok {
+	if e, ok := m.pool[cookieID]; ok {
 		e.lastUsed = time.Now()
 	}
 	m.mu.Unlock()
 }
 
-// evict 封装evict业务协调。
 func (m *Manager) evict(cookieID string) {
 	m.mu.Lock()
-	// e、ok 用于本次流程后续判断的e、ok
 	e, ok := m.pool[cookieID]
 	if ok && e.active > 0 {
 		m.mu.Unlock()
@@ -555,18 +523,14 @@ func (m *Manager) evict(cookieID string) {
 	}
 }
 
-// evictIfNeeded 封装evictIfNeeded业务协调。
 func (m *Manager) evictIfNeeded() {
 	m.mu.Lock()
 	if len(m.pool) < m.maxSize {
 		m.mu.Unlock()
 		return
 	}
-	// oldest 用于本次流程后续判断的oldest
 	var oldest *poolEntry
-	// oldestID 用于本次流程后续判断的oldestID
 	var oldestID string
-	// id、e 表示当前遍历过程中的id、e
 	for id, e := range m.pool {
 		if e.active > 0 {
 			continue
@@ -587,12 +551,9 @@ func (m *Manager) evictIfNeeded() {
 
 // CleanupIdle 清理超过 idleTTL 未用的浏览器。
 func (m *Manager) CleanupIdle() {
-	// now 用于本次流程后续判断的now
 	now := time.Now()
 	m.mu.Lock()
-	// toClose 用于本次流程后续判断的toClose
 	var toClose []*poolEntry
-	// id、e 表示当前遍历过程中的id、e
 	for id, e := range m.pool {
 		if e.active == 0 && now.Sub(e.lastUsed) > m.idleTTL {
 			toClose = append(toClose, e)
@@ -600,13 +561,11 @@ func (m *Manager) CleanupIdle() {
 		}
 	}
 	m.mu.Unlock()
-	// e 表示当前遍历过程中的e
 	for _, e := range toClose {
 		closeEntry(e, m.logger)
 	}
 }
 
-// closeEntry 封装closeEntry业务协调。
 func closeEntry(e *poolEntry, logger *slog.Logger) {
 	if e == nil {
 		return
@@ -621,13 +580,11 @@ func closeEntry(e *poolEntry, logger *slog.Logger) {
 
 // addCookieStr 把 "k=v; k2=v2" 注入 context（domain .goofish.com）。
 func addCookieStr(ctx playwright.BrowserContext, cookieStr string) error {
-	// cookies 用于本次流程后续判断的cookies
 	cookies := parseCookieStrToPlaywright(cookieStr)
 	if len(cookies) == 0 {
 		return errors.New("cookie 为空或格式错误")
 	}
-	if // err 用于本次流程后续判断的err
-	err := ctx.ClearCookies(); err != nil {
+	if err := ctx.ClearCookies(); err != nil {
 		return fmt.Errorf("清理浏览器旧 cookie: %w", err)
 	}
 	return ctx.AddCookies(cookies)

@@ -16,7 +16,6 @@ func TestAutomationRepositoryOwnershipMapsNotFound(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定 SQLite 存储的自动化规则适配器。
 	repository := NewAutomationRepository(store)
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// owned、ownedErr 保存不存在商品的归属判断结果。
 	owned, ownedErr := repository.OwnsItem(ctx, 1, "cid", "missing-item")
@@ -39,7 +38,6 @@ func TestAutomationRepositoryOwnershipPropagatesDatabaseErrors(t *testing.T) {
 	repository := NewAutomationRepository(store)
 	// ctx 是数据库关闭后调用适配器的非取消上下文。
 	ctx := context.Background()
-	// closeErr 表示提前关闭测试数据库时的资源释放错误。
 	closeErr := store.DB.Close()
 	if closeErr != nil {
 		t.Fatal(closeErr)
@@ -63,7 +61,6 @@ func TestAutomationRepositoryEnsurePublishRuleIsIdempotent(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定 SQLite 存储的自动化规则适配器。
 	repository := NewAutomationRepository(store)
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// input 是代表发布成功后自动发货的规则输入。
 	input := automationapp.RuleInput{UserID: 1, CookieID: "cid", ItemID: "item-1", Name: "付款后自动发货 - 商品", TriggerType: automationapp.TriggerOrderPaid, Enabled: true, Priority: 100, ConfigJSON: "{}", Actions: []automationapp.ActionInput{{ActionType: automationapp.ActionConfirmShipment, Enabled: true, SortOrder: 1}}}
@@ -91,7 +88,6 @@ func TestAutomationRepositoryEnsurePublishRulePropagatesDatabaseError(t *testing
 	defer cleanup()
 	// repository 是绑定 SQLite 存储的自动化规则适配器。
 	repository := NewAutomationRepository(store)
-	// closeErr 表示提前关闭测试数据库时的资源释放错误。
 	closeErr := store.DB.Close()
 	if closeErr != nil {
 		t.Fatal(closeErr)

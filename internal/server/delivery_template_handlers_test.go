@@ -123,7 +123,6 @@ func TestDeliveryTemplateHandlerHelpers(t *testing.T) {
 func TestDeliveryTemplateHandlerErrorMapping(t *testing.T) {
 	// cases 描述不同 handler、应用错误和预期 HTTP 状态。
 	cases := []struct {
-		// name 是子测试名称。
 		name string
 		// invoke 调用当前场景的 handler。
 		invoke func(*Server, http.ResponseWriter, *http.Request)

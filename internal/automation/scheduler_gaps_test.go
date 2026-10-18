@@ -43,10 +43,8 @@ func newFlipContext(ok int64) *flipContext {
 // rawTask 为冻结快照；provider 为发送器提供方。
 func resumeScanFixture(t *testing.T, orderSuffix, rawTask string, provider SenderProvider) (*Scheduler, *db.Store, int64) {
 	t.Helper()
-	// store、cleanup 保存隔离数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	t.Cleanup(cleanup)
-	// ctx 是夹具写入共用的上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存规则所属管理员。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -114,7 +112,6 @@ func TestScanPendingShipResumesGateBranches(t *testing.T) {
 	t.Run("账号暂停不重开", func(t *testing.T) {
 		// s、store、runID 保存夹具。
 		s, store, runID := resumeScanFixture(t, "d", resumeRaw("d"), ready())
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := store.Cookies.SetPause(context.Background(), "cid", 60); err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +179,6 @@ func TestScanPendingShipResumesGateBranches(t *testing.T) {
 func TestScanPendingShipResumesTaskLimit(t *testing.T) {
 	// s、store、runID 保存第一条候选夹具。
 	s, store, firstRun := resumeScanFixture(t, "x1", resumeRaw("x1"), selectiveSenderProvider{senders: map[string]*readinessTestSender{}, ready: map[string]bool{"cid": true}})
-	// ctx 是夹具共用的上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员。
 	admin, _ := store.Users.GetByUsername(ctx, "admin")
@@ -208,7 +204,6 @@ func TestScanPendingShipResumesTaskLimit(t *testing.T) {
 // seedSchedulerReviewOrder 创建一条已满足求评价条件的订单和规则，actionDelay 为规则动作延迟秒数。
 func seedSchedulerReviewOrder(t *testing.T, store *db.Store, actionDelay int) {
 	t.Helper()
-	// ctx 是夹具共用的上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存规则所属管理员。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -231,14 +226,11 @@ func seedSchedulerReviewOrder(t *testing.T, store *db.Store, actionDelay int) {
 
 // TestSchedulerScanReviewRequestBranches 覆盖求评价扫描中账号门禁、规则查询失败、延期与执行失败的日志分支。
 func TestSchedulerScanReviewRequestBranches(t *testing.T) {
-	// ctx 是扫描共用的上下文。
 	ctx := context.Background()
 	t.Run("账号暂停时不发送", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedSchedulerReviewOrder(t, store, 0)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := store.Cookies.SetPause(ctx, "cid", 60); err != nil {
 			t.Fatal(err)
 		}
@@ -250,7 +242,6 @@ func TestSchedulerScanReviewRequestBranches(t *testing.T) {
 		}
 	})
 	t.Run("账号状态读取失败时不发送", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedSchedulerReviewOrder(t, store, 0)
@@ -263,7 +254,6 @@ func TestSchedulerScanReviewRequestBranches(t *testing.T) {
 		}
 	})
 	t.Run("规则动作表不可读时不发送", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedSchedulerReviewOrder(t, store, 0)
@@ -276,7 +266,6 @@ func TestSchedulerScanReviewRequestBranches(t *testing.T) {
 		}
 	})
 	t.Run("动作延迟时持久化而不立即发送", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedSchedulerReviewOrder(t, store, 30)
@@ -288,7 +277,6 @@ func TestSchedulerScanReviewRequestBranches(t *testing.T) {
 		}
 	})
 	t.Run("发送失败只影响当前订单", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedSchedulerReviewOrder(t, store, 0)
@@ -302,13 +290,11 @@ func TestSchedulerScanReviewRequestBranches(t *testing.T) {
 		}
 	})
 	t.Run("恢复历史未发送求评价运行", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedSchedulerReviewOrder(t, store, 0)
 		// rules、listErr 保存规则列表以获取规则主键。
 		var ruleID int64
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := store.DB.QueryRowContext(ctx, `SELECT id FROM automation_rules LIMIT 1`).Scan(&ruleID); err != nil {
 			t.Fatal(err)
 		}
@@ -333,14 +319,12 @@ func itoa(v int64) string {
 
 // TestRunRecoveryTasksGapBranches 覆盖恢复调度器的身份不一致、规则缺失、等待连接、领取失败和执行结果分支。
 func TestRunRecoveryTasksGapBranches(t *testing.T) {
-	// ctx 是恢复调用共用的上下文。
 	ctx := context.Background()
 	// okTask 构造与 seedRecoverableSchedulerRun 运行身份一致的快照。
 	okTask := func(suffix string) Task {
 		return Task{AccountID: "cid", TriggerType: TriggerBuyerReviewed, OrderID: "recovery-" + suffix, ChatID: "chat", BuyerID: "buyer"}
 	}
 	t.Run("快照与运行身份不一致转人工", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// bad 的账号与运行归属不同。
@@ -348,7 +332,6 @@ func TestRunRecoveryTasksGapBranches(t *testing.T) {
 		bad.AccountID = "someone-else"
 		// runID 保存运行主键。
 		runID := seedRecoverableSchedulerRun(t, store, ctx, "id", bad)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := (&Scheduler{center: New(store, nil, nil)}).runRecoveryTasks(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -359,13 +342,11 @@ func TestRunRecoveryTasksGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("规则停用转人工", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// runID 保存运行主键。
 		runID := seedRecoverableSchedulerRun(t, store, ctx, "norule", okTask("norule"))
 		execGapSQL(t, store, `UPDATE automation_rules SET enabled=0`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := (&Scheduler{center: New(store, nil, nil)}).runRecoveryTasks(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -376,13 +357,11 @@ func TestRunRecoveryTasksGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("规则读取失败保留运行", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// runID 保存运行主键。
 		runID := seedRecoverableSchedulerRun(t, store, ctx, "ruleerr", okTask("ruleerr"))
 		execGapSQL(t, store, `ALTER TABLE automation_rule_actions RENAME TO automation_rule_actions_gap_hidden`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := (&Scheduler{center: New(store, nil, nil)}).runRecoveryTasks(ctx); err != nil {
 			t.Fatalf("规则读取失败只记录日志: %v", err)
 		}
@@ -393,14 +372,12 @@ func TestRunRecoveryTasksGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("等待连接时延期及延期写入失败", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// runID 保存运行主键。
 		runID := seedRecoverableSchedulerRun(t, store, ctx, "wait", okTask("wait"))
 		// s 没有发送器提供方，发送动作必须等待 WebSocket。
 		s := &Scheduler{center: New(store, nil, nil)}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := s.runRecoveryTasks(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -411,33 +388,28 @@ func TestRunRecoveryTasksGapBranches(t *testing.T) {
 		}
 		execGapSQL(t, store, `UPDATE automation_runs SET lease_expires_at=0 WHERE id=`+itoa(runID))
 		execGapSQL(t, store, gapAbortRunUpdate)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := s.runRecoveryTasks(ctx); err == nil || !strings.Contains(err.Error(), "等待 WebSocket 时延期自动化任务失败") {
 			t.Fatalf("应返回延期失败: %v", err)
 		}
 	})
 	t.Run("领取失败返回错误", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedRecoverableSchedulerRun(t, store, ctx, "claim", okTask("claim"))
 		execGapSQL(t, store, gapAbortRunUpdate)
 		// s 有在线发送器，因此会走到领取步骤。
 		s := &Scheduler{center: New(store, testSenderProvider{sender: &testSender{}}, nil)}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := s.runRecoveryTasks(ctx); err == nil || !strings.Contains(err.Error(), "领取自动化恢复任务失败") {
 			t.Fatalf("应返回领取失败: %v", err)
 		}
 	})
 	t.Run("动作延迟时恢复运行再次延期", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedRecoverableSchedulerRun(t, store, ctx, "delay", okTask("delay"))
 		execGapSQL(t, store, `UPDATE automation_rule_actions SET delay_seconds=30`)
 		// sender 记录是否立即发送。
 		sender := &testSender{}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := (&Scheduler{center: New(store, testSenderProvider{sender: sender}, nil)}).runRecoveryTasks(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -446,13 +418,11 @@ func TestRunRecoveryTasksGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("执行失败汇总返回", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		seedRecoverableSchedulerRun(t, store, ctx, "fail", okTask("fail"))
 		// sender 对发送返回平台错误。
 		sender := &testSender{err: errors.New("平台拒绝")}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := (&Scheduler{center: New(store, testSenderProvider{sender: sender}, nil)}).runRecoveryTasks(ctx); err == nil {
 			t.Fatal("执行失败应汇总返回")
 		}
@@ -462,7 +432,6 @@ func TestRunRecoveryTasksGapBranches(t *testing.T) {
 		_, _, scheduler, store, cleanup := newPaidRecoveryFixture(t, "pending_ship", "manual")
 		defer cleanup()
 		execGapSQL(t, store, gapAbortRunUpdate)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := scheduler.runRecoveryTasks(ctx); err == nil {
 			t.Fatal("隔离写入失败应汇总返回")
 		}
@@ -480,14 +449,12 @@ func TestRecoveryNeedsSenderOutOfRangeCursor(t *testing.T) {
 
 // TestRunDeferredTasksGapBranches 覆盖暂停期间事件重放的再次延期、状态写入失败与重试上限通知。
 func TestRunDeferredTasksGapBranches(t *testing.T) {
-	// ctx 是重放共用的上下文。
 	ctx := context.Background()
 	// deferTask 写入一条立即到期的延期任务。
 	deferTask := func(t *testing.T, store *db.Store, task Task, attempt int) {
 		t.Helper()
 		// raw 保存任务快照。
 		raw, _ := json.Marshal(task)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := store.Automation.DeferTask(ctx, db.DeferredAutomationTask{TaskKey: "gap:" + task.OrderID, CookieID: task.AccountID, TriggerType: task.TriggerType, TaskJSON: string(raw), DueAt: 0}); err != nil {
 			t.Fatal(err)
 		}
@@ -496,38 +463,31 @@ func TestRunDeferredTasksGapBranches(t *testing.T) {
 	// task 是不会命中任何规则的评价事件。
 	task := Task{AccountID: "cid", TriggerType: TriggerBuyerReviewed, OrderID: "gap-order", ChatID: "chat", BuyerID: "buyer"}
 	t.Run("账号仍暂停时再次延期", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		deferTask(t, store, task, 0)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := store.Cookies.SetPause(ctx, "cid", 60); err != nil {
 			t.Fatal(err)
 		}
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := (&Scheduler{center: New(store, nil, nil)}).runDeferredTasks(ctx); err != nil {
 			t.Fatal(err)
 		}
 	})
 	t.Run("终态写入失败汇总返回", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		deferTask(t, store, task, 0)
 		execGapSQL(t, store, `CREATE TRIGGER gap_abort_pending BEFORE DELETE ON automation_pending_tasks BEGIN SELECT RAISE(ABORT, 'forced finish failure'); END`)
 		execGapSQL(t, store, `CREATE TRIGGER gap_abort_pending_upd BEFORE UPDATE ON automation_pending_tasks WHEN NEW.status<>'running' BEGIN SELECT RAISE(ABORT, 'forced finish failure'); END`)
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := (&Scheduler{center: New(store, nil, nil)}).runDeferredTasks(ctx); err == nil || !errors.Is(err, errAutomationNeedsReview) {
 			t.Fatalf("应返回需人工处理错误: %v", err)
 		}
 	})
 	t.Run("连续失败达到上限发送人工通知", func(t *testing.T) {
-		// store、cleanup 保存隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		// admin 保存规则所属管理员。
 		admin, _ := store.Users.GetByUsername(ctx, "admin")
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if _, err := store.Automation.Create(ctx, db.AutomationRuleInput{UserID: admin.ID, CookieID: "cid", Name: "fail", TriggerType: TriggerBuyerReviewed, Enabled: true,
 			Actions: []db.AutomationActionInput{{ActionType: ActionSendText, MessageTemplate: "x", Enabled: true}}}); err != nil {
 			t.Fatal(err)
@@ -537,7 +497,6 @@ func TestRunDeferredTasksGapBranches(t *testing.T) {
 		notifier := &recordingNotifier{}
 		// center 使用必败的发送器。
 		center := NewWithDependencies(store, testSenderProvider{sender: &testSender{err: errors.New("平台拒绝")}}, nil, CenterDependencies{Notifier: notifier})
-		// err 保存被测调用返回的错误，用于断言失败分支是否按预期触发。
 		if err := (&Scheduler{center: center}).runDeferredTasks(ctx); err != nil {
 			t.Fatal(err)
 		}
@@ -550,7 +509,6 @@ func TestNotifyDeferredTaskNeedsReviewDefaults(t *testing.T) {
 	var nilScheduler *Scheduler
 	nilScheduler.notifyDeferredTaskNeedsReview(context.Background(), db.DeferredAutomationTask{}, Task{}, "x")
 	(&Scheduler{}).notifyDeferredTaskNeedsReview(context.Background(), db.DeferredAutomationTask{}, Task{}, "x")
-	// store、cleanup 保存隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	(&Scheduler{center: New(store, nil, nil)}).notifyDeferredTaskNeedsReview(context.Background(),

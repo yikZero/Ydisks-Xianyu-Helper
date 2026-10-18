@@ -104,7 +104,6 @@ func newTestServer(t *testing.T) (*Server, *db.Store, func()) { // newTestServer
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	// mtopClient 用于本次流程后续判断的mtopClient
 	mtopClient := mtop.NewClient()
 	mtopClient.HTTPClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
@@ -135,10 +134,8 @@ func newTestServerWithChat(t *testing.T) (*Server, *db.Store, func()) {
 	return srv, store, cleanup
 }
 
-// newUninitializedTestServer 封装newUninitializedTestServer业务协调。
 func newUninitializedTestServer(t *testing.T) (*Server, *db.Store, func()) {
 	t.Helper()
-	// dbPath 用于本次流程后续判断的db路径
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 	// d 是当前未初始化测试使用的数据库连接；err 是打开错误。
 	d, _, err := db.Open(context.Background(), dbPath)
@@ -387,15 +384,12 @@ func newTestOrderReconciliationRecovery(t *testing.T, dependencies *adapter.Syst
 	return recovery
 }
 
-// roundTripFunc 用于本次流程后续判断的roundTripFunc
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
-// RoundTrip 封装RoundTrip业务协调。
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-// noopHandler 用于本次流程后续判断的noopHandler
 type noopHandler struct{}
 
 // HandleChatMessage 处理聊天消息。
@@ -404,37 +398,29 @@ func (noopHandler) HandleChatMessage(context.Context, engine.ChatMessage) error 
 // HandleSystemEvent 处理系统Event。
 func (noopHandler) HandleSystemEvent(context.Context, automation.Task) error { return nil }
 
-// OnPasswordLoginRefresh 封装On密码登录Refresh业务协调。
 func (noopHandler) OnPasswordLoginRefresh(context.Context, string) bool { return false }
 
-// OnAccountAlert 封装On账号Alert业务协调。
 func (noopHandler) OnAccountAlert(context.Context, string, string, string, string) {}
 
 // TestLoginVerifyLogout 登录→verify→登出 全链路。
 func TestLoginVerifyLogout(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
 	// 1) 登录（用户名密码）。
 	body := `{"username":"admin","password":"pw"}`
-	// req 用于本次流程后续判断的req
 	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(body))
-	// rec 用于本次流程后续判断的rec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != 200 {
 		t.Fatalf("login status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	// lr 用于本次流程后续判断的lr
 	var lr loginResponse
 	json.Unmarshal(rec.Body.Bytes(), &lr)
 	if !lr.Success || !lr.IsAdmin {
 		t.Fatalf("登录响应异常: %+v", lr)
 	}
-	// cookie 用于本次流程后续判断的登录凭证
 	cookie := rec.Result().Cookies()[0]
 	if cookie.Name != "session" || cookie.Value == "" || !cookie.HttpOnly {
 		t.Fatalf("Cookie 异常: %+v", cookie)
@@ -443,10 +429,8 @@ func TestLoginVerifyLogout(t *testing.T) {
 	// 2) verify 带 cookie 应 authenticated。
 	req2 := httptest.NewRequest(http.MethodGet, "/verify", nil)
 	req2.AddCookie(cookie)
-	// rec2 用于本次流程后续判断的rec2
 	rec2 := httptest.NewRecorder()
 	h.ServeHTTP(rec2, req2)
-	// v 用于本次流程后续判断的v
 	var v map[string]any
 	json.Unmarshal(rec2.Body.Bytes(), &v)
 	if v["authenticated"] != true || v["initialized"] != true {
@@ -455,7 +439,6 @@ func TestLoginVerifyLogout(t *testing.T) {
 
 	// 3) 无 cookie verify 应未认证。
 	req3 := httptest.NewRequest(http.MethodGet, "/verify", nil)
-	// rec3 用于本次流程后续判断的rec3
 	rec3 := httptest.NewRecorder()
 	h.ServeHTTP(rec3, req3)
 	json.Unmarshal(rec3.Body.Bytes(), &v)
@@ -466,14 +449,11 @@ func TestLoginVerifyLogout(t *testing.T) {
 	// 4) 登出。
 	req4 := httptest.NewRequest(http.MethodPost, "/logout", nil)
 	req4.AddCookie(cookie)
-	// rec4 用于本次流程后续判断的rec4
 	rec4 := httptest.NewRecorder()
 	h.ServeHTTP(rec4, req4)
 	// 登出后 cookie 应被清除（MaxAge=-1）。
 	dc := rec4.Result().Cookies()
-	// cleared 用于本次流程后续判断的cleared
 	cleared := false
-	// c 表示当前遍历过程中的c
 	for _, c := range dc {
 		if c.Name == "session" && c.MaxAge < 0 {
 			cleared = true
@@ -486,20 +466,14 @@ func TestLoginVerifyLogout(t *testing.T) {
 
 // TestLoginWrongPassword 错误密码。
 func TestLoginWrongPassword(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
-	// body 用于本次流程后续判断的请求体
 	body := `{"username":"admin","password":"wrong"}`
-	// req 用于本次流程后续判断的req
 	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(body))
-	// rec 用于本次流程后续判断的rec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	// lr 用于本次流程后续判断的lr
 	var lr loginResponse
 	json.Unmarshal(rec.Body.Bytes(), &lr)
 	if lr.Success {
@@ -507,75 +481,57 @@ func TestLoginWrongPassword(t *testing.T) {
 	}
 }
 
-// TestInitializeFromWebUI 封装TestInitializeFromWebUI业务协调。
 func TestInitializeFromWebUI(t *testing.T) {
-	// srv、store、cleanup 用于本次流程后续判断的srv、store、cleanup
 	srv, store, cleanup := newUninitializedTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
-	// shortReq 用于本次流程后续判断的shortReq
 	shortReq := httptest.NewRequest(http.MethodPost, "/initialize", strings.NewReader(`{"password":"short"}`))
-	// shortRec 用于本次流程后续判断的shortRec
 	shortRec := httptest.NewRecorder()
 	h.ServeHTTP(shortRec, shortReq)
 	if shortRec.Code != http.StatusBadRequest {
 		t.Fatalf("短密码应返回 400，got %d body=%s", shortRec.Code, shortRec.Body.String())
 	}
 
-	// initReq 用于本次流程后续判断的initReq
 	initReq := httptest.NewRequest(http.MethodPost, "/initialize", strings.NewReader(`{"password":"newpassword"}`))
-	// initRec 用于本次流程后续判断的initRec
 	initRec := httptest.NewRecorder()
 	h.ServeHTTP(initRec, initReq)
 	if initRec.Code != http.StatusOK {
 		t.Fatalf("初始化 status=%d body=%s", initRec.Code, initRec.Body.String())
 	}
-	// initResult 用于本次流程后续判断的init结果
 	var initResult loginResponse
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal(initRec.Body.Bytes(), &initResult); err != nil {
+	if err := json.Unmarshal(initRec.Body.Bytes(), &initResult); err != nil {
 		t.Fatalf("解析初始化响应: %v", err)
 	}
 	if !initResult.Success || !initResult.IsAdmin || initResult.Username != "admin" {
 		t.Fatalf("初始化响应异常: %+v", initResult)
 	}
 
-	// admin、err 用于本次流程后续判断的admin、err
 	admin, err := store.Users.GetAdmin(context.Background())
 	if err != nil || admin == nil {
 		t.Fatalf("初始化后 admin 不存在: admin=%+v err=%v", admin, err)
 	}
-	if // ok、err 用于本次流程后续判断的ok、err
-	_, ok, err := store.Users.VerifyAndUpgrade(context.Background(), "admin", "newpassword"); err != nil || !ok {
+	if _, ok, err := store.Users.VerifyAndUpgrade(context.Background(), "admin", "newpassword"); err != nil || !ok {
 		t.Fatalf("初始化密码不可用: ok=%v err=%v", ok, err)
 	}
 
-	// cookies 用于本次流程后续判断的cookies
 	cookies := initRec.Result().Cookies()
 	if len(cookies) == 0 || cookies[0].Name != "session" || cookies[0].Value == "" {
 		t.Fatalf("初始化后应自动建立会话: %+v", cookies)
 	}
-	// verifyReq 用于本次流程后续判断的verifyReq
 	verifyReq := httptest.NewRequest(http.MethodGet, "/verify", nil)
 	verifyReq.AddCookie(cookies[0])
-	// verifyRec 用于本次流程后续判断的verifyRec
 	verifyRec := httptest.NewRecorder()
 	h.ServeHTTP(verifyRec, verifyReq)
-	// verifyResult 用于本次流程后续判断的verify结果
 	var verifyResult map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal(verifyRec.Body.Bytes(), &verifyResult); err != nil {
+	if err := json.Unmarshal(verifyRec.Body.Bytes(), &verifyResult); err != nil {
 		t.Fatalf("解析 verify 响应: %v", err)
 	}
 	if verifyResult["authenticated"] != true || verifyResult["initialized"] != true {
 		t.Fatalf("初始化后 verify 异常: %+v", verifyResult)
 	}
 
-	// secondReq 用于本次流程后续判断的secondReq
 	secondReq := httptest.NewRequest(http.MethodPost, "/initialize", strings.NewReader(`{"password":"anotherpw"}`))
-	// secondRec 用于本次流程后续判断的secondRec
 	secondRec := httptest.NewRecorder()
 	h.ServeHTTP(secondRec, secondReq)
 	if secondRec.Code != http.StatusConflict {
@@ -583,71 +539,53 @@ func TestInitializeFromWebUI(t *testing.T) {
 	}
 }
 
-// TestUpdateCredentialsRenamesUserAndRevokesSessions 封装TestUpdateCredentialsRenames用户AndRevokesSessions业务协调。
 func TestUpdateCredentialsRenamesUserAndRevokesSessions(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
-	// loginReq 用于本次流程后续判断的登录Req
 	loginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"username":"admin","password":"pw"}`))
-	// loginRec 用于本次流程后续判断的登录Rec
 	loginRec := httptest.NewRecorder()
 	h.ServeHTTP(loginRec, loginReq)
-	// sessionCookie 用于本次流程后续判断的会话登录凭证
 	sessionCookie := loginRec.Result().Cookies()[0]
 
-	// updateReq 用于本次流程后续判断的updateReq
 	updateReq := httptest.NewRequest(http.MethodPut, "/account/credentials", strings.NewReader(
 		`{"current_password":"pw","new_username":"operator","new_password":"newpassword"}`,
 	))
 	updateReq.AddCookie(sessionCookie)
-	// updateRec 用于本次流程后续判断的updateRec
 	updateRec := httptest.NewRecorder()
 	h.ServeHTTP(updateRec, updateReq)
 	if updateRec.Code != http.StatusOK {
 		t.Fatalf("update status=%d body=%s", updateRec.Code, updateRec.Body.String())
 	}
-	// updateResult 用于本次流程后续判断的update结果
 	var updateResult map[string]any
 	json.Unmarshal(updateRec.Body.Bytes(), &updateResult)
 	if updateResult["success"] != true || updateResult["requires_relogin"] != true {
 		t.Fatalf("update result=%+v", updateResult)
 	}
 
-	// verifyReq 用于本次流程后续判断的verifyReq
 	verifyReq := httptest.NewRequest(http.MethodGet, "/verify", nil)
 	verifyReq.AddCookie(sessionCookie)
-	// verifyRec 用于本次流程后续判断的verifyRec
 	verifyRec := httptest.NewRecorder()
 	h.ServeHTTP(verifyRec, verifyReq)
-	// verifyResult 用于本次流程后续判断的verify结果
 	var verifyResult map[string]any
 	json.Unmarshal(verifyRec.Body.Bytes(), &verifyResult)
 	if verifyResult["authenticated"] == true || verifyResult["initialized"] != true {
 		t.Fatalf("旧会话应失效且系统仍已初始化: %+v", verifyResult)
 	}
 
-	// oldLoginReq 用于本次流程后续判断的old登录Req
 	oldLoginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"username":"admin","password":"pw"}`))
-	// oldLoginRec 用于本次流程后续判断的old登录Rec
 	oldLoginRec := httptest.NewRecorder()
 	h.ServeHTTP(oldLoginRec, oldLoginReq)
-	// oldLogin 用于本次流程后续判断的old登录
 	var oldLogin loginResponse
 	json.Unmarshal(oldLoginRec.Body.Bytes(), &oldLogin)
 	if oldLogin.Success {
 		t.Fatal("旧用户名不应继续登录")
 	}
 
-	// newLoginReq 用于本次流程后续判断的new登录Req
 	newLoginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"username":"operator","password":"newpassword"}`))
-	// newLoginRec 用于本次流程后续判断的new登录Rec
 	newLoginRec := httptest.NewRecorder()
 	h.ServeHTTP(newLoginRec, newLoginReq)
-	// newLogin 用于本次流程后续判断的new登录
 	var newLogin loginResponse
 	json.Unmarshal(newLoginRec.Body.Bytes(), &newLogin)
 	if !newLogin.Success {
@@ -657,15 +595,11 @@ func TestUpdateCredentialsRenamesUserAndRevokesSessions(t *testing.T) {
 
 // TestCookiesDetailsRequiresAuth 未登录访问受保护端点应 401。
 func TestCookiesDetailsRequiresAuth(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
-	// req 用于本次流程后续判断的req
 	req := httptest.NewRequest(http.MethodGet, "/cookies/details", nil)
-	// rec 用于本次流程后续判断的rec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
@@ -675,32 +609,25 @@ func TestCookiesDetailsRequiresAuth(t *testing.T) {
 
 // TestCookiesDetailsWithAuth 登录后能取账号详情。
 func TestCookiesDetailsWithAuth(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
 	// 登录拿 cookie。
 	body := `{"username":"admin","password":"pw"}`
-	// req 用于本次流程后续判断的req
 	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(body))
-	// rec 用于本次流程后续判断的rec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	// cookie 用于本次流程后续判断的登录凭证
 	cookie := rec.Result().Cookies()[0]
 
 	// 取详情。
 	req2 := httptest.NewRequest(http.MethodGet, "/cookies/details", nil)
 	req2.AddCookie(cookie)
-	// rec2 用于本次流程后续判断的rec2
 	rec2 := httptest.NewRecorder()
 	h.ServeHTTP(rec2, req2)
 	if rec2.Code != 200 {
 		t.Fatalf("status=%d body=%s", rec2.Code, rec2.Body.String())
 	}
-	// arr 用于本次流程后续判断的arr
 	var arr []map[string]any
 	json.Unmarshal(rec2.Body.Bytes(), &arr)
 	if len(arr) != 1 || arr[0]["id"] != "acc1" {
@@ -715,35 +642,25 @@ func TestCookiesDetailsWithAuth(t *testing.T) {
 	}
 }
 
-// TestCookieRuntimeStatusWithAuth 封装Test登录凭证Runtime状态WithAuth业务协调。
 func TestCookieRuntimeStatusWithAuth(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
-	// loginReq 用于本次流程后续判断的登录Req
 	loginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"username":"admin","password":"pw"}`))
-	// loginRec 用于本次流程后续判断的登录Rec
 	loginRec := httptest.NewRecorder()
 	h.ServeHTTP(loginRec, loginReq)
-	// cookie 用于本次流程后续判断的登录凭证
 	cookie := loginRec.Result().Cookies()[0]
 
-	// req 用于本次流程后续判断的req
 	req := httptest.NewRequest(http.MethodGet, "/cookies/runtime-status", nil)
 	req.AddCookie(cookie)
-	// rec 用于本次流程后续判断的rec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	// statuses 用于本次流程后续判断的statuses
 	var statuses map[string]engine.RuntimeStatus
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal(rec.Body.Bytes(), &statuses); err != nil {
+	if err := json.Unmarshal(rec.Body.Bytes(), &statuses); err != nil {
 		t.Fatal(err)
 	}
 	if statuses["acc1"].State != engine.RuntimeError {
@@ -753,28 +670,20 @@ func TestCookieRuntimeStatusWithAuth(t *testing.T) {
 
 // TestAddAndDeleteCookie 添加/删除账号。
 func TestAddAndDeleteCookie(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
-	// body 用于本次流程后续判断的请求体
 	body := `{"username":"admin","password":"pw"}`
-	// req 用于本次流程后续判断的req
 	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(body))
-	// rec 用于本次流程后续判断的rec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	// cookie 用于本次流程后续判断的登录凭证
 	cookie := rec.Result().Cookies()[0]
 
 	// 添加。
 	addBody := `{"id":"acc2","value":"unb=456; _m_h5_tk=tk2_2;"}`
-	// req2 用于本次流程后续判断的req2
 	req2 := httptest.NewRequest(http.MethodPost, "/cookies", strings.NewReader(addBody))
 	req2.AddCookie(cookie)
-	// rec2 用于本次流程后续判断的rec2
 	rec2 := httptest.NewRecorder()
 	h.ServeHTTP(rec2, req2)
 	if rec2.Code != 200 {
@@ -784,7 +693,6 @@ func TestAddAndDeleteCookie(t *testing.T) {
 	// 删除。
 	req3 := httptest.NewRequest(http.MethodDelete, "/cookies/acc2", nil)
 	req3.AddCookie(cookie)
-	// rec3 用于本次流程后续判断的rec3
 	rec3 := httptest.NewRecorder()
 	h.ServeHTTP(rec3, req3)
 	if rec3.Code != 200 {
@@ -794,15 +702,11 @@ func TestAddAndDeleteCookie(t *testing.T) {
 
 // TestHealth 健康检查无需认证。
 func TestHealth(t *testing.T) {
-	// srv、cleanup 用于本次流程后续判断的srv、cleanup
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
 
-	// req 用于本次流程后续判断的req
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
-	// rec 用于本次流程后续判断的rec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != 200 {
@@ -813,29 +717,21 @@ func TestHealth(t *testing.T) {
 	}
 }
 
-// TestHealthReportsUnavailableDatabase 封装TestHealthReportsUnavailableDatabase业务协调。
 func TestHealthReportsUnavailableDatabase(t *testing.T) {
-	// srv、store、cleanup 用于本次流程后续判断的srv、store、cleanup
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	if // err 用于本次流程后续判断的err
-	err := store.DB.Close(); err != nil {
+	if err := store.DB.Close(); err != nil {
 		t.Fatal(err)
 	}
-	// h 用于本次流程后续判断的h
 	h := srv.Router()
-	// req 用于本次流程后续判断的req
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
-	// rec 用于本次流程后续判断的rec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("health status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	// response 用于本次流程后续判断的响应
 	var response map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
 	if response["status"] != "degraded" || response["database"] != "unavailable" {

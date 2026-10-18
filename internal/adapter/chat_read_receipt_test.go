@@ -12,10 +12,8 @@ import (
 
 // TestHandleMessageReadIgnoresIncomingReceipt 验证跨端同步的入站消息已读回执不会误标同会话的本地出站消息。
 func TestHandleMessageReadIgnoresIncomingReceipt(t *testing.T) {
-	// store、cleanup 保存隔离测试数据库及其关闭函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是消息写入和回执处理共用的测试上下文。
 	ctx := context.Background()
 	// service 是使用真实数据库聊天仓储的领域服务。
 	service := domainchat.New(store)

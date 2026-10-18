@@ -49,7 +49,6 @@ func TestEventFactsGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("链接角色解析失败", func(t *testing.T) {
-		// got 保存被测函数的实际返回值，供断言比较。
 		if got := orderRoleFromURL("http://[::1"); got != "" {
 			t.Fatalf("非法链接应返回空角色: %q", got)
 		}

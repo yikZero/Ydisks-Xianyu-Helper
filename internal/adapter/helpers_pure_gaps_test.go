@@ -12,7 +12,6 @@ import (
 
 // TestBatchPublishLocationAndCategoryParsing 覆盖批次发货地与默认类目配置的解析分支。
 func TestBatchPublishLocationAndCategoryParsing(t *testing.T) {
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := batchPublishLocation("{"); err == nil {
 		t.Fatal("损坏的发货地应失败")
 	}
@@ -33,11 +32,9 @@ func TestBatchPublishLocationAndCategoryParsing(t *testing.T) {
 	if category, err := batchPublishCategory(`{"cat_id":"","cat_name":""}`); category != nil || err != nil {
 		t.Fatalf("全空字段: %+v %v", category, err)
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := batchPublishCategory("{"); err == nil {
 		t.Fatal("损坏类目应失败")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if _, err := batchPublishCategory(`{"cat_id":"1"}`); err == nil {
 		t.Fatal("不完整类目应失败")
 	}
@@ -93,7 +90,6 @@ func TestParseBatchMoneyCentsAndSmallHelpers(t *testing.T) {
 
 // TestRemoteCaptchaCallAndSolveEdgeCases 覆盖远程过滑块调用的编码/请求构造错误、响应超限与重取限制。
 func TestRemoteCaptchaCallAndSolveEdgeCases(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	// mode 控制本地远程服务的响应形状。
 	mode := "big"
@@ -111,12 +107,10 @@ func TestRemoteCaptchaCallAndSolveEdgeCases(t *testing.T) {
 	defer server.Close()
 	// config 指向本地服务并开启 Cookie 透传。
 	config := remoteCaptchaConfig{URL: server.URL, Secret: "s", PassCookies: true}
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := callRemoteCaptcha(ctx, http.DefaultClient, config, "a", "u", "c", "d"); got.status != remoteCaptchaFailed {
 		t.Fatalf("超大响应: %+v", got)
 	}
 	mode = "bad"
-	// got 保存被测函数的实际返回值，用于与期望值比较。
 	if got := callRemoteCaptcha(ctx, http.DefaultClient, config, "a", "u", "c", "d"); got.status != remoteCaptchaFailed {
 		t.Fatalf("非法响应: %+v", got)
 	}
@@ -153,12 +147,10 @@ func TestRemoteCaptchaCallAndSolveEdgeCases(t *testing.T) {
 
 // TestLoadRemoteCaptchaConfigGuards 覆盖远程过滑块配置读取的存储缺失、密钥缺失与读取失败路径。
 func TestLoadRemoteCaptchaConfigGuards(t *testing.T) {
-	// ctx 是调用共用的后台上下文。
 	ctx := context.Background()
 	if (&Adapter{}).loadRemoteCaptchaConfig(ctx, "cid") != nil {
 		t.Fatal("缺存储应返回 nil")
 	}
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// adapter 绑定存储。
@@ -166,7 +158,6 @@ func TestLoadRemoteCaptchaConfigGuards(t *testing.T) {
 	if adapter.loadRemoteCaptchaConfig(ctx, "cid") != nil {
 		t.Fatal("未配置应返回 nil")
 	}
-	// err 保存本步骤调用返回的错误，用于断言预期的成功或失败路径。
 	if err := store.Settings.SetMany(ctx, map[string]string{"captcha.remote_service_url": "http://x", "captcha.remote_secret_key": "s"}); err != nil {
 		t.Fatal(err)
 	}

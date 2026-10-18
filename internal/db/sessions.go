@@ -22,16 +22,12 @@ type Sessions struct {
 
 // Create 为已认证用户创建会话，返回 session_id。
 func (s *Sessions) Create(ctx context.Context, u *User) (string, error) {
-	// sessionID、err 用于本次流程后续判断的会话ID、err
 	sessionID, err := randomSessionID()
 	if err != nil {
 		return "", fmt.Errorf("生成 session id: %w", err)
 	}
-	// now 用于本次流程后续判断的now
 	now := time.Now().Unix()
-	// expires 用于本次流程后续判断的expires
 	expires := now + int64(SessionTTL.Seconds())
-	// isAdmin 用于本次流程后续判断的isAdmin
 	isAdmin := 0
 	if u.IsAdmin {
 		isAdmin = 1
@@ -122,11 +118,8 @@ func (s *Sessions) Get(ctx context.Context, sessionID string) (*Session, error) 
 	if sessionID == "" {
 		return nil, ErrNotFound
 	}
-	// sess 用于本次流程后续判断的sess
 	var sess Session
-	// isAdmin 用于本次流程后续判断的isAdmin
 	var isAdmin int
-	// err 用于本次流程后续判断的err
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT s.session_id, s.user_id, u.username, u.is_admin, s.expires_at
 		   FROM sessions s
@@ -149,29 +142,24 @@ func (s *Sessions) Get(ctx context.Context, sessionID string) (*Session, error) 
 
 // Delete 删除会话（登出）。
 func (s *Sessions) Delete(ctx context.Context, sessionID string) error {
-	// err 用于本次流程后续判断的err
 	_, err := s.DB.ExecContext(ctx, `DELETE FROM sessions WHERE session_id=?`, sessionID)
 	return err
 }
 
 // DeleteExpired 清理所有过期会话（可由定时任务调用）。
 func (s *Sessions) DeleteExpired(ctx context.Context) (int64, error) {
-	// res、err 用于本次流程后续判断的res、err
 	res, err := s.DB.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at <= ?`, time.Now().Unix())
 	if err != nil {
 		return 0, err
 	}
-	// n 用于本次流程后续判断的n
 	n, _ := res.RowsAffected()
 	return n, nil
 }
 
 // randomSessionID 生成 URL 安全的随机会话 ID。
 func randomSessionID() (string, error) {
-	// b 用于本次流程后续判断的b
 	b := make([]byte, 32)
-	if // err 用于本次流程后续判断的err
-	_, err := rand.Read(b); err != nil {
+	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil

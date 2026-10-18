@@ -21,31 +21,23 @@ import (
 	"xianyu-go/internal/auth"
 )
 
-// maxPublishBatchRows 用于本次流程后续判断的max发布批次Rows
 const (
 	maxPublishBatchRows = 50
 	publishBatchLease   = 5 * time.Minute
 )
 
-// postPublishError 用于本次流程后续判断的post发布错误
 type postPublishError struct{ err error }
 
-// Error 封装错误业务协调。
 func (e *postPublishError) Error() string { return e.err.Error() }
 
-// Unwrap 封装Unwrap业务协调。
 func (e *postPublishError) Unwrap() error { return e.err }
 
-// uncertainRemotePublishError 用于本次流程后续判断的uncertainRemote发布错误
 type uncertainRemotePublishError struct{ err error }
 
-// Error 封装错误业务协调。
 func (e *uncertainRemotePublishError) Error() string { return e.err.Error() }
 
-// Unwrap 封装Unwrap业务协调。
 func (e *uncertainRemotePublishError) Unwrap() error { return e.err }
 
-// publishBatchPreviewRow 用于本次流程后续判断的发布批次PreviewRow
 type publishBatchPreviewRow struct {
 	RowNo      int                     `json:"row_no"`
 	Valid      bool                    `json:"valid"`
@@ -109,8 +101,7 @@ func publishBatchPreviewApplicationResponse(result itemapp.BatchPreviewPersisten
 func (s *Server) recommendItemPublishCategory(w http.ResponseWriter, r *http.Request) {
 	// req 是商品类目推荐请求的具名传输 DTO。
 	var req publishCategoryRecommendationRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -124,12 +115,10 @@ func (s *Server) recommendItemPublishCategory(w http.ResponseWriter, r *http.Req
 		writeErr(w, http.StatusBadRequest, "请输入类目关键词")
 		return
 	}
-	// userID、ok 用于本次流程后续判断的用户ID、ok
 	_, userID, ok := s.cookieForCurrentUser(w, r, req.CookieID)
 	if !ok {
 		return
 	}
-	// category、callErr 用于本次流程后续判断的category、callErr
 	category, callErr := s.itemCategoryRecommendationApplication().Recommend(r.Context(), userID, req.CookieID, req.Keyword)
 	if callErr != nil {
 		if errors.Is(callErr, itemapp.ErrCategoryUnsupported) {
@@ -156,14 +145,12 @@ func (s *Server) recommendItemPublishCategory(w http.ResponseWriter, r *http.Req
 
 // previewItemPublishBatch 处理表格上传、图片归档和批量发布预检。
 func (s *Server) previewItemPublishBatch(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
 	s.cleanupExpiredPublishUploads(r.Context())
 	// 表格最大 20 MiB、图片压缩包最大 200 MiB；总请求和解析内存上限分别由共享 multipart 解析器执行。
 	if !parseMultipartRequest(w, r, maxItemPublishBatchBytes, maxItemPublishBatchParseBytes, "批量发布上传内容不能超过 224 MiB") {
 		return
 	}
-	// defaultCookieID 用于本次流程后续判断的default登录凭证ID
 	defaultCookieID := strings.TrimSpace(r.FormValue("default_cookie_id"))
 	if defaultCookieID == "" {
 		writeErr(w, http.StatusBadRequest, "请选择默认发布账号")
@@ -179,14 +166,12 @@ func (s *Server) previewItemPublishBatch(w http.ResponseWriter, r *http.Request)
 		writeErr(w, http.StatusForbidden, "默认账号不属于当前用户")
 		return
 	}
-	// fallbackCategory 用于本次流程后续判断的fallback分类
 	fallbackCategory := publishCategoryResponse{
 		CatID:        strings.TrimSpace(r.FormValue("fallback_category_id")),
 		CatName:      strings.TrimSpace(r.FormValue("fallback_category_name")),
 		ChannelCatID: strings.TrimSpace(r.FormValue("fallback_channel_category_id")),
 		TBCatID:      strings.TrimSpace(r.FormValue("fallback_tb_category_id")),
 	}
-	// batchLocation 用于本次流程后续判断的批次地址
 	var batchLocation publishBatchLocation
 	// publishIntervalSeconds 保存用户为本批次设置的最终发布最小间隔，单位为秒。
 	publishIntervalSeconds, intervalErr := parsePublishIntervalSeconds(r.FormValue("publish_interval_seconds"))
@@ -194,7 +179,6 @@ func (s *Server) previewItemPublishBatch(w http.ResponseWriter, r *http.Request)
 		writeErr(w, http.StatusBadRequest, intervalErr.Error())
 		return
 	}
-	// locationJSON 用于本次流程后续判断的地址JSON
 	locationJSON := strings.TrimSpace(r.FormValue("location"))
 	if locationJSON != "" {
 		if json.Unmarshal([]byte(locationJSON), &batchLocation) != nil {
@@ -202,20 +186,17 @@ func (s *Server) previewItemPublishBatch(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
-	// hasDefaultCategory 用于本次流程后续判断的hasDefault分类
 	hasDefaultCategory := fallbackCategory.CatID != "" || fallbackCategory.CatName != "" || fallbackCategory.ChannelCatID != "" || fallbackCategory.TBCatID != ""
 	if hasDefaultCategory && (fallbackCategory.CatID == "" || fallbackCategory.CatName == "" || fallbackCategory.ChannelCatID == "") {
 		writeErr(w, http.StatusBadRequest, "默认类目信息不完整，请重新通过关键词获取")
 		return
 	}
-	// source、sourceHeader、err 用于本次流程后续判断的source、sourceHeader、err
 	source, sourceHeader, err := r.FormFile("file")
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "缺少商品表格文件")
 		return
 	}
 	defer source.Close()
-	// sourceBytes、tooLarge、err 用于本次流程后续判断的sourceBytes、tooLarge、err
 	sourceBytes, tooLarge, err := readLimitedBytes(source, 20<<20)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "读取商品表格失败")
@@ -225,37 +206,29 @@ func (s *Server) previewItemPublishBatch(w http.ResponseWriter, r *http.Request)
 		writeErr(w, http.StatusBadRequest, "商品表格不能超过 20 MiB")
 		return
 	}
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := "batch_" + randomHex(12)
-	// uploadDir 用于本次流程后续判断的uploadDir
 	uploadDir := filepath.Join(s.publishUploadRoot(), "publish_batches", batchID)
-	if // err 用于本次流程后续判断的err
-	err := os.MkdirAll(uploadDir, 0o750); err != nil {
+	if err := os.MkdirAll(uploadDir, 0o750); err != nil {
 		writeErr(w, http.StatusInternalServerError, "创建上传目录失败")
 		return
 	}
-	// keepUpload 用于本次流程后续判断的keepUpload
 	keepUpload := false
 	defer func() {
 		if !keepUpload {
 			_ = os.RemoveAll(uploadDir)
 		}
 	}()
-	// sourceName 用于本次流程后续判断的source名称
 	sourceName := safeBaseName(sourceHeader.Filename)
 	if sourceName == "" {
 		sourceName = "products.csv"
 	}
-	if // err 用于本次流程后续判断的err
-	err := writeFileWithinRoot(uploadDir, sourceName, sourceBytes); err != nil {
+	if err := writeFileWithinRoot(uploadDir, sourceName, sourceBytes); err != nil {
 		writeErr(w, http.StatusInternalServerError, "保存商品表格失败")
 		return
 	}
 
-	if // zipFile、zipHeader、err 用于本次流程后续判断的zipFile、zipHeader、err
-	zipFile, zipHeader, err := r.FormFile("images_zip"); err == nil {
+	if zipFile, zipHeader, err := r.FormFile("images_zip"); err == nil {
 		defer zipFile.Close()
-		// zipBytes、tooLarge、err 用于本次流程后续判断的zipBytes、tooLarge、err
 		zipBytes, tooLarge, err := readLimitedBytes(zipFile, 200<<20)
 		if err != nil {
 			writeErr(w, http.StatusBadRequest, "读取图片 zip 失败")
@@ -265,24 +238,20 @@ func (s *Server) previewItemPublishBatch(w http.ResponseWriter, r *http.Request)
 			writeErr(w, http.StatusBadRequest, "图片 zip 不能超过 200 MiB")
 			return
 		}
-		// zipName 用于本次流程后续判断的zip名称
 		zipName := safeBaseName(zipHeader.Filename)
 		if zipName == "" {
 			zipName = "images.zip"
 		}
-		if // err 用于本次流程后续判断的err
-		err := writeFileWithinRoot(uploadDir, zipName, zipBytes); err != nil {
+		if err := writeFileWithinRoot(uploadDir, zipName, zipBytes); err != nil {
 			writeErr(w, http.StatusInternalServerError, "保存图片 zip 失败")
 			return
 		}
-		if // err 用于本次流程后续判断的err
-		err := extractPublishImagesZip(zipBytes, uploadDir); err != nil {
+		if err := extractPublishImagesZip(zipBytes, uploadDir); err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
 
-	// maps、err 用于本次流程后续判断的maps、err
 	maps, err := itemapp.ParseSheet(sourceBytes, sourceName, maxPublishBatchRows)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
@@ -326,16 +295,13 @@ func (s *Server) previewItemPublishBatch(w http.ResponseWriter, r *http.Request)
 
 // startItemPublishBatch 启动指定批次的后台发布 worker。
 func (s *Server) startItemPublishBatch(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
 	// req 是启动商品批量发布请求的具名传输 DTO。
 	var req itemPublishBatchStartRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := strings.TrimSpace(req.PreviewID)
 	if batchID == "" {
 		batchID = strings.TrimSpace(req.BatchID)
@@ -344,7 +310,6 @@ func (s *Server) startItemPublishBatch(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "缺少 preview_id")
 		return
 	}
-	// startedID、err 用于本次流程后续判断的startedID、err
 	startedID, err := s.itemBatchManagementApplication().StartBatch(r.Context(), sess.UserID, batchID, publishBatchLease)
 	if err != nil {
 		switch {
@@ -366,11 +331,8 @@ func (s *Server) startItemPublishBatch(w http.ResponseWriter, r *http.Request) {
 
 // listItemPublishBatches 返回当前用户的批量发布任务列表。
 func (s *Server) listItemPublishBatches(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	// limit 用于本次流程后续判断的上限
 	limit := atoiDefault(r.URL.Query().Get("limit"), 20)
-	// result、err 用于本次流程后续判断的result、err
 	batches, err := s.itemBatchManagementApplication().ListBatches(r.Context(), sess.UserID, limit)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "读取批量任务失败")
@@ -387,11 +349,8 @@ func (s *Server) listItemPublishBatches(w http.ResponseWriter, r *http.Request) 
 
 // getItemPublishBatch 返回指定批次及其发布明细。
 func (s *Server) getItemPublishBatch(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := chi.URLParam(r, "batch_id")
-	// result、err 用于本次流程后续判断的result、err
 	details, err := s.itemBatchManagementApplication().GetBatch(r.Context(), sess.UserID, batchID)
 	if err != nil {
 		if errors.Is(err, itemapp.ErrBatchNotFound) {
@@ -406,11 +365,8 @@ func (s *Server) getItemPublishBatch(w http.ResponseWriter, r *http.Request) {
 
 // cancelItemPublishBatch 请求取消指定批次并通知运行中的 worker。
 func (s *Server) cancelItemPublishBatch(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := chi.URLParam(r, "batch_id")
-	// status、err 用于本次流程后续判断的status、err
 	status, err := s.itemBatchManagementApplication().CancelBatch(r.Context(), sess.UserID, batchID)
 	if err != nil {
 		if errors.Is(err, itemapp.ErrBatchNotFound) {
@@ -427,11 +383,8 @@ func (s *Server) cancelItemPublishBatch(w http.ResponseWriter, r *http.Request) 
 
 // deleteItemPublishBatch 删除已结束的批次及其上传目录。
 func (s *Server) deleteItemPublishBatch(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := chi.URLParam(r, "batch_id")
-	// uploadDir、err 用于本次流程后续判断的uploadDir、err
 	err := s.itemBatchManagementApplication().DeleteBatch(r.Context(), sess.UserID, batchID)
 	if err != nil {
 		if errors.Is(err, itemapp.ErrBatchNotFound) {
@@ -448,11 +401,8 @@ func (s *Server) deleteItemPublishBatch(w http.ResponseWriter, r *http.Request) 
 
 // retryFailedItemPublishBatch 重置失败明细并启动批次重试 worker。
 func (s *Server) retryFailedItemPublishBatch(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := chi.URLParam(r, "batch_id")
-	// startedID、err 用于本次流程后续判断的startedID、err
 	startedID, err := s.itemBatchManagementApplication().RetryFailedBatch(r.Context(), sess.UserID, batchID, publishBatchLease)
 	if err != nil {
 		if errors.Is(err, itemapp.ErrBatchNotFound) {
@@ -469,11 +419,8 @@ func (s *Server) retryFailedItemPublishBatch(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, batchIDResponse{Success: true, BatchID: startedID})
 }
 
-// downloadItemPublishBatchResult 封装download商品发布批次结果业务协调。
 func (s *Server) downloadItemPublishBatchResult(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := auth.SessionFromContext(r.Context())
-	// batchID 用于本次流程后续判断的批次ID
 	batchID := chi.URLParam(r, "batch_id")
 	// details、err 保存应用服务返回的批次及明细。
 	details, err := s.itemBatchManagementApplication().GetBatch(r.Context(), sess.UserID, batchID)
@@ -487,15 +434,12 @@ func (s *Server) downloadItemPublishBatchResult(w http.ResponseWriter, r *http.R
 	}
 	// rows 保存应用层批次明细，后续只负责转换为下载 DTO。
 	rows := details.Rows
-	// buf 用于本次流程后续判断的buf
 	var buf bytes.Buffer
 	buf.WriteString("\xEF\xBB\xBF")
-	// cw 用于本次流程后续判断的cw
 	cw := csv.NewWriter(&buf)
 	_ = cw.Write([]string{"行号", "状态", "账号ID", "标题", "价格", "库存", "默认类目ID", "默认类目名称", "商品ID", "商品URL", "错误原因"})
 	// row 表示当前导出的批量明细行。
 	for _, row := range rows {
-		// category 用于本次流程后续判断的分类
 		var category publishCategoryResponse
 		_ = json.Unmarshal([]byte(row.CategoryJSON), &category)
 		_ = cw.Write([]string{
@@ -505,7 +449,6 @@ func (s *Server) downloadItemPublishBatchResult(w http.ResponseWriter, r *http.R
 		})
 	}
 	cw.Flush()
-	// filename 用于本次流程后续判断的filename
 	filename := fmt.Sprintf("publish_result_%s.csv", details.Batch.ID)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(filename))
@@ -514,9 +457,7 @@ func (s *Server) downloadItemPublishBatchResult(w http.ResponseWriter, r *http.R
 
 // safeCSVCell 防止用户可控内容被电子表格应用解释为公式。开头的单引号
 // 在 Excel/LibreOffice 中作为文本标记，不改变导出的可见内容。
-// safeCSVCell 封装safeCSVCell业务协调。
 func safeCSVCell(value string) string {
-	// trimmed 用于本次流程后续判断的trimmed
 	trimmed := strings.TrimLeft(value, " \t\r\n")
 	if trimmed == "" {
 		return value
@@ -529,15 +470,10 @@ func safeCSVCell(value string) string {
 	}
 }
 
-// publishBatchFailure 封装发布批次Failure业务协调。
 func publishBatchFailure(err error, batchStatus string) (string, string) {
-	// message 用于本次流程后续判断的消息
 	message := err.Error()
-	// failureKind 用于本次流程后续判断的failure类型
 	failureKind := "publish"
-	// postErr 用于本次流程后续判断的postErr
 	var postErr *postPublishError
-	// uncertainErr 用于本次流程后续判断的uncertainErr
 	var uncertainErr *uncertainRemotePublishError
 	// appUncertainErr 保存应用批量端口返回的远端不确定错误。
 	var appUncertainErr *itemapp.UncertainRemotePublishError
@@ -625,7 +561,6 @@ func publishBatchApplicationToResponse(batch itemapp.BatchInfo, rows []itemapp.B
 	}
 }
 
-// cleanupExpiredPublishUploads 封装cleanupExpired发布Uploads业务协调。
 func (s *Server) cleanupExpiredPublishUploads(ctx context.Context) {
 	// err 表示过期上传目录清理结果；清理失败不影响当前预检请求。
 	if err := s.itemBatchManagementApplication().CleanupExpiredUploads(ctx, time.Now().UTC(), 100); err != nil && s.Logger != nil {

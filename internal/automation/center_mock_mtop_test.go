@@ -72,7 +72,6 @@ type fakeMTop struct {
 	adjustRelease chan struct{}
 }
 
-// fakeConsignResult 用于本次流程后续判断的fakeConsign结果
 type fakeConsignResult struct {
 	ok      bool
 	ret     []string
@@ -104,7 +103,6 @@ type fakeAdjustPriceResult struct {
 	err error
 }
 
-// FetchUserProfile 封装Fetch用户Profile业务协调。
 func (f *fakeMTop) FetchUserProfile(context.Context, string) (*mtop.UserProfileResult, error) {
 	return nil, nil
 }
@@ -130,7 +128,6 @@ func (f *fakeMTop) AdjustOrderPriceContext(_ context.Context, cookiesStr, orderI
 	return f.adjustOk, f.adjustRet, f.adjustUpdated, f.adjustErr
 }
 
-// ConsignContext 封装Consign上下文业务协调。
 func (f *fakeMTop) ConsignContext(_ context.Context, cookiesStr, orderID string) (bool, []string, string, error) {
 	return f.ConsignContextWithDelivery(context.Background(), cookiesStr, orderID, "", nil)
 }
@@ -150,7 +147,6 @@ func (f *fakeMTop) ConsignContextWithDelivery(_ context.Context, cookiesStr, ord
 	f.consignPicListIn = append([]string(nil), picList...)
 	f.consignCookies = append(f.consignCookies, cookiesStr)
 	if len(f.consignResults) > 0 {
-		// result 用于本次流程后续判断的结果
 		result := f.consignResults[0]
 		f.consignResults = f.consignResults[1:]
 		return result.ok, result.ret, result.updated, result.err
@@ -176,10 +172,8 @@ func (f *fakeMTop) FreeShippingContext(_ context.Context, cookieStr, orderID, it
 
 // TestConfirmShipmentReleasesCredentialLockBeforeExternalIO 验证 MTOP 外部调用期间同账号凭证锁可以被其他流程获取。
 func TestConfirmShipmentReleasesCredentialLockBeforeExternalIO(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的上下文。
 	ctx := context.Background()
 	// fake 保存带有可控阻塞点的 MTOP 客户端。
 	fake := &fakeMTop{
@@ -223,10 +217,8 @@ func TestConfirmShipmentReleasesCredentialLockBeforeExternalIO(t *testing.T) {
 
 // TestConfirmShipmentDoesNotOverwriteConcurrentCredentialUpdate 验证旧 MTOP 响应不会覆盖并发完成的新凭证。
 func TestConfirmShipmentDoesNotOverwriteConcurrentCredentialUpdate(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的上下文。
 	ctx := context.Background()
 	// initial 保存外部请求开始前的旧 Cookie。
 	initial := "sid=old"
@@ -275,17 +267,14 @@ func TestConfirmShipmentDoesNotOverwriteConcurrentCredentialUpdate(t *testing.T)
 	}
 }
 
-// FetchItemsPage 封装Fetch商品列表页码业务协调。
 func (f *fakeMTop) FetchItemsPage(context.Context, string, int, int) (*mtop.ItemListResult, error) {
 	return nil, nil
 }
 
-// FetchAllItems 封装FetchAll商品列表业务协调。
 func (f *fakeMTop) FetchAllItems(context.Context, string, int, int) (*mtop.ItemListResult, error) {
 	return nil, nil
 }
 
-// PublishItem 封装发布商品业务协调。
 func (f *fakeMTop) PublishItem(context.Context, string, mtop.PublishItemRequest) (*mtop.PublishItemResult, error) {
 	return nil, nil
 }
@@ -295,25 +284,21 @@ func (f *fakeMTop) RefreshTokenWithDeviceIDContext(context.Context, string, stri
 	return nil, nil
 }
 
-// fakeCredentialRecoverer 用于本次流程后续判断的fakeCredentialRecoverer
 type fakeCredentialRecoverer struct {
 	store *db.Store
 	calls int
 	fail  bool
 }
 
-// FetchOrderDetail 封装Fetch订单Detail业务协调。
 func (f *fakeCredentialRecoverer) FetchOrderDetail(context.Context, string, string, string, string, string) (*OrderDetail, error) {
 	return &OrderDetail{Quantity: "1", Amount: "9.9", OrderStatus: "pending_ship"}, nil
 }
 
-// RecoverExpiredCredential 封装RecoverExpiredCredential业务协调。
 func (f *fakeCredentialRecoverer) RecoverExpiredCredential(ctx context.Context, cookieID string) bool {
 	f.calls++
 	if f.fail {
 		return false
 	}
-	// detail、err 用于本次流程后续判断的detail、err
 	detail, err := f.store.Cookies.GetDetails(ctx, cookieID)
 	if err != nil {
 		return false
@@ -321,24 +306,17 @@ func (f *fakeCredentialRecoverer) RecoverExpiredCredential(ctx context.Context, 
 	return f.store.Cookies.UpdateRenewalCookie(ctx, cookieID, "unb=123; _m_h5_tk=fresh_1;", detail.MetadataJSON, time.Now().Unix()) == nil
 }
 
-// TestConfirmShipmentRetriesFromCheckpointWithoutResendingCard 封装TestConfirmShipmentRetriesFromCheckpointWithoutResending卡密业务协调。
 func TestConfirmShipmentRetriesFromCheckpointWithoutResendingCard(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// admin 用于本次流程后续判断的admin
 	admin, _ := store.Users.GetByUsername(ctx, "admin")
-	// res、err 用于本次流程后续判断的res、err
 	res, err := store.DB.ExecContext(ctx, `INSERT INTO cards (name,type,text_content,enabled,user_id) VALUES ('gift','text','ONLY-ONCE',1,?)`, admin.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// cardID 用于本次流程后续判断的卡密ID
 	cardID, _ := res.LastInsertId()
-	if // err 用于本次流程后续判断的err
-	_, err := store.Automation.Create(ctx, db.AutomationRuleInput{
+	if _, err := store.Automation.Create(ctx, db.AutomationRuleInput{
 		UserID: admin.ID, CookieID: "cid", ItemID: "checkpoint-item", Name: "checkpoint",
 		TriggerType: TriggerOrderPaid, Enabled: true,
 		Actions: []db.AutomationActionInput{
@@ -348,33 +326,24 @@ func TestConfirmShipmentRetriesFromCheckpointWithoutResendingCard(t *testing.T) 
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// mtopMock 用于本次流程后续判断的mtopMock
 	mtopMock := &fakeMTop{consignResults: []fakeConsignResult{
 		{ret: []string{"FAIL_SYS_SESSION_EXPIRED::Session过期"}},
 		{ok: true, ret: []string{"SUCCESS::调用成功"}},
 	}}
-	// recoverer 用于本次流程后续判断的recoverer
 	recoverer := &fakeCredentialRecoverer{store: store, fail: true}
-	// sender 用于本次流程后续判断的sender
 	sender := &testSender{}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: sender}, nil, CenterDependencies{
 		MTop:               mtopMock,
 		OrderDetailFetcher: recoverer,
 	})
-	// task 用于本次流程后续判断的任务
 	task := Task{Source: "ws", AccountID: "cid", OrderRole: OrderRoleSeller, TriggerType: TriggerOrderPaid, OrderID: "checkpoint-order",
 		ItemID: "checkpoint-item", BuyerID: "buyer", ChatID: "chat", Quantity: "1", Amount: "9.9"}
-	if // err 用于本次流程后续判断的err
-	err := center.HandleTask(ctx, task); err == nil {
+	if err := center.HandleTask(ctx, task); err == nil {
 		t.Fatal("首次确认发货应因 Session 恢复失败而返回错误")
 	}
-	// status、errMsg 用于本次流程后续判断的status、errMsg
 	var status, errMsg string
-	// sent、cursor 用于本次流程后续判断的sent、cursor
 	var sent, cursor int
-	if // err 用于本次流程后续判断的err
-	err := store.DB.QueryRowContext(ctx, `SELECT status,error_message,sent_count,action_cursor FROM automation_runs WHERE order_id=?`, task.OrderID).
+	if err := store.DB.QueryRowContext(ctx, `SELECT status,error_message,sent_count,action_cursor FROM automation_runs WHERE order_id=?`, task.OrderID).
 		Scan(&status, &errMsg, &sent, &cursor); err != nil {
 		t.Fatal(err)
 	}
@@ -382,8 +351,7 @@ func TestConfirmShipmentRetriesFromCheckpointWithoutResendingCard(t *testing.T) 
 		t.Fatalf("status=%q err=%q sent=%d cursor=%d", status, errMsg, sent, cursor)
 	}
 	recoverer.fail = false
-	if // err 用于本次流程后续判断的err
-	_, err := store.DB.ExecContext(ctx, `UPDATE automation_runs SET next_retry_at=0 WHERE order_id=?`, task.OrderID); err != nil {
+	if _, err := store.DB.ExecContext(ctx, `UPDATE automation_runs SET next_retry_at=0 WHERE order_id=?`, task.OrderID); err != nil {
 		t.Fatal(err)
 	}
 	NewScheduler(center).runRecoveryTasks(ctx)
@@ -421,7 +389,6 @@ func TestConfirmShipmentRetriesFromCheckpointWithoutResendingTemplate(t *testing
 	// store、cleanup 保存模板恢复测试使用的数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存创建模板和卡密组所需的用户。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -451,7 +418,6 @@ func TestConfirmShipmentRetriesFromCheckpointWithoutResendingTemplate(t *testing
 	if ruleErr != nil {
 		t.Fatal(ruleErr)
 	}
-	// mtopMock 用于本次流程后续判断的mtopMock
 	mtopMock := &fakeMTop{consignResults: []fakeConsignResult{
 		{ret: []string{"FAIL_SYS_SESSION_EXPIRED::Session过期"}},
 		{ok: true, ret: []string{"SUCCESS::调用成功"}},
@@ -512,27 +478,20 @@ func TestConfirmShipmentRetriesFromCheckpointWithoutResendingTemplate(t *testing
 	}
 }
 
-// TestConfirmShipmentRecoversExpiredSessionAndRetriesOnlyConsign 封装TestConfirmShipmentRecoversExpired会话AndRetriesOnlyConsign业务协调。
 func TestConfirmShipmentRecoversExpiredSessionAndRetriesOnlyConsign(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// mtopMock 用于本次流程后续判断的mtopMock
 	mtopMock := &fakeMTop{consignResults: []fakeConsignResult{
 		{ret: []string{"FAIL_SYS_SESSION_EXPIRED::Session过期"}},
 		{ok: true, ret: []string{"SUCCESS::调用成功"}},
 	}}
-	// recoverer 用于本次流程后续判断的recoverer
 	recoverer := &fakeCredentialRecoverer{store: store}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{
 		MTop:               mtopMock,
 		OrderDetailFetcher: recoverer,
 	})
-	if // err 用于本次流程后续判断的err
-	err := center.confirmShipment(ctx, Task{AccountID: "cid", OrderID: "session-order", ItemID: "item", BuyerID: "buyer", ChatID: "chat"}); err != nil {
+	if err := center.confirmShipment(ctx, Task{AccountID: "cid", OrderID: "session-order", ItemID: "item", BuyerID: "buyer", ChatID: "chat"}); err != nil {
 		t.Fatal(err)
 	}
 	if recoverer.calls != 1 || mtopMock.consignCalls != 2 {
@@ -541,7 +500,6 @@ func TestConfirmShipmentRecoversExpiredSessionAndRetriesOnlyConsign(t *testing.T
 	if len(mtopMock.consignCookies) != 2 || !strings.Contains(mtopMock.consignCookies[1], "fresh_1") {
 		t.Fatalf("确认发货重试未使用续期 Cookie: %v", mtopMock.consignCookies)
 	}
-	// order、err 用于本次流程后续判断的order、err
 	order, err := store.Orders.Get(ctx, "session-order")
 	if err != nil || !order.SystemShipped {
 		t.Fatalf("恢复后应记录系统发货: order=%+v err=%v", order, err)
@@ -551,14 +509,10 @@ func TestConfirmShipmentRecoversExpiredSessionAndRetriesOnlyConsign(t *testing.T
 // TestCenterConfirmShipment_MockMTopConsigError 用 mock mtop 验证：
 // ConsignContext 返回错误时 confirmShipment 透传错误，不写 system_shipped；
 // ok=false 但无错误时返回"确认发货失败"错误。
-// TestCenterConfirmShipment_MockMTopConsigError 封装TestCenterConfirmShipmentMockMTopConsig错误业务协调。
 func TestCenterConfirmShipment_MockMTopConsigError(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// admin 用于本次流程后续判断的admin
 	admin, _ := store.Users.GetByUsername(ctx, "admin")
 
 	// 插入卡密 + 多规格商品 + 付款发货规则（含 confirm_shipment 动作）。
@@ -575,7 +529,6 @@ func TestCenterConfirmShipment_MockMTopConsigError(t *testing.T) {
 
 	// ConsignContext 报错。
 	mtopMock := &fakeMTop{consignErr: errors.New("network down")}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{
 		MTop:               mtopMock,
 		OrderDetailFetcher: testFetcher{detail: &OrderDetail{Quantity: "1", Amount: "9.9"}},
@@ -609,7 +562,6 @@ func TestCenterConfirmShipment_MockMTopConsigError(t *testing.T) {
 
 	// 第二轮：ConsignContext 返回 ok=false（业务失败），run 同样记 failed。
 	_ = store.Orders.Upsert(ctx, "order-mock2", db.OrderUpsertOpts{CookieID: "cid", ItemID: "item-1", BuyerID: "buyer-1"})
-	// center2 用于本次流程后续判断的center2
 	center2 := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{
 		MTop:               &fakeMTop{consignOk: false, consignRet: []string{"FAIL_SHIP"}},
 		OrderDetailFetcher: testFetcher{detail: &OrderDetail{Quantity: "1", Amount: "9.9"}},
@@ -629,7 +581,6 @@ func TestPaidTemplateWithZeroRenderedMessagesDoesNotConfirmShipment(t *testing.T
 	// store、cleanup 保存本次付款规则流程使用的数据库及清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存规则创建、任务执行和运行状态读取共用的上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存创建发货模板所需的用户。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -689,10 +640,8 @@ func TestPaidTemplateWithZeroRenderedMessagesDoesNotConfirmShipment(t *testing.T
 
 // TestConfirmShipmentAlreadyDeliveredIsIdempotentSuccess 验证平台明确返回已发货时，确认发货按幂等成功补写本地状态。
 func TestConfirmShipmentAlreadyDeliveredIsIdempotentSuccess(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是确认发货和读取本地订单事实共用的测试上下文。
 	ctx := context.Background()
 	// mtopMock 模拟人工或其他渠道已发货后再次请求确认发货的明确平台返回。
 	mtopMock := &fakeMTop{consignRet: []string{"ORDER_ALREADY_DELIVERY::已发货成功，请刷新页面~"}}
@@ -711,33 +660,24 @@ func TestConfirmShipmentAlreadyDeliveredIsIdempotentSuccess(t *testing.T) {
 	}
 }
 
-// TestConfirmShipmentQuarantinesKnownRemoteSuccessWhenLocalPersistenceFails 封装Test确认发货QuarantinesKnown远端SuccessWhen本地PersistenceFails业务协调。
 func TestConfirmShipmentQuarantinesKnownRemoteSuccessWhenLocalPersistenceFails(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	if // err 用于本次流程后续判断的err
-	err := store.Orders.Upsert(ctx, "persist-failure", db.OrderUpsertOpts{CookieID: "cid", ItemID: "item-1", BuyerID: "buyer"}); err != nil {
+	if err := store.Orders.Upsert(ctx, "persist-failure", db.OrderUpsertOpts{CookieID: "cid", ItemID: "item-1", BuyerID: "buyer"}); err != nil {
 		t.Fatal(err)
 	}
-	if // err 用于本次流程后续判断的err
-	_, err := store.DB.ExecContext(ctx, `CREATE TRIGGER reject_shipped_state
+	if _, err := store.DB.ExecContext(ctx, `CREATE TRIGGER reject_shipped_state
 		BEFORE UPDATE OF system_shipped ON orders
 		WHEN NEW.system_shipped=1
 		BEGIN SELECT RAISE(FAIL, 'forced shipment persistence failure'); END`); err != nil {
 		t.Fatal(err)
 	}
-	// mtopMock 用于本次流程后续判断的mtopMock
 	mtopMock := &fakeMTop{consignOk: true, consignUpdated: "unb=123; _m_h5_tk=updated_1;"}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: &testSender{}}, nil, CenterDependencies{MTop: mtopMock})
-	// err 用于本次流程后续判断的err
 	err := center.confirmShipment(ctx, Task{
 		AccountID: "cid", OrderID: "persist-failure", ItemID: "item-1", BuyerID: "buyer", ChatID: "chat",
 	})
-	// uncertain 用于本次流程后续判断的uncertain
 	var uncertain *uncertainActionError
 	if !errors.As(err, &uncertain) {
 		t.Fatalf("known remote success with local failure must be quarantined, got %v", err)
@@ -745,7 +685,6 @@ func TestConfirmShipmentQuarantinesKnownRemoteSuccessWhenLocalPersistenceFails(t
 	if !strings.Contains(err.Error(), "闲鱼已确认发货") || !strings.Contains(err.Error(), "本地状态保存失败") {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// order、getErr 用于本次流程后续判断的order、getErr
 	order, getErr := store.Orders.Get(ctx, "persist-failure")
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -784,40 +723,29 @@ func TestConfirmShipmentQuarantinesKnownRemoteSuccessWhenLocalPersistenceFails(t
 	}
 }
 
-// TestConfirmShipmentKeepsAuthoritativeSnapshotWhenSessionUnchanged 封装TestConfirmShipmentKeepsAuthoritativeSnapshotWhen会话Unchanged业务协调。
 func TestConfirmShipmentKeepsAuthoritativeSnapshotWhenSessionUnchanged(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// initial 用于本次流程后续判断的initial
 	initial := "unb=123; _m_h5_tk=old_1;"
-	// metadata 用于本次流程后续判断的metadata
 	metadata := cookierefresh.MetadataWithSnapshot(`{"preserved":true}`, []cookierefresh.BrowserCookie{
 		{Name: "unb", Value: "123", Domain: ".goofish.com", Path: "/", Secure: true},
 		{Name: "_m_h5_tk", Value: "old_1", Domain: ".goofish.com", Path: "/", Secure: true},
 	})
-	if // err 用于本次流程后续判断的err
-	err := store.Cookies.UpdateRenewalCookie(ctx, "cid", initial, metadata, 1); err != nil {
+	if err := store.Cookies.UpdateRenewalCookie(ctx, "cid", initial, metadata, 1); err != nil {
 		t.Fatal(err)
 	}
-	// updated 用于本次流程后续判断的updated
 	updated := "unb=123; _m_h5_tk=mock_new_2;"
-	// sender 用于本次流程后续判断的sender
 	sender := &testSender{}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: sender}, nil, CenterDependencies{
 		MTop: &fakeMTop{consignOk: false, consignRet: []string{"FAIL_SHIP"}, consignUpdated: updated},
 	})
-	// err 用于本次流程后续判断的err
 	err := center.confirmShipment(ctx, Task{
 		AccountID: "cid", OrderID: "flat-mock-fallback", ForceConfirmShipment: true,
 	})
 	if err == nil || !strings.Contains(err.Error(), "FAIL_SHIP") {
 		t.Fatalf("mock 业务失败应保留原返回语义: %v", err)
 	}
-	// detail、getErr 用于本次流程后续判断的detail、getErr
 	detail, getErr := store.Cookies.GetDetails(ctx, "cid")
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -825,8 +753,7 @@ func TestConfirmShipmentKeepsAuthoritativeSnapshotWhenSessionUnchanged(t *testin
 	if detail.Value != initial {
 		t.Fatalf("完整 Jar 未变化时不得被扁平/mock 返回覆盖: %q", detail.Value)
 	}
-	if // snapshot、ok 用于本次流程后续判断的snapshot、ok
-	snapshot, ok := cookierefresh.SnapshotFromMetadataOK(detail.MetadataJSON); !ok || len(snapshot) != 2 {
+	if snapshot, ok := cookierefresh.SnapshotFromMetadataOK(detail.MetadataJSON); !ok || len(snapshot) != 2 {
 		t.Fatalf("完整 Jar 未变化时必须继续保留: ok=%v snapshot=%+v metadata=%s", ok, snapshot, detail.MetadataJSON)
 	}
 	if !strings.Contains(detail.MetadataJSON, `"preserved":true`) {
@@ -837,35 +764,25 @@ func TestConfirmShipmentKeepsAuthoritativeSnapshotWhenSessionUnchanged(t *testin
 	}
 }
 
-// TestConfirmShipmentKeepsFlatMockFallbackWithoutSnapshot 封装TestConfirmShipmentKeepsFlatMockFallbackWithoutSnapshot业务协调。
 func TestConfirmShipmentKeepsFlatMockFallbackWithoutSnapshot(t *testing.T) {
-	// store、cleanup 用于本次流程后续判断的store、cleanup
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 用于本次流程后续判断的ctx
 	ctx := context.Background()
-	// initial 用于本次流程后续判断的initial
 	initial := "unb=123; _m_h5_tk=old_1;"
-	if // err 用于本次流程后续判断的err
-	err := store.Cookies.UpdateRenewalCookie(ctx, "cid", initial, `{"preserved":true}`, 1); err != nil {
+	if err := store.Cookies.UpdateRenewalCookie(ctx, "cid", initial, `{"preserved":true}`, 1); err != nil {
 		t.Fatal(err)
 	}
-	// updated 用于本次流程后续判断的updated
 	updated := "unb=123; _m_h5_tk=mock_new_2;"
-	// sender 用于本次流程后续判断的sender
 	sender := &testSender{}
-	// center 用于本次流程后续判断的center
 	center := NewWithDependencies(store, testSenderProvider{sender: sender}, nil, CenterDependencies{
 		MTop: &fakeMTop{consignOk: false, consignRet: []string{"FAIL_SHIP"}, consignUpdated: updated},
 	})
-	// err 用于本次流程后续判断的err
 	err := center.confirmShipment(ctx, Task{
 		AccountID: "cid", OrderID: "flat-mock-fallback", ForceConfirmShipment: true,
 	})
 	if err == nil || !strings.Contains(err.Error(), "FAIL_SHIP") {
 		t.Fatalf("mock 业务失败应保留原返回语义: %v", err)
 	}
-	// detail、getErr 用于本次流程后续判断的detail、getErr
 	detail, getErr := store.Cookies.GetDetails(ctx, "cid")
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -873,8 +790,7 @@ func TestConfirmShipmentKeepsFlatMockFallbackWithoutSnapshot(t *testing.T) {
 	if detail.Value != updated {
 		t.Fatalf("无完整 Jar 时未保留扁平/mock 写回路径: %q", detail.Value)
 	}
-	if // ok 用于本次流程后续判断的ok
-	_, ok := cookierefresh.SnapshotFromMetadataOK(detail.MetadataJSON); ok {
+	if _, ok := cookierefresh.SnapshotFromMetadataOK(detail.MetadataJSON); ok {
 		t.Fatalf("扁平 mock 结果不得伪装成权威 Jar: %s", detail.MetadataJSON)
 	}
 	if !strings.Contains(detail.MetadataJSON, `"preserved":true`) {

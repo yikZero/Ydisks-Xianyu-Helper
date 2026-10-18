@@ -8,10 +8,8 @@ import (
 
 // TestAIReplySettingsAndConversationBranches 覆盖 AI 配置、会话历史和轮次统计的确定性路径。
 func TestAIReplySettingsAndConversationBranches(t *testing.T) {
-	// store、cleanup 提供迁移后的 SQLite 测试数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存 AI 配置所属账号。
 	userID, cookieID := seedAccount(t, store)
@@ -97,7 +95,6 @@ func TestUserSettingsRiskLogsAndHealth(t *testing.T) {
 	// store、cleanup 提供真实 SQLite 数据库及关闭责任。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存测试账号归属。
 	userID, cookieID := seedAccount(t, store)

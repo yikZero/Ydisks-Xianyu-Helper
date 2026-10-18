@@ -22,7 +22,6 @@ func TestSettingsRepositoryDeterministicPaths(t *testing.T) {
 	defer cleanup()
 	// repository 保存绑定当前数据库的设置适配器。
 	repository := NewSettingsRepository(store)
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存测试用户身份。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -122,12 +121,10 @@ func TestSettingsRepositoryDeterministicPaths(t *testing.T) {
 // 工作模式随设置保存并能从列表与单项读取中原样取回；账号已有启用的固定改价规则时，启用 AI 议价必须以冲突拒绝且不写入；
 // 未启用 AI 议价时不受固定规则影响。
 func TestSettingsRepositoryAIReplyModeAndPricingConflict(t *testing.T) {
-	// store、cleanup 是带管理员账号 cid 的测试存储。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// repository 是被测的设置适配器。
 	repository := NewSettingsRepository(store)
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// owner 是账号 cid 的所有者。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")
@@ -136,7 +133,6 @@ func TestSettingsRepositoryAIReplyModeAndPricingConflict(t *testing.T) {
 	}
 	// 保存全场景模式的设置并读回。
 	saved := settingsapp.AIReplySettings{AIEnabled: true, MaxDiscountPercent: 10, MaxDiscountAmount: 50, MaxBargainRounds: 3, CustomPrompts: "当天发货", AIMode: "full_service"}
-	// err 保存 UpsertAIReply 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := repository.UpsertAIReply(ctx, "cid", saved); err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +165,6 @@ func TestSettingsRepositoryAIReplyModeAndPricingConflict(t *testing.T) {
 	// conflicting 是在已保存设置基础上改为仅砍价模式的草稿，用于触发固定改价规则冲突。
 	conflicting := saved
 	conflicting.AIMode = "bargain_only"
-	// err 保存 UpsertAIReply 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := repository.UpsertAIReply(ctx, "cid", conflicting); !errors.Is(err, settingsapp.ErrPricingModeConflict) {
 		t.Fatalf("启用 AI 议价与固定改价规则应冲突，got %v", err)
 	}
@@ -180,7 +175,6 @@ func TestSettingsRepositoryAIReplyModeAndPricingConflict(t *testing.T) {
 	// 关闭 AI 议价时不受固定规则影响，可保存其他模式。
 	disabled := conflicting
 	disabled.AIEnabled = false
-	// err 保存 UpsertAIReply 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := repository.UpsertAIReply(ctx, "cid", disabled); err != nil {
 		t.Fatalf("关闭 AI 议价应不受固定改价规则影响: %v", err)
 	}
@@ -190,21 +184,16 @@ func TestSettingsRepositoryAIReplyModeAndPricingConflict(t *testing.T) {
 func TestSettingsRepositoryAIReplyRejectsUninitializedStore(t *testing.T) {
 	// repository 是没有任何存储的设置适配器。
 	repository := &SettingsRepository{}
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
-	// err 保存 ListAIReply 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := repository.ListAIReply(ctx, 1); err == nil {
 		t.Error("ListAIReply 未初始化必须返回错误")
 	}
-	// err 保存 GetAIReply 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := repository.GetAIReply(ctx, 1, "cid"); err == nil {
 		t.Error("GetAIReply 未初始化必须返回错误")
 	}
-	// err 保存 UpsertAIReply 调用返回的错误，随后断言它是否符合该场景的预期。
 	if err := repository.UpsertAIReply(ctx, "cid", settingsapp.AIReplySettings{}); err == nil {
 		t.Error("UpsertAIReply 未初始化必须返回错误")
 	}
-	// err 保存 HasEnabledAdjustPriceRule 调用返回的错误，随后断言它是否符合该场景的预期。
 	if _, err := repository.HasEnabledAdjustPriceRule(ctx, "cid"); err == nil {
 		t.Error("HasEnabledAdjustPriceRule 未初始化必须返回错误")
 	}

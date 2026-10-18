@@ -352,7 +352,6 @@ var _ Repository = (*settingsRepositoryFake)(nil)
 
 // TestServiceRejectsConflictingPricingModes 验证自动改价依赖 AI 议价，且 AI 议价不能与固定改价规则同时启用。
 func TestServiceRejectsConflictingPricingModes(t *testing.T) {
-	// ctx 是 AI 设置互斥校验测试上下文。
 	ctx := context.Background()
 	// repository 模拟账号已存在启用的固定自动改价规则。
 	repository := &settingsRepositoryFake{ownerID: 7, adjustRuleEnabled: true}
@@ -375,7 +374,6 @@ func TestServiceRejectsConflictingPricingModes(t *testing.T) {
 
 // TestServiceCoversSettingsAndAIReadWrite 验证系统、用户和账号 AI 设置的成功读写路径。
 func TestServiceCoversSettingsAndAIReadWrite(t *testing.T) {
-	// ctx 是设置成功路径共用的请求上下文。
 	ctx := context.Background()
 	// repository 是带有敏感键、系统值和账号所有者的内存设置端口。
 	repository := &settingsRepositoryFake{
@@ -393,60 +391,60 @@ func TestServiceCoversSettingsAndAIReadWrite(t *testing.T) {
 	if !service.IsSensitiveSettingKey("ai_api_key") || service.IsSensitiveSettingKey("theme_color") || (*Service)(nil).IsSensitiveSettingKey("ai_api_key") {
 		t.Fatal("敏感键判断异常")
 	}
-	if // err 是公开系统设置读取错误。
-	_, err := service.PublicSystem(ctx); err != nil {
+	// err 是公开系统设置读取错误。
+	if _, err := service.PublicSystem(ctx); err != nil {
 		t.Fatalf("公开系统设置读取失败: %v", err)
 	}
-	if // err 是管理员系统设置读取及审计错误。
-	_, err := service.GetSystem(ctx, 7); err != nil || len(repository.audits) != 1 {
+	// err 是管理员系统设置读取及审计错误。
+	if _, err := service.GetSystem(ctx, 7); err != nil || len(repository.audits) != 1 {
 		t.Fatalf("管理员系统设置读取失败: err=%v audits=%+v", err, repository.audits)
 	}
-	if // err 是普通系统设置写入错误。
-	err := service.SetSystem(ctx, 7, "theme_color", "dark", ""); err != nil {
+	// err 是普通系统设置写入错误。
+	if err := service.SetSystem(ctx, 7, "theme_color", "dark", ""); err != nil {
 		t.Fatalf("普通系统设置写入失败: %v", err)
 	}
-	if // err 是敏感设置 retain 命令写入错误。
-	err := service.SetSystem(ctx, 7, "ai_api_key", "", "retain"); err != nil {
+	// err 是敏感设置 retain 命令写入错误。
+	if err := service.SetSystem(ctx, 7, "ai_api_key", "", "retain"); err != nil {
 		t.Fatalf("敏感 retain 写入失败: %v", err)
 	}
-	if // err 是敏感设置 clear 命令写入错误。
-	err := service.SetSystem(ctx, 7, "ai_api_key", "", "clear"); err != nil {
+	// err 是敏感设置 clear 命令写入错误。
+	if err := service.SetSystem(ctx, 7, "ai_api_key", "", "clear"); err != nil {
 		t.Fatalf("敏感 clear 写入失败: %v", err)
 	}
-	if // err 是敏感设置 replace 命令写入错误。
-	err := service.SetSystem(ctx, 7, "ai_api_key", "new-secret", "replace"); err != nil {
+	// err 是敏感设置 replace 命令写入错误。
+	if err := service.SetSystem(ctx, 7, "ai_api_key", "new-secret", "replace"); err != nil {
 		t.Fatalf("敏感 replace 写入失败: %v", err)
 	}
-	if // err 是用户设置列表读取错误。
-	_, err := service.ListUser(ctx, 7); err != nil {
+	// err 是用户设置列表读取错误。
+	if _, err := service.ListUser(ctx, 7); err != nil {
 		t.Fatalf("用户设置列表读取失败: %v", err)
 	}
-	if // err 是用户设置单项读取错误。
-	_, err := service.GetUser(ctx, 7, " theme "); err != nil {
+	// err 是用户设置单项读取错误。
+	if _, err := service.GetUser(ctx, 7, " theme "); err != nil {
 		t.Fatalf("用户设置读取失败: %v", err)
 	}
-	if // err 是用户设置单项写入错误。
-	err := service.SetUser(ctx, 7, " theme ", "light"); err != nil {
+	// err 是用户设置单项写入错误。
+	if err := service.SetUser(ctx, 7, " theme ", "light"); err != nil {
 		t.Fatalf("用户设置写入失败: %v", err)
 	}
-	if // err 是账号 AI 设置列表读取错误。
-	_, err := service.ListAIReply(ctx, 7); err != nil {
+	// err 是账号 AI 设置列表读取错误。
+	if _, err := service.ListAIReply(ctx, 7); err != nil {
 		t.Fatalf("账号 AI 设置列表读取失败: %v", err)
 	}
-	if // err 是账号 AI 设置读取错误。
-	_, err := service.GetAIReply(ctx, 7, "acc-1"); err != nil {
+	// err 是账号 AI 设置读取错误。
+	if _, err := service.GetAIReply(ctx, 7, "acc-1"); err != nil {
 		t.Fatalf("账号 AI 设置读取失败: %v", err)
 	}
-	if // err 是有效账号 AI 设置写入错误。
-	err := service.UpsertAIReply(ctx, 7, "acc-1", AIReplySettings{AIEnabled: true, MaxDiscountPercent: 10, MaxDiscountAmount: 20, MaxBargainRounds: 3}); err != nil {
+	// err 是有效账号 AI 设置写入错误。
+	if err := service.UpsertAIReply(ctx, 7, "acc-1", AIReplySettings{AIEnabled: true, MaxDiscountPercent: 10, MaxDiscountAmount: 20, MaxBargainRounds: 3}); err != nil {
 		t.Fatalf("账号 AI 设置写入失败: %v", err)
 	}
-	if // err 是显式地址和密钥读取模型目录的错误。
-	_, err := service.ListAIModels(ctx, 7, "https://models.test/v1", "provided-key"); err != nil {
+	// err 是显式地址和密钥读取模型目录的错误。
+	if _, err := service.ListAIModels(ctx, 7, "https://models.test/v1", "provided-key"); err != nil {
 		t.Fatalf("显式模型目录读取失败: %v", err)
 	}
-	if // err 是从系统地址和受控密钥读取模型目录的错误。
-	_, err := service.ListAIModels(ctx, 7, "", ""); err != nil {
+	// err 是从系统地址和受控密钥读取模型目录的错误。
+	if _, err := service.ListAIModels(ctx, 7, "", ""); err != nil {
 		t.Fatalf("受控模型目录读取失败: %v", err)
 	}
 	if client.calls != 2 {
@@ -456,7 +454,6 @@ func TestServiceCoversSettingsAndAIReadWrite(t *testing.T) {
 
 // TestServiceRejectsInvalidSettingsInputs 验证所有设置公开用例的身份、键名、秘密命令和数值边界校验。
 func TestServiceRejectsInvalidSettingsInputs(t *testing.T) {
-	// ctx 是输入校验共用的请求上下文。
 	ctx := context.Background()
 	// repository 是允许账号 7 访问但不保存秘密值的测试端口。
 	repository := &settingsRepositoryFake{sensitiveKeys: []string{"secret_key"}, ownerID: 7, aiSettings: map[string]AIReplySettings{}}
@@ -577,21 +574,20 @@ func TestServiceRejectsInvalidSettingsInputs(t *testing.T) {
 	}
 	// ownershipService 是账号所有者查询返回账号不存在的设置服务。
 	ownershipService := NewService(&settingsRepositoryFake{}, nil)
-	if // err 是账号所有者查询失败错误。
-	_, err := ownershipService.GetAIReply(ctx, 7, "account"); !errors.Is(err, ErrAccountNotFound) {
+	// err 是账号所有者查询失败错误。
+	if _, err := ownershipService.GetAIReply(ctx, 7, "account"); !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("账号所有者查询错误异常: %v", err)
 	}
 	// auditKeys 是包含空白、重复和未排序键名的审计输入。
 	auditKeys := AuditRecord{Keys: []string{" ", "z_key", "a_key", "z_key"}}
-	if // err 是审计键名规范化后的写入结果。
-	err := service.audit(ctx, auditKeys); err != nil || len(repository.audits) == 0 || strings.Join(repository.audits[len(repository.audits)-1].Keys, ",") != "a_key,z_key" {
+	// err 是审计键名规范化后的写入结果。
+	if err := service.audit(ctx, auditKeys); err != nil || len(repository.audits) == 0 || strings.Join(repository.audits[len(repository.audits)-1].Keys, ",") != "a_key,z_key" {
 		t.Fatalf("审计键名规范化异常: err=%v audits=%+v", err, repository.audits)
 	}
 }
 
 // TestServicePropagatesSettingsPortErrors 验证审计、系统写入、规则查询和敏感读取错误原样传播。
 func TestServicePropagatesSettingsPortErrors(t *testing.T) {
-	// ctx 是错误传播测试上下文。
 	ctx := context.Background()
 	// auditFailure 是审计端口返回的错误。
 	auditFailure := errors.New("audit failed")
@@ -599,62 +595,62 @@ func TestServicePropagatesSettingsPortErrors(t *testing.T) {
 	auditRepository := &settingsRepositoryFake{auditErr: auditFailure, sensitiveKeys: []string{"secret"}, ownerID: 7}
 	// auditService 是注入审计错误的应用服务。
 	auditService := NewService(auditRepository, nil)
-	if // err 是 GetSystem 审计失败错误。
-	_, err := auditService.GetSystem(ctx, 7); !errors.Is(err, auditFailure) {
+	// err 是 GetSystem 审计失败错误。
+	if _, err := auditService.GetSystem(ctx, 7); !errors.Is(err, auditFailure) {
 		t.Fatalf("GetSystem 审计错误未透传: %v", err)
 	}
-	if // err 是 ApplySystemChanges 审计失败错误。
-	err := auditService.ApplySystemChanges(ctx, 7, nil, map[string]SecretChange{"secret": {Action: "clear"}}); !errors.Is(err, auditFailure) {
+	// err 是 ApplySystemChanges 审计失败错误。
+	if err := auditService.ApplySystemChanges(ctx, 7, nil, map[string]SecretChange{"secret": {Action: "clear"}}); !errors.Is(err, auditFailure) {
 		t.Fatalf("ApplySystemChanges 审计错误未透传: %v", err)
 	}
-	if // err 是 SetSystem 审计失败错误。
-	err := auditService.SetSystem(ctx, 7, "secret", "", "clear"); !errors.Is(err, auditFailure) {
+	// err 是 SetSystem 审计失败错误。
+	if err := auditService.SetSystem(ctx, 7, "secret", "", "clear"); !errors.Is(err, auditFailure) {
 		t.Fatalf("SetSystem 审计错误未透传: %v", err)
 	}
 	// applyFailure 是系统设置原子写入错误。
 	applyFailure := errors.New("apply failed")
 	// applyService 是注入系统原子写入错误的应用服务。
 	applyService := NewService(&settingsRepositoryFake{applyErr: applyFailure}, nil)
-	if // err 是普通系统设置原子写入错误。
-	err := applyService.ApplySystemChanges(ctx, 7, map[string]string{"theme": "dark"}, nil); !errors.Is(err, applyFailure) {
+	// err 是普通系统设置原子写入错误。
+	if err := applyService.ApplySystemChanges(ctx, 7, map[string]string{"theme": "dark"}, nil); !errors.Is(err, applyFailure) {
 		t.Fatalf("ApplySystemChanges 写入错误未透传: %v", err)
 	}
 	// setFailure 是单项系统设置写入错误。
 	setFailure := errors.New("set failed")
 	// setService 是注入单项系统设置写入错误的应用服务。
 	setService := NewService(&settingsRepositoryFake{setSystemErr: setFailure}, nil)
-	if // err 是单项系统设置写入错误。
-	err := setService.SetSystem(ctx, 7, "theme", "dark", ""); !errors.Is(err, setFailure) {
+	// err 是单项系统设置写入错误。
+	if err := setService.SetSystem(ctx, 7, "theme", "dark", ""); !errors.Is(err, setFailure) {
 		t.Fatalf("SetSystem 写入错误未透传: %v", err)
 	}
 	// conflictFailure 是固定自动改价规则查询错误。
 	conflictFailure := errors.New("rule lookup failed")
 	// conflictService 是注入规则查询错误的应用服务。
 	conflictService := NewService(&settingsRepositoryFake{ownerID: 7, conflictErr: conflictFailure}, nil)
-	if // err 是 AI 议价规则查询错误。
-	err := conflictService.UpsertAIReply(ctx, 7, "acc", AIReplySettings{AIEnabled: true, MaxBargainRounds: 1}); !errors.Is(err, conflictFailure) {
+	// err 是 AI 议价规则查询错误。
+	if err := conflictService.UpsertAIReply(ctx, 7, "acc", AIReplySettings{AIEnabled: true, MaxBargainRounds: 1}); !errors.Is(err, conflictFailure) {
 		t.Fatalf("规则查询错误未透传: %v", err)
 	}
 	// systemFailure 是系统 AI 地址读取错误。
 	systemFailure := errors.New("system lookup failed")
 	// systemService 是注入系统地址读取错误的应用服务。
 	systemService := NewService(&settingsRepositoryFake{systemErr: systemFailure}, &modelClientFake{})
-	if // err 是系统 AI 地址读取错误。
-	_, err := systemService.ListAIModels(ctx, 7, "", "provided"); !errors.Is(err, systemFailure) {
+	// err 是系统 AI 地址读取错误。
+	if _, err := systemService.ListAIModels(ctx, 7, "", "provided"); !errors.Is(err, systemFailure) {
 		t.Fatalf("系统地址读取错误未透传: %v", err)
 	}
 	// secretFailure 是受控读取敏感 API 密钥错误。
 	secretFailure := errors.New("secret lookup failed")
 	// secretService 是注入敏感密钥读取错误的应用服务。
 	secretService := NewService(&settingsRepositoryFake{readSecretErr: secretFailure}, &modelClientFake{})
-	if // err 是敏感 API 密钥读取错误。
-	_, err := secretService.ListAIModels(ctx, 7, "https://models.test", ""); !errors.Is(err, secretFailure) {
+	// err 是敏感 API 密钥读取错误。
+	if _, err := secretService.ListAIModels(ctx, 7, "https://models.test", ""); !errors.Is(err, secretFailure) {
 		t.Fatalf("敏感密钥读取错误未透传: %v", err)
 	}
 	// blankSystemService 是系统地址为空时使用默认地址的应用服务。
 	blankSystemService := NewService(&settingsRepositoryFake{systemValues: map[string]string{"ai_api_url": ""}, readSecretErr: nil}, &modelClientFake{})
-	if // err 是默认 AI 地址和受控密钥读取的成功结果。
-	_, err := blankSystemService.ListAIModels(ctx, 7, "", ""); err != nil {
+	// err 是默认 AI 地址和受控密钥读取的成功结果。
+	if _, err := blankSystemService.ListAIModels(ctx, 7, "", ""); err != nil {
 		t.Fatalf("默认 AI 地址读取失败: %v", err)
 	}
 }
@@ -693,7 +689,6 @@ func TestServiceUpsertAIReplyNormalizesAndValidatesMode(t *testing.T) {
 		// settings 是复制基础合法设置后仅替换 AI 模式的草稿，避免用例间共享修改。
 		settings := base
 		settings.AIMode = tc.mode
-		// err 保存 UpsertAIReply 调用返回的错误，随后断言它是否符合该场景的预期。
 		err := service.UpsertAIReply(context.Background(), 7, "acc1", settings)
 		if tc.wantErr {
 			if err == nil || !strings.Contains(err.Error(), "AI 模式无效") {

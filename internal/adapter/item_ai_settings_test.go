@@ -10,7 +10,6 @@ import (
 
 // TestItemAISettingsRepositoryRejectsMissingStore 验证商品 AI 配置适配器缺少依赖时每个方法都快速失败，不伪装成功。
 func TestItemAISettingsRepositoryRejectsMissingStore(t *testing.T) {
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// repositories 覆盖三种缺少依赖的构造方式：nil 工厂、空 Store 工厂以及 nil 接收者。
 	repositories := map[string]*ItemAISettingsRepository{
@@ -21,23 +20,18 @@ func TestItemAISettingsRepositoryRejectsMissingStore(t *testing.T) {
 	// name、repository 是当前验证的装配场景及其适配器。
 	for name, repository := range repositories {
 		t.Run(name, func(t *testing.T) {
-			// err 保存 AccountOwned 调用返回的错误，随后断言它是否符合该场景的预期。
 			if _, err := repository.AccountOwned(ctx, 1, "cid"); err == nil {
 				t.Fatal("缺少账号仓储时 AccountOwned 必须返回错误")
 			}
-			// err 保存 ItemExists 调用返回的错误，随后断言它是否符合该场景的预期。
 			if _, err := repository.ItemExists(ctx, "cid", "item"); err == nil {
 				t.Fatal("缺少商品仓储时 ItemExists 必须返回错误")
 			}
-			// err 保存 Get 调用返回的错误，随后断言它是否符合该场景的预期。
 			if _, err := repository.Get(ctx, "cid", "item"); err == nil {
 				t.Fatal("缺少配置存储时 Get 必须返回错误")
 			}
-			// err 保存 Upsert 调用返回的错误，随后断言它是否符合该场景的预期。
 			if err := repository.Upsert(ctx, itemapp.ItemAISettings{CookieID: "cid", ItemID: "item", Override: itemapp.ItemAIOverrideEnabled}); err == nil {
 				t.Fatal("缺少配置存储时 Upsert 必须返回错误")
 			}
-			// err 保存 Delete 调用返回的错误，随后断言它是否符合该场景的预期。
 			if err := repository.Delete(ctx, "cid", "item"); err == nil {
 				t.Fatal("缺少配置存储时 Delete 必须返回错误")
 			}
@@ -65,10 +59,8 @@ func TestItemDependenciesCreatesItemAISettingsRepository(t *testing.T) {
 // TestItemAISettingsRepositoryPersistsAndIsolatesAccounts 验证适配器在真实 SQLite 上完成归属判断、商品存在性、读写与删除，
 // 并且账号归属只按所属用户成立、已删除商品视为不存在。
 func TestItemAISettingsRepositoryPersistsAndIsolatesAccounts(t *testing.T) {
-	// store、cleanup 是带管理员及其账号 cid 的测试数据库及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// admin 是拥有测试账号 cid 的用户。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

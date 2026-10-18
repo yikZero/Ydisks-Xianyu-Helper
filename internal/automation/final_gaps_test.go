@@ -11,10 +11,8 @@ import (
 
 // TestEventFactRecorderGapBranches 覆盖事件事实记录中成功小刀阶段与订单完成时间写入失败。
 func TestEventFactRecorderGapBranches(t *testing.T) {
-	// ctx 是调用共用的上下文。
 	ctx := context.Background()
 	t.Run("成功小刀阶段记录失败", func(t *testing.T) {
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		execGapSQL(t, store, `ALTER TABLE bargain_free_shipping_stages RENAME TO bargain_stage_gap_hidden`)
@@ -26,7 +24,6 @@ func TestEventFactRecorderGapBranches(t *testing.T) {
 		}
 	})
 	t.Run("订单完成时间记录失败", func(t *testing.T) {
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		defer cleanup()
 		execGapSQL(t, store, `CREATE TRIGGER gap_abort_completed BEFORE UPDATE OF completed_at ON orders BEGIN SELECT RAISE(ABORT, 'forced completed_at failure'); END`)
@@ -52,7 +49,6 @@ func TestCenterSmallGapBranches(t *testing.T) {
 	if (*Center)(nil).accountSenderReady("cid") || (&Center{}).accountSenderReady("cid") {
 		t.Fatal("没有发送器提供方时不应就绪")
 	}
-	// store、cleanup 是隔离数据库。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 使用真实卡密仓储。
@@ -108,7 +104,6 @@ func TestPendingShipDeliveryScanGapBranches(t *testing.T) {
 	// fixture 创建一条已越过实时窗口的待发货订单和对应规则。
 	fixture := func(t *testing.T, account string) (*Scheduler, *db.Store) {
 		t.Helper()
-		// store、cleanup 是隔离数据库。
 		store, cleanup := newAutomationTestStore(t)
 		t.Cleanup(cleanup)
 		// admin 是规则归属用户。

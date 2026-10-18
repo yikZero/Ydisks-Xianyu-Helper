@@ -47,7 +47,6 @@ func TestOrderRefreshJobCountsContract(t *testing.T) {
 	// srv、store、cleanup 分别管理隔离 HTTP 服务、SQLite 夹具和资源释放。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 提供带鉴权和任务查询入口的真实路由。
 	handler := srv.Router()
 	// cookie 仅用于本地测试请求认证。
 	cookie := loginHelper(t, handler)

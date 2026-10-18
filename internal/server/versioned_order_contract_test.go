@@ -23,9 +23,7 @@ func TestVersionedOrderRoutesPreserveLegacyContracts(t *testing.T) {
 	if insertErr != nil {
 		t.Fatalf("insert order fixture: %v", insertErr)
 	}
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// listReq 是读取版本化订单列表的请求。
@@ -107,9 +105,7 @@ func TestVersionedOrderRefreshAndBatchRoutesPreserveLegacyContracts(t *testing.T
 	if insertErr != nil {
 		t.Fatalf("insert refresh order fixture: %v", insertErr)
 	}
-	// handler 是当前测试使用的完整路由树。
 	handler := srv.Router()
-	// sessionCookie 是管理员登录后得到的认证会话。
 	sessionCookie := loginHelper(t, handler)
 
 	// refreshReq 是版本化订单列表刷新请求。

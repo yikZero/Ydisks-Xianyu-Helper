@@ -314,7 +314,6 @@ func TestOpenAPIAccountAndSystemResponses(t *testing.T) {
 	defer cleanup()
 	// handler 是包含账户和系统设置版本化路由的真实 chi Router。
 	handler := srv.Router()
-	// sessionCookie 是管理员会话 Cookie，用于构造受保护 operation 的成功场景。
 	sessionCookie := loginHelper(t, handler)
 	// unauthenticatedRequest 是未携带会话的账户运行状态请求，必须使用统一错误响应。
 	unauthenticatedRequest := httptest.NewRequest(http.MethodGet, "/api/v1/accounts/runtime-status", nil)
@@ -420,7 +419,6 @@ func TestOpenAPIQueryChatAndOrderResponses(t *testing.T) {
 	defer cleanup()
 	// handler 是包含阶段三版本化路由的真实 chi Router。
 	handler := srv.Router()
-	// sessionCookie 是管理员会话 Cookie，用于受保护查询成功场景。
 	sessionCookie := loginHelper(t, handler)
 	// unauthenticatedRequest 是缺少会话的订单查询，必须保持统一错误 envelope。
 	unauthenticatedRequest := httptest.NewRequest(http.MethodGet, "/api/v1/orders", nil)
@@ -505,7 +503,6 @@ func TestOpenAPIItemAndCardResponses(t *testing.T) {
 	defer cleanup()
 	// handler 是包含商品和卡券版本化路由的真实 chi Router。
 	handler := srv.Router()
-	// sessionCookie 是管理员会话 Cookie，用于受保护资源的成功场景。
 	sessionCookie := loginHelper(t, handler)
 	// unauthenticatedRequest 是缺少会话的商品请求，必须使用统一错误 envelope。
 	unauthenticatedRequest := httptest.NewRequest(http.MethodGet, "/api/v1/items", nil)
@@ -594,7 +591,6 @@ func TestOpenAPINotificationResponses(t *testing.T) {
 	defer cleanup()
 	// handler 是包含通知版本化路由的真实 chi Router。
 	handler := srv.Router()
-	// sessionCookie 是管理员会话 Cookie，用于读取当前用户通知资源。
 	sessionCookie := loginHelper(t, handler)
 	// channelsRequest 是读取非敏感通知渠道摘要的成功请求。
 	channelsRequest := httptest.NewRequest(http.MethodGet, "/api/v1/notifications/channels", nil)

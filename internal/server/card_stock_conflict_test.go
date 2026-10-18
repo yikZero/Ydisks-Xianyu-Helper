@@ -13,7 +13,6 @@ import (
 
 // TestUpdateCardRejectsStaleDataStockSnapshot 验证编辑期间库存被自动发货消费后，携带旧快照的更新返回 409 且不写回已发出的卡密。
 func TestUpdateCardRejectsStaleDataStockSnapshot(t *testing.T) {
-	// srv、store、cleanup 为真实路由和数据库提供隔离测试环境。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
 	// ctx 控制夹具操作。
@@ -33,7 +32,6 @@ func TestUpdateCardRejectsStaleDataStockSnapshot(t *testing.T) {
 	if err != nil || consumed != "A" {
 		t.Fatalf("消费库存失败 consumed=%q err=%v", consumed, err)
 	}
-	// handler 是包含鉴权的真实路由。
 	handler := srv.Router()
 	// cookie 是当前管理员的登录会话。
 	cookie := loginHelper(t, handler)

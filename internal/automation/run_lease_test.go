@@ -128,7 +128,6 @@ func TestDeliveryReplayExpiredOwnerCannotSend(t *testing.T) {
 	if _, err := center.replayDeliveryProof(ctx, task, run); !errors.Is(err, db.ErrAutomationRunLeaseLost) {
 		t.Fatal("旧执行栈未返回失权", err)
 	}
-	// err 验证普通动作共用的执行包装也拒绝同一旧代次。
 	if _, err := center.runs.executeLeasedAction(ctx, task, db.AutomationAction{}, shipmentDeliveryProof{}, run); !errors.Is(err, db.ErrAutomationRunLeaseLost) {
 		t.Fatal("普通动作未拒绝旧代次", err)
 	}

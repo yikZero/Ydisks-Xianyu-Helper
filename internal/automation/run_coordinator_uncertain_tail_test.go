@@ -59,10 +59,8 @@ func TestContinueAfterUncertainActionSwitch(t *testing.T) {
 // 消息动作结果不确定但剩余动作全是幂等状态动作时，运行推进游标继续执行，最后仍收口为人工核对。
 // 这是「卡密已发出但发货状态未更新」问题的核心修复语义，必须逐分支锁死。
 func TestExecuteRunActionsContinuesIdempotentTailAfterUncertainMessage(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -136,10 +134,8 @@ func TestExecuteRunActionsContinuesIdempotentTailAfterUncertainMessage(t *testin
 // TestExecuteRunActionsQuarantinesUncertainMessageWithoutIdempotentTail 验证剩余动作仍会联系买家时维持熔断。
 // 只要还有会再次联系买家的动作未完成，结果不确定就必须整体隔离，不能放行。
 func TestExecuteRunActionsQuarantinesUncertainMessageWithoutIdempotentTail(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -188,10 +184,8 @@ func TestExecuteRunActionsQuarantinesUncertainMessageWithoutIdempotentTail(t *te
 // TestExecuteRunActionsQuarantinesCertainNotSentTail 验证「确定未发送」时即便剩余动作全是幂等状态动作也不放行。
 // 买家没有收到任何内容时把订单改判为已发货只会掩盖本地不一致，必须维持熔断。
 func TestExecuteRunActionsQuarantinesCertainNotSentTail(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -364,10 +358,8 @@ func newUncertainTailCoordinatorWithDelay(
 // 放行后若收尾动作带延迟，本次调用只持久化延迟任务就返回；恢复时内存状态已经丢失，
 // 必须靠任务快照继续收口为 needs_review，否则「消息送达结果不确定」会被记成成功。
 func TestExecuteRunActionsKeepsReviewAcrossDelayedTailAction(t *testing.T) {
-	// store、cleanup 保存测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 保存本测试共用的数据库上下文。
 	ctx := context.Background()
 	// admin 保存规则所属管理员账号。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

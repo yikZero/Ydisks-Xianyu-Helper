@@ -7,10 +7,8 @@ import (
 
 // TestUpdateAccountSettingsCoversValidationAndOptionalFields 验证账号设置更新的暂停校验、渠道数量上限和可选敏感字段写入。
 func TestUpdateAccountSettingsCoversValidationAndOptionalFields(t *testing.T) {
-	// store、cleanup 保存本地账号设置测试数据库及清理函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试账号设置操作共用的非取消上下文。
 	ctx := context.Background()
 	// createOK、createErr 保存测试用户创建结果。
 	createOK, createErr := store.Users.Create(ctx, "settings-more", "settings-more@example.com", "pw")

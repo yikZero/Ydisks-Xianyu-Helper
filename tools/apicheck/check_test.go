@@ -14,11 +14,9 @@ func writeSpec(t *testing.T, content string) string {
 	t.Helper()
 	// root 是临时仓库根目录。
 	root := t.TempDir()
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.MkdirAll(filepath.Join(root, "api"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := os.WriteFile(filepath.Join(root, "api", "openapi.yaml"), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -105,13 +103,11 @@ paths:
 
 // TestCheckLoadAndValidateFailures 验证文件缺失与规范无效分别返回加载、校验错误。
 func TestCheckLoadAndValidateFailures(t *testing.T) {
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := check(t.TempDir()); err == nil || !strings.Contains(err.Error(), "加载 OpenAPI 失败") {
 		t.Fatalf("err=%v", err)
 	}
 	// root 的文档缺少必需的 info.title，语义校验失败。
 	root := writeSpec(t, "openapi: 3.0.3\ninfo: {version: \"1\"}\npaths: {}\n")
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if _, err := check(root); err == nil || !strings.Contains(err.Error(), "规范无效") {
 		t.Fatalf("err=%v", err)
 	}

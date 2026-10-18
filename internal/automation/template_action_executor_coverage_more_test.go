@@ -14,7 +14,6 @@ func TestSendTemplateHandlesEmptyAndUnavailableActions(t *testing.T) {
 	// store、cleanup 保存模板动作测试使用的数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// sender 是不会产生外部副作用的模拟发送器。
 	sender := &testSender{}
@@ -81,7 +80,6 @@ func TestSendTemplateRestoresReservedBatchData(t *testing.T) {
 	// store、cleanup 保存批量库存测试使用的数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存创建批量卡券所需的管理员用户。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -189,7 +187,6 @@ func TestSendTemplateClassifiesPartialSendFailure(t *testing.T) {
 	// store、cleanup 保存部分发送测试使用的数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// sender 保存第一条成功、第二条失败的模拟发送器。
 	sender := &testSender{err: errors.New("网络连接中断"), failAfter: 1}
@@ -209,7 +206,6 @@ func TestSendTemplatePreservesProofWhenLaterCardLoadFails(t *testing.T) {
 	// store、cleanup 保存模板后续取卡失败测试使用的数据库和清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存创建模板卡密组所需的管理员用户。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

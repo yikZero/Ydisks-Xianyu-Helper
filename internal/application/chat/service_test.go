@@ -15,8 +15,7 @@ type fakeSubscriptionProvider struct {
 	mu sync.Mutex
 	// cancelCalls 记录底层订阅清理次数，验证应用层不会重复释放。
 	cancelCalls int
-	// err 保存订阅端口需要返回的错误。
-	err error
+	err         error
 }
 
 // fakeRefreshProvider 记录刷新应用端口收到的请求参数，并返回预设分页结果。
@@ -27,8 +26,7 @@ type fakeRefreshProvider struct {
 	history HistoryPage
 	// calls 记录联系人与历史刷新调用次数。
 	calls int
-	// err 保存刷新端口需要返回的错误。
-	err error
+	err   error
 }
 
 // RefreshConversations 返回测试联系人页并记录调用次数。
@@ -327,8 +325,7 @@ type readMessageRepository struct {
 	*fakeRepository
 	// values 保存待解析的有限诊断 JSON 文本。
 	values []string
-	// err 保存诊断查询需要返回的错误。
-	err error
+	err    error
 }
 
 // FindInboundParsedJSONContaining 返回预设的旧版消息关联诊断帧。

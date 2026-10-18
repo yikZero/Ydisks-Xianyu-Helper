@@ -49,10 +49,8 @@ func TestLongLoginHelperBranches(t *testing.T) {
 
 // TestLongLoginAdapterSetAndSnapshotBranches 验证设置长登录、完整 Cookie 快照和平台错误映射分支。
 func TestLongLoginAdapterSetAndSnapshotBranches(t *testing.T) {
-	// store、cleanup 保存本测试使用的 SQLite 存储和关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试长登录请求共用的非取消上下文。
 	ctx := context.Background()
 	// updatedCookie 保存运行时 Cookie 同步回调收到的最新值。
 	updatedCookie := ""

@@ -29,15 +29,12 @@ func (port *settingsHandlerCoveragePort) SetSystem(context.Context, int64, strin
 
 // TestSetSettingHandlerCoversSensitiveAndValidationBranches 覆盖单项系统设置的普通、敏感和校验分支。
 func TestSetSettingHandlerCoversSensitiveAndValidationBranches(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// port 是当前测试注入的系统设置应用端口。
 	port := &settingsHandlerCoveragePort{sensitiveKeys: map[string]bool{"ai_api_key": true}}
 	srv.applications.settings = port
-	// handler 是注入可控系统设置端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// successCases 保存普通和敏感设置的成功请求。

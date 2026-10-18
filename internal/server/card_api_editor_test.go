@@ -30,7 +30,6 @@ func (tester *editorAPITester) Test(ctx context.Context, input cardsapp.APIReque
 
 // TestCardAPIEditorContract 验证完整回显仅属于当前用户，编辑测试合并旧模板且不写回数据库。
 func TestCardAPIEditorContract(t *testing.T) {
-	// srv、store、cleanup 为真实路由和数据库提供隔离测试环境。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
 	// ctx 控制夹具操作。
@@ -50,7 +49,6 @@ func TestCardAPIEditorContract(t *testing.T) {
 	// tester 截获实际测试配置，避免向真实服务发货。
 	tester := &editorAPITester{}
 	srv.applications.apiRequestTester = tester
-	// handler 是包含鉴权的真实路由。
 	handler := srv.Router()
 	// cookie 是当前管理员的登录会话。
 	cookie := loginHelper(t, handler)

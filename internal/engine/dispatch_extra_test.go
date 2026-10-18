@@ -12,12 +12,10 @@ import (
 
 // TestHandleMessage_SystemEventRoutesToAutomation 付款待发货系统卡片进入自动化中心，不进入回复链。
 func TestHandleMessage_SystemEventRoutesToAutomation(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := mustPaidDeliveryCard(t)
 	acc.handleMessage(decrypted)
 
@@ -26,7 +24,6 @@ func TestHandleMessage_SystemEventRoutesToAutomation(t *testing.T) {
 	// 直接验证：handleMessage 不应触发任何防抖回复投递。
 	time.Sleep(MessageDebounceDelay + 200*time.Millisecond)
 	h.mu.Lock()
-	// chats 用于本次流程后续判断的chats
 	chats := len(h.chats)
 	h.mu.Unlock()
 	if chats != 0 {
@@ -51,12 +48,10 @@ func (s *systemCapturingHandler) HandleSystemEvent(_ context.Context, task autom
 
 // TestHandleMessage_SystemEventDispatchedToHandler 系统卡片经 handleMessage 进入 handler.HandleSystemEvent。
 func TestHandleMessage_SystemEventDispatchedToHandler(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// h 用于本次流程后续判断的h
 	h := &systemCapturingHandler{}
 	acc.handler = h
 	acc.handleMessage(mustPaidDeliveryCard(t))
@@ -73,7 +68,6 @@ func TestHandleMessage_SystemEventDispatchedToHandler(t *testing.T) {
 
 // TestHandleMessage_PlainChatRoutesToDebounce 普通聊天消息进入防抖回复链。
 func TestHandleMessage_PlainChatRoutesToDebounce(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -95,7 +89,6 @@ func TestHandleMessage_PlainChatRoutesToDebounce(t *testing.T) {
 
 // TestHandleMessage_ContentType14Filtered contentType=14 系统提示不进入回复链。
 func TestHandleMessage_ContentType14Filtered(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -111,7 +104,6 @@ func TestHandleMessage_ContentType14Filtered(t *testing.T) {
 
 // TestHandleMessage_RefundCardFiltered contentType=26 退款卡片不进入回复链。
 func TestHandleMessage_RefundCardFiltered(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -127,12 +119,10 @@ func TestHandleMessage_RefundCardFiltered(t *testing.T) {
 
 // TestHandleMessage_DedupSkipsRepeat 同一 msgID 的重复消息只处理一次。
 func TestHandleMessage_DedupSkipsRepeat(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// decrypted 用于本次流程后续判断的decrypted
 	decrypted := plainChatMessage(t, "重复消息", "buyer1", "chat-dup")
 	acc.handleMessage(decrypted)
 	acc.handleMessage(decrypted) // 重复
@@ -148,7 +138,6 @@ func TestHandleMessage_DedupSkipsRepeat(t *testing.T) {
 
 // TestHandleMessage_RecordsOwnWebSocketEchoWithoutAutoReply 验证官方客户端回显会走出站观察持久化，但绝不触发自动回复。
 func TestHandleMessage_RecordsOwnWebSocketEchoWithoutAutoReply(t *testing.T) {
-	// acc 是待测账号；h 记录业务处理调用；cleanup 释放测试数据库和运行时资源。
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -180,7 +169,6 @@ func TestHandleMessage_RecordsOwnWebSocketEchoWithoutAutoReply(t *testing.T) {
 
 // TestHandleMessage_NoReminderNoOp 无 reminderContent 的消息不进入回复链也不报错。
 func TestHandleMessage_NoReminderNoOp(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -205,7 +193,6 @@ func TestHandleMessage_NoReminderNoOp(t *testing.T) {
 
 // TestDispatch_UpdatesLastMsgReceived dispatch 记录消息接收时间。
 func TestDispatch_UpdatesLastMsgReceived(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -214,14 +201,12 @@ func TestDispatch_UpdatesLastMsgReceived(t *testing.T) {
 	acc.lastMsgReceived = time.Time{}
 	acc.mu.Unlock()
 
-	// before 用于本次流程后续判断的before
 	before := time.Now()
 	acc.dispatch(plainChatMessage(t, "hi", "b1", "c1"))
 	// dispatch 内部起 goroutine，等其更新 lastMsgReceived。
 	time.Sleep(50 * time.Millisecond)
 
 	acc.mu.Lock()
-	// last 用于本次流程后续判断的last
 	last := acc.lastMsgReceived
 	acc.mu.Unlock()
 	if last.IsZero() || last.Before(before) {
@@ -231,7 +216,6 @@ func TestDispatch_UpdatesLastMsgReceived(t *testing.T) {
 
 // TestDispatch_SemaphoreOverflowDrops 消息并发达上限时丢弃多余消息（不阻塞）。
 func TestDispatch_SemaphoreOverflowDrops(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -258,22 +242,16 @@ func TestDispatch_SemaphoreOverflowDrops(t *testing.T) {
 	}
 }
 
-// TestDispatch_SystemEventWaitsForCapacityInsteadOfDropping 封装TestDispatch系统EventWaitsForCapacityInsteadOfDropping业务协调。
 func TestDispatch_SystemEventWaitsForCapacityInsteadOfDropping(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
-	// h 用于本次流程后续判断的h
 	h := &systemCapturingHandler{}
 	acc.handler = h
-	for // i 用于本次流程后续判断的i
-	i := 0; i < MessageSemaphoreSize; i++ {
+	for i := 0; i < MessageSemaphoreSize; i++ {
 		acc.sem <- struct{}{}
 	}
-	// event 用于本次流程后续判断的event
 	event := mustPaidDeliveryCard(t)
-	// done 用于本次流程后续判断的done
 	done := make(chan struct{})
 	go func() {
 		acc.dispatch(event)
@@ -290,11 +268,9 @@ func TestDispatch_SystemEventWaitsForCapacityInsteadOfDropping(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("system event did not continue after capacity became available")
 	}
-	// deadline 用于本次流程后续判断的deadline
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
 		h.mu.Lock()
-		// count 用于本次流程后续判断的数量
 		count := len(h.tasks)
 		h.mu.Unlock()
 		if count == 1 {
@@ -303,7 +279,6 @@ func TestDispatch_SystemEventWaitsForCapacityInsteadOfDropping(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	h.mu.Lock()
-	// count 用于本次流程后续判断的数量
 	count := len(h.tasks)
 	h.mu.Unlock()
 	if count != 1 {
@@ -316,14 +291,11 @@ func TestDispatch_SystemEventWaitsForCapacityInsteadOfDropping(t *testing.T) {
 
 // TestScheduleDebouncedReply_DifferentChatIDsNotCoalesced 不同 chat_id 的消息各自独立防抖，不合并。
 func TestScheduleDebouncedReply_DifferentChatIDsNotCoalesced(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// chat1 用于本次流程后续判断的chat1
 	chat1 := ChatMessage{AccountID: "cid", ChatID: "chat-a", Text: "A1", SenderUserID: "b1"}
-	// chat2 用于本次流程后续判断的chat2
 	chat2 := ChatMessage{AccountID: "cid", ChatID: "chat-b", Text: "B1", SenderUserID: "b2"}
 	chat1.CookieStr = "cookie"
 	chat2.CookieStr = "cookie"
@@ -337,9 +309,7 @@ func TestScheduleDebouncedReply_DifferentChatIDsNotCoalesced(t *testing.T) {
 	if len(h.chats) != 2 {
 		t.Fatalf("不同 chat_id 应各自投递，got %d 条: %+v", len(h.chats), h.chats)
 	}
-	// texts 用于本次流程后续判断的texts
 	texts := map[string]bool{}
-	// c 表示当前遍历过程中的c
 	for _, c := range h.chats {
 		texts[c.Text] = true
 	}
@@ -350,7 +320,6 @@ func TestScheduleDebouncedReply_DifferentChatIDsNotCoalesced(t *testing.T) {
 
 // TestScheduleDebouncedReply_TimerReset 同一 chat_id 连续消息重置定时器，旧消息被跳过。
 func TestScheduleDebouncedReply_TimerReset(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -362,7 +331,6 @@ func TestScheduleDebouncedReply_TimerReset(t *testing.T) {
 
 	// 在防抖延迟内再投递第二条，应取消第一条的定时器。
 	time.Sleep(MessageDebounceDelay / 2)
-	// second 用于本次流程后续判断的second
 	second := ChatMessage{AccountID: "cid", ChatID: "chat-reset", Text: "second", SenderUserID: "b1"}
 	second.CookieStr = "cookie"
 	acc.scheduleDebouncedReply(second)
@@ -380,11 +348,9 @@ func TestScheduleDebouncedReply_TimerReset(t *testing.T) {
 
 // TestScheduleDebouncedReply_StopClearsTimers Stop 后未触发的定时器被取消，不再投递。
 func TestScheduleDebouncedReply_StopClearsTimers(t *testing.T) {
-	// acc、h、cleanup 用于本次流程后续判断的acc、h、cleanup
 	acc, h, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 
-	// chat 用于本次流程后续判断的聊天
 	chat := ChatMessage{AccountID: "cid", ChatID: "chat-stop", Text: "won't deliver", SenderUserID: "b1"}
 	chat.CookieStr = "cookie"
 	acc.scheduleDebouncedReply(chat)
@@ -399,7 +365,6 @@ func TestScheduleDebouncedReply_StopClearsTimers(t *testing.T) {
 	}
 }
 
-// cancelAwareHandler 用于本次流程后续判断的取消AwareHandler
 type cancelAwareHandler struct {
 	started  chan struct{}
 	canceled chan struct{}
@@ -416,20 +381,14 @@ func (h *cancelAwareHandler) HandleChatMessage(ctx context.Context, _ ChatMessag
 // HandleSystemEvent 处理系统Event。
 func (h *cancelAwareHandler) HandleSystemEvent(context.Context, automation.Task) error { return nil }
 
-// OnPasswordLoginRefresh 封装On密码登录Refresh业务协调。
 func (h *cancelAwareHandler) OnPasswordLoginRefresh(context.Context, string) bool { return false }
 
-// OnAccountAlert 封装On账号Alert业务协调。
 func (h *cancelAwareHandler) OnAccountAlert(context.Context, string, string, string, string) {}
 
-// TestStopCancelsInFlightReplyHandler 封装TestStopCancelsInFlight回复Handler业务协调。
 func TestStopCancelsInFlightReplyHandler(t *testing.T) {
-	// handler 用于本次流程后续判断的handler
 	handler := &cancelAwareHandler{started: make(chan struct{}), canceled: make(chan struct{})}
-	// acc 用于本次流程后续判断的acc
 	acc := New(Config{CookieID: "cid", CookieStr: "unb=1", Handler: handler})
 	acc.reply = nil
-	// ctx、cancel 用于本次流程后续判断的ctx、cancel
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	acc.lifecycle.start(ctx, cancel)
@@ -439,7 +398,6 @@ func TestStopCancelsInFlightReplyHandler(t *testing.T) {
 	case <-time.After(MessageDebounceDelay + time.Second):
 		t.Fatal("handler did not start")
 	}
-	// done 用于本次流程后续判断的done
 	done := make(chan struct{})
 	go func() {
 		acc.Stop()
@@ -459,12 +417,10 @@ func TestStopCancelsInFlightReplyHandler(t *testing.T) {
 
 // TestCleanupDedupLocked_ExpiredRemoved 过期消息 ID 被清理。
 func TestCleanupDedupLocked_ExpiredRemoved(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// now 用于本次流程后续判断的now
 	now := time.Now()
 	acc.dedupMu.Lock()
 	// 一条过期（>1h）、一条新鲜。
@@ -478,35 +434,29 @@ func TestCleanupDedupLocked_ExpiredRemoved(t *testing.T) {
 
 	acc.dedupMu.Lock()
 	defer acc.dedupMu.Unlock()
-	if // ok 用于本次流程后续判断的ok
-	_, ok := acc.processed["old-msg"]; ok {
+	if _, ok := acc.processed["old-msg"]; ok {
 		t.Error("过期消息应被清理")
 	}
-	if // ok 用于本次流程后续判断的ok
-	_, ok := acc.processed["fresh-msg"]; !ok {
+	if _, ok := acc.processed["fresh-msg"]; !ok {
 		t.Error("新鲜消息不应被清理")
 	}
 }
 
 // TestCleanupDedupLocked_OverLimitDropsOldestHalf 超上限且都未过期时删最旧一半。
 func TestCleanupDedupLocked_OverLimitDropsOldestHalf(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// now 用于本次流程后续判断的now
 	now := time.Now()
 	acc.dedupMu.Lock()
 	// 填入 ProcessedIDsMaxSize + 10 条新鲜消息，时间递增。
 	total := ProcessedIDsMaxSize + 10
-	for // i 用于本次流程后续判断的i
-	i := 0; i < total; i++ {
+	for i := 0; i < total; i++ {
 		// 时间按 i 递增，确保有明确的最旧一半。
 		acc.processed["msg-"+itoa(i)] = now.Add(time.Duration(i) * time.Millisecond)
 	}
 	acc.cleanupDedupLocked(now)
-	// remaining 用于本次流程后续判断的remaining
 	remaining := len(acc.processed)
 	acc.dedupMu.Unlock()
 
@@ -522,14 +472,11 @@ func itoa(n int) string {
 	if n == 0 {
 		return "0"
 	}
-	// neg 用于本次流程后续判断的neg
 	neg := n < 0
 	if neg {
 		n = -n
 	}
-	// b 用于本次流程后续判断的b
 	var b [20]byte
-	// i 用于本次流程后续判断的i
 	i := len(b)
 	for n > 0 {
 		i--
@@ -545,12 +492,10 @@ func itoa(n int) string {
 
 // TestCleanupDedupLocked_TriggeredByMarkAndCheck markAndCheckDedup 在超上限时触发清理。
 func TestCleanupDedupLocked_TriggeredByMarkAndCheck(t *testing.T) {
-	// acc、cleanup 用于本次流程后续判断的acc、cleanup
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
 
-	// now 用于本次流程后续判断的now
 	now := time.Now()
 	acc.dedupMu.Lock()
 	// 预填 ProcessedIDsMaxSize 条过期消息，使下一次 markAndCheckDedup 触发清理。
@@ -561,14 +506,12 @@ func TestCleanupDedupLocked_TriggeredByMarkAndCheck(t *testing.T) {
 
 	// 构造一条新消息触发清理。msgID 由 extractMessageID 提取，这里直接用现成样本。
 	decrypted := plainChatMessage(t, "trigger", "b1", "c1")
-	// chat 用于本次流程后续判断的聊天
 	chat := extractChatMessage(decrypted, "cid", "cookie")
 	if !acc.markAndCheckDedup(decrypted, chat) {
 		t.Fatal("新消息应允许处理")
 	}
 
 	acc.dedupMu.Lock()
-	// remaining 用于本次流程后续判断的remaining
 	remaining := len(acc.processed)
 	acc.dedupMu.Unlock()
 	// 过期消息应被清理，仅剩新消息 1 条（或新消息+残留，但应远小于 ProcessedIDsMaxSize）。
@@ -579,7 +522,6 @@ func TestCleanupDedupLocked_TriggeredByMarkAndCheck(t *testing.T) {
 
 // TestScheduleDebouncedReply_HandlerErrorLogged reply.Handle 报错仅记录日志，不影响 handler 投递。
 func TestScheduleDebouncedReply_HandlerErrorLogged(t *testing.T) {
-	// acc、h、store、cleanup 用于本次流程后续判断的acc、h、store、cleanup
 	acc, h, store, cleanup := newAccountForTest(t)
 	defer cleanup()
 	defer acc.Stop()
@@ -590,7 +532,6 @@ func TestScheduleDebouncedReply_HandlerErrorLogged(t *testing.T) {
 	if _, fixtureErr := store.DB.ExecContext(context.Background(), `INSERT INTO default_replies (cookie_id,enabled,reply_content) VALUES ('cid',1,'测试回复')`); fixtureErr != nil {
 		t.Fatal(fixtureErr)
 	}
-	// chat 用于本次流程后续判断的聊天
 	chat := ChatMessage{
 		AccountID: "cid", ChatID: "chat-err", Text: "hi", ItemID: "seller-item",
 		SenderUserID: "b1", CookieStr: "unb=123;",
@@ -606,15 +547,11 @@ func TestScheduleDebouncedReply_HandlerErrorLogged(t *testing.T) {
 
 // plainChatMessage 构造一条普通聊天消息（非系统卡片、contentType 非 14/26），
 // 含 bizTag.messageId 以便去重提取。
-// plainChatMessage 封装plain聊天消息业务协调。
 func plainChatMessage(t *testing.T, text, senderUserID, chatID string) map[string]any {
 	t.Helper()
-	// s 用于本次流程后续判断的s
 	s := `{"1":{"2":"` + chatID + `@goofish","10":{"bizTag":"{\"messageId\":\"msg-` + chatID + `\"}","reminderContent":"` + text + `","senderUserId":"` + senderUserID + `","senderNick":"买家","reminderUrl":"fleamarket://message_chat?itemId=item-` + chatID + `&peerUserId=` + senderUserID + `"}}}`
-	// m 用于本次流程后续判断的m
 	var m map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal([]byte(s), &m); err != nil {
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	return m

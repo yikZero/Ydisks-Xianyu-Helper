@@ -144,8 +144,8 @@ func (c *OrderDetailCoordinator) Fetch(ctx context.Context, accountID, orderID, 
 		}
 		delete(c.successes, key)
 	}
-	if // existing 表示已由其他协程发起的平台调用；后到调用方不得额外访问平台。
-	existing := c.requests[key]; existing != nil {
+	// existing 表示已由其他协程发起的平台调用；后到调用方不得额外访问平台。
+	if existing := c.requests[key]; existing != nil {
 		c.mu.Unlock()
 		c.logger.Debug("订单详情请求已在执行，等待复用结果", "account", normalizedAccount, "order_id", normalizedOrder)
 		select {

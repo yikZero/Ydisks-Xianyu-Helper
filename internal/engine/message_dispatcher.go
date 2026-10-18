@@ -12,7 +12,6 @@ import (
 
 // messageDispatcher 负责 WebSocket 消息的事实解析、去重、防抖、出站回显观察和并发投递。
 // 各锁只保护本组件字段；持锁时不执行 handler、回复服务或数据库 I/O。
-// messageDispatcher 用于本次流程后续判断的消息Dispatcher
 type messageDispatcher struct {
 	// dedupMu 保护 processed 去重时间表。
 	dedupMu sync.Mutex
@@ -64,17 +63,14 @@ type messageDispatcherConfig struct {
 
 // newMessageDispatcher 构造消息分发组件并初始化其有界状态。
 func newMessageDispatcher(config messageDispatcherConfig) messageDispatcher {
-	// logger 用于本次流程后续判断的logger
 	logger := config.Logger
 	if logger == nil {
 		logger = slog.Default()
 	}
-	// currentCookie 用于本次流程后续判断的current登录凭证
 	currentCookie := config.CurrentCookie
 	if currentCookie == nil {
 		currentCookie = func() string { return "" }
 	}
-	// beginTask 用于本次流程后续判断的begin任务
 	beginTask := config.BeginTask
 	if beginTask == nil {
 		// 缺少生命周期登记器时使用受限同步兼容预算，测试构造不能产生长期游离任务。
@@ -84,12 +80,10 @@ func newMessageDispatcher(config messageDispatcherConfig) messageDispatcher {
 			return fallbackCtx, fallbackCancel, true
 		}
 	}
-	// recordMessage 用于本次流程后续判断的record消息
 	recordMessage := config.RecordMessage
 	if recordMessage == nil {
 		recordMessage = func(time.Time) {}
 	}
-	// currentHandler 用于本次流程后续判断的currentHandler
 	currentHandler := config.CurrentHandler
 	if currentHandler == nil {
 		currentHandler = func() Handler { return nil }
@@ -124,7 +118,6 @@ func (d *messageDispatcher) dispatch(decrypted map[string]any) {
 	d.recordMessage(time.Now())
 	// 系统业务事件不能丢弃：并发满时让 WS 读取产生背压，等待处理槽位。
 	// 普通聊天仍采用非阻塞限流，避免聊天洪峰拖垮连接。
-	// isSystemEvent 用于本次流程后续判断的is系统Event
 	isSystemEvent := automation.ExtractTaskFromWS(d.cookieID, d.currentCookie(), decrypted) != nil
 	if isSystemEvent {
 		select {
@@ -187,10 +180,8 @@ func (d *messageDispatcher) handleMessageContext(ctx context.Context, decrypted 
 	}
 	// 系统卡片和平台通知优先进入自动化中心，永远不进入 AI 回复范围。
 	if task := automation.ExtractTaskFromWS(d.cookieID, d.currentCookie(), decrypted); task != nil {
-		if // handler 用于本次流程后续判断的handler
-		handler := d.currentHandler(); handler != nil {
-			if // err 用于本次流程后续判断的err
-			err := handler.HandleSystemEvent(ctx, *task); err != nil {
+		if handler := d.currentHandler(); handler != nil {
+			if err := handler.HandleSystemEvent(ctx, *task); err != nil {
 				d.logger.Error("处理系统自动化事件失败", "err", err, "trigger", task.TriggerType)
 			}
 		}
@@ -214,7 +205,6 @@ func (d *messageDispatcher) handleMessageContext(ctx context.Context, decrypted 
 		return
 	}
 
-	// chat 用于本次流程后续判断的聊天
 	chat := extractChatMessage(decrypted, d.cookieID, d.currentCookie())
 	if chat != nil && chat.Text != "" {
 		chat.ObservedAt = observedAt
@@ -227,15 +217,12 @@ func (d *messageDispatcher) handleMessageContext(ctx context.Context, decrypted 
 
 // markAndCheckDedup 提取消息 ID，检查有效期内是否已经处理。
 func (d *messageDispatcher) markAndCheckDedup(decrypted map[string]any, chat *ChatMessage) bool {
-	// msgID 用于本次流程后续判断的msgID
 	msgID := extractMessageID(decrypted)
 	if msgID == "" {
 		// 备用标识：chat_id + text + create_time。
 		createTime := "0"
-		if // m1、ok 用于本次流程后续判断的m1、ok
-		m1, ok := decrypted["1"].(map[string]any); ok {
-			if // t、ok 用于本次流程后续判断的t、ok
-			t, ok := m1["5"]; ok {
+		if m1, ok := decrypted["1"].(map[string]any); ok {
+			if t, ok := m1["5"]; ok {
 				createTime = toString(t)
 			}
 		}
@@ -244,10 +231,8 @@ func (d *messageDispatcher) markAndCheckDedup(decrypted map[string]any, chat *Ch
 
 	d.dedupMu.Lock()
 	defer d.dedupMu.Unlock()
-	// now 用于本次流程后续判断的now
 	now := time.Now()
-	if // last、ok 用于本次流程后续判断的last、ok
-	last, ok := d.processed[msgID]; ok {
+	if last, ok := d.processed[msgID]; ok {
 		if now.Sub(last) < MessageExpireTime {
 			d.logger.Debug("消息已处理过，跳过", "msg_id", truncID(msgID))
 			return false
@@ -262,7 +247,6 @@ func (d *messageDispatcher) markAndCheckDedup(decrypted map[string]any, chat *Ch
 
 // cleanupDedupLocked 清理过期去重记录，并在仍超限时删除最旧的一半。
 func (d *messageDispatcher) cleanupDedupLocked(now time.Time) {
-	// id、timestamp 表示当前遍历过程中的id、timestamp
 	for id, timestamp := range d.processed {
 		if now.Sub(timestamp) > MessageExpireTime {
 			delete(d.processed, id)
@@ -276,17 +260,13 @@ func (d *messageDispatcher) cleanupDedupLocked(now time.Time) {
 		id string
 		at time.Time
 	}
-	// entries 用于本次流程后续判断的entries
 	entries := make([]entry, 0, len(d.processed))
-	// id、timestamp 表示当前遍历过程中的id、timestamp
 	for id, timestamp := range d.processed {
 		entries = append(entries, entry{id: id, at: timestamp})
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].at.Before(entries[j].at) })
-	// remove 用于本次流程后续判断的remove
 	remove := len(entries) / 2
-	for // i 用于本次流程后续判断的i
-	i := 0; i < remove; i++ {
+	for i := 0; i < remove; i++ {
 		delete(d.processed, entries[i].id)
 	}
 }
@@ -295,25 +275,20 @@ func (d *messageDispatcher) cleanupDedupLocked(now time.Time) {
 func (d *messageDispatcher) scheduleDebouncedReply(chat ChatMessage) {
 	d.debounceMu.Lock()
 	defer d.debounceMu.Unlock()
-	// deadline 用于本次流程后续判断的deadline
 	deadline := time.Now()
-	if // old、ok 用于本次流程后续判断的old、ok
-	old, ok := d.debounceTimers[chat.ChatID]; ok && old.timer != nil {
+	if old, ok := d.debounceTimers[chat.ChatID]; ok && old.timer != nil {
 		old.timer.Stop()
 	}
-	// entry 用于本次流程后续判断的entry
 	entry := &debounceEntry{lastMsg: chat, deadline: deadline}
 	d.debounceTimers[chat.ChatID] = entry
 	entry.timer = time.AfterFunc(MessageDebounceDelay, func() {
 		d.debounceMu.Lock()
-		// current、ok 用于本次流程后续判断的current、ok
 		current, ok := d.debounceTimers[chat.ChatID]
 		if !ok || current.deadline != deadline {
 			d.debounceMu.Unlock()
 			return
 		}
 		delete(d.debounceTimers, chat.ChatID)
-		// lastMessage 用于本次流程后续判断的last消息
 		lastMessage := current.lastMsg
 		d.debounceMu.Unlock()
 		// ctx、finish、ok 分别是防抖回复任务的上下文、释放函数及生命周期接纳结果。
@@ -322,17 +297,14 @@ func (d *messageDispatcher) scheduleDebouncedReply(chat ChatMessage) {
 			return
 		}
 		defer finish()
-		if // handler 用于本次流程后续判断的handler
-		handler := d.currentHandler(); handler != nil {
-			if // err 用于本次流程后续判断的err
-			err := handler.HandleChatMessage(ctx, lastMessage); err != nil {
+		if handler := d.currentHandler(); handler != nil {
+			if err := handler.HandleChatMessage(ctx, lastMessage); err != nil {
 				d.logger.Error("处理聊天消息失败", "err", err, "chat_id", chat.ChatID)
 				return
 			}
 		}
 		if d.reply != nil && d.canAutoReply(ctx, lastMessage) {
-			if // err 用于本次流程后续判断的err
-			err := d.reply.Handle(ctx, lastMessage); err != nil {
+			if err := d.reply.Handle(ctx, lastMessage); err != nil {
 				d.logger.Error("处理自动回复失败", "err", err, "chat_id", chat.ChatID)
 			}
 		}
@@ -343,7 +315,6 @@ func (d *messageDispatcher) scheduleDebouncedReply(chat ChatMessage) {
 func (d *messageDispatcher) stop() {
 	d.debounceMu.Lock()
 	defer d.debounceMu.Unlock()
-	// entry 表示当前遍历过程中的entry
 	for _, entry := range d.debounceTimers {
 		if entry.timer != nil {
 			entry.timer.Stop()

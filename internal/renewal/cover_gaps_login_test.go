@@ -22,7 +22,6 @@ func blockCookieUpdates(t *testing.T, store *db.Store) {
 	t.Helper()
 	// stmt 是创建拒绝更新触发器的 SQL。
 	const stmt = `CREATE TRIGGER block_cookie_update BEFORE UPDATE ON cookies BEGIN SELECT RAISE(ABORT, 'blocked'); END`
-	// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 	if _, err := store.DB.ExecContext(context.Background(), stmt); err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +39,6 @@ func blockSecondCookieUpdate(t *testing.T, store *db.Store) {
 	}
 	// stmt 是当前要执行的建表或建触发器语句。
 	for _, stmt := range stmts {
-		// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 		if _, err := store.DB.ExecContext(context.Background(), stmt); err != nil {
 			t.Fatal(err)
 		}
@@ -99,7 +97,6 @@ func TestLoginRenewOneReloadAndDisableDuringCheck(t *testing.T) {
 		account := createSchedulerAccount(t, store, "cid-"+name, "unb=1; _m_h5_tk=old_1")
 		// server 在响应前执行并发修改。
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			// err 保存被测调用返回的错误，用于断言失败路径或成功路径是否符合预期。
 			if _, err := store.DB.ExecContext(context.Background(), statement, account.ID); err != nil {
 				t.Errorf("%s: %v", name, err)
 			}

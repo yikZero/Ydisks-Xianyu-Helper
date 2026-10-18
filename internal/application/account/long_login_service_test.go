@@ -10,8 +10,7 @@ import (
 type longLoginSummaryRepositoryFake struct {
 	// summary 保存归属校验成功时返回的账号摘要。
 	summary Summary
-	// err 保存摘要查询失败时返回的错误。
-	err error
+	err     error
 }
 
 // GetOwnedSummary 返回预设的账号摘要或归属错误。

@@ -27,10 +27,8 @@ func (c batchPublishClientStub) PublishItem(ctx context.Context, cookies string,
 
 // TestItemBatchPublishPortPersistsRemoteCheckpoint 验证批量远端端口完成租约检查点和 Cookie 写回。
 func TestItemBatchPublishPortPersistsRemoteCheckpoint(t *testing.T) {
-	// store、cleanup 保存当前测试使用的 SQLite 存储及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的非取消上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存批次所属用户及读取错误。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -118,10 +116,8 @@ func TestItemBatchPublishPortPersistsRemoteCheckpoint(t *testing.T) {
 
 // TestItemBatchPublishPortWaitsBeforeNetworkDeadline 验证适配器传给节流闸门的上下文不携带最终网络截止时间。
 func TestItemBatchPublishPortWaitsBeforeNetworkDeadline(t *testing.T) {
-	// store、cleanup 保存隔离数据库及其关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是节流与发布流程共享的无截止生命周期上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存测试批次的用户身份及读取错误。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

@@ -10,7 +10,6 @@ func TestSchedulerCoversStorageFailureAndNilLifecycleGuards(t *testing.T) {
 	// store、cleanup 保存本次测试使用的自动化存储及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是调度器错误分支共用的数据库上下文。
 	ctx := context.Background()
 	// center 保存仍引用已关闭数据库的自动化中心，用于模拟存储层不可用。
 	center := New(store, testSenderProvider{sender: &testSender{}}, nil)

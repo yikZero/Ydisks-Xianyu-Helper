@@ -29,32 +29,26 @@ import (
 
 // browserManager 只暴露风控验证能力。普通 Token、Cookie 续期、订单和
 // WebSocket 流程不得通过 Chromium 实现。
-// browserManager 用于本次流程后续判断的浏览器Manager
 type browserManager interface {
 	TokenCaptchaRecover(ctx context.Context, cookieID, cookieStr, verificationURL string, headless bool, provider browser.TokenCaptchaURLProvider) (string, error)
 }
 
-// browserTokenCaptchaRecoverer 用于本次流程后续判断的浏览器令牌CaptchaRecoverer
 type browserTokenCaptchaRecoverer interface {
 	TokenCaptchaRecover(ctx context.Context, cookieID, cookieStr, verificationURL string, headless bool, provider browser.TokenCaptchaURLProvider) (string, error)
 }
 
-// browserTokenCaptchaEngineRecoverer 用于本次流程后续判断的浏览器令牌CaptchaEngineRecoverer
 type browserTokenCaptchaEngineRecoverer interface {
 	TokenCaptchaRecoverWithEngine(ctx context.Context, cookieID, cookieStr, verificationURL string, headless bool, provider browser.TokenCaptchaURLProvider) (cookies, engine string, err error)
 }
 
-// browserTokenCaptchaSnapshotReader 用于本次流程后续判断的浏览器令牌CaptchaSnapshotReader
 type browserTokenCaptchaSnapshotReader interface {
 	TokenCaptchaCookieSnapshot(ctx context.Context, cookieID string, headless bool) (cookies string, snapshot []cookierefresh.BrowserCookie, err error)
 }
 
-// tokenCaptchaRequester 用于本次流程后续判断的令牌CaptchaRequester
 type tokenCaptchaRequester interface {
 	RequestFreshCaptchaURLContext(ctx context.Context, cookiesStr, deviceID string) (*mtop.FreshCaptchaResult, error)
 }
 
-// orderDetailClient 用于本次流程后续判断的订单DetailClient
 type orderDetailClient interface {
 	FetchOrderDetail(ctx context.Context, cookiesStr, orderID string) (*mtop.OrderDetailResult, error)
 }
@@ -64,7 +58,6 @@ type orderDetailClient interface {
 //
 // 自动发货只走 automation.Center；用户聊天消息由 Account 内部 ReplyService 处理，
 // 故 HandleChatMessage 为空实现。
-// Adapter 用于本次流程后续判断的Adapter
 type Adapter struct {
 	store      *db.Store
 	browser    browserManager
@@ -101,12 +94,10 @@ type passwordRenewalResult struct {
 
 // notifyNotifier 是 *notify.Notifier 的最小接口，避免 adapter 直接依赖 notify 包
 // （notify 包未来若反向引用 adapter 也不会形成循环）。
-// notifyNotifier 用于本次流程后续判断的notifyNotifier
 type notifyNotifier interface {
 	NotifyAccountAlert(cookieID, level, title, body string)
 }
 
-// notifyEventNotifier 用于本次流程后续判断的notifyEventNotifier
 type notifyEventNotifier interface {
 	NotifyAccountEvent(cookieID, eventType, level, title, body string)
 }

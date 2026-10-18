@@ -12,10 +12,8 @@ import (
 	"xianyu-go/internal/xianyu/protocol"
 )
 
-// LoginUserAPI 用于本次流程后续判断的登录用户API
 const LoginUserAPI = "https://h5api.m.goofish.com/h5/mtop.taobao.idlemessage.pc.loginuser.get/1.0/"
 
-// LoginStatusSuccess 用于本次流程后续判断的登录状态Success
 const (
 	LoginStatusSuccess        = "success"
 	LoginStatusTokenRefreshed = "token_refreshed"
@@ -55,8 +53,8 @@ func (c *ClientImpl) CheckLoginStatusContext(ctx context.Context, cookiesStr str
 
 // checkLoginStatusOnce 使用 ctx 和 cookiesStr 执行 c 的单次登录态检查，返回状态并吸收响应 Cookie。
 func (c *ClientImpl) checkLoginStatusOnce(ctx context.Context, cookiesStr string) (*LoginStatusResult, error) {
-	if // session 提供调用方在本次请求链中持有的最新 Cookie 快照。
-	session := cookieSessionFromContext(ctx); session != nil {
+	// session 提供调用方在本次请求链中持有的最新 Cookie 快照。
+	if session := cookieSessionFromContext(ctx); session != nil {
 		cookiesStr, _, _ = session.State()
 	}
 	// hc 将单次登录态 HTTP 请求限制在二十秒内，仍接受 ctx 提前取消。
@@ -107,8 +105,8 @@ func (c *ClientImpl) checkLoginStatusOnce(ctx context.Context, cookiesStr string
 			URL string `json:"url"`
 		} `json:"data"`
 	}
-	if // err 表示响应不满足登录态 JSON 协议，保留错误链但不泄露正文。
-	err := json.Unmarshal(raw, &payload); err != nil {
+	// err 表示响应不满足登录态 JSON 协议，保留错误链但不泄露正文。
+	if err := json.Unmarshal(raw, &payload); err != nil {
 		return nil, c.mtopResponseFailureWithCause("loginuser.get", resp.StatusCode, nil, "JSON 解析失败", err)
 	}
 	// failure 保存登录态失败响应的统一诊断；成功和已自动吸收新 Cookie 的恢复状态不改原消息。
@@ -144,9 +142,7 @@ func loginStatusCanDriveRecovery(status string) bool {
 	}
 }
 
-// buildLoginStatusQuery 封装build登录状态查询业务协调。
 func buildLoginStatusQuery(t, sign string) string {
-	// parts 用于本次流程后续判断的parts
 	parts := [][2]string{
 		{"jsv", "2.7.2"},
 		{"appKey", protocol.SignAppKey},
@@ -163,9 +159,7 @@ func buildLoginStatusQuery(t, sign string) string {
 		{"spm_pre", "a21ybx.item.want.1.12523da6waCtUp"},
 		{"log_id", "12523da6waCtUp"},
 	}
-	// b 用于本次流程后续判断的b
 	var b strings.Builder
-	// i、p 表示当前遍历过程中的i、p
 	for i, p := range parts {
 		if i > 0 {
 			b.WriteByte('&')

@@ -9,7 +9,6 @@ import (
 
 // TestConfirmShipmentWithProofCoversPreflightBranches 验证确认发货在订单号缺失、账号关闭自动确认、数据库失败时的前置分支。
 func TestConfirmShipmentWithProofCoversPreflightBranches(t *testing.T) {
-	// ctx 是本测试确认发货入口共用的非取消上下文。
 	ctx := context.Background()
 	// emptyStore、emptyCleanup 保存确认发货前置测试数据库及清理函数。
 	emptyStore, emptyCleanup := newAutomationTestStore(t)
@@ -37,7 +36,6 @@ func TestConfirmShipmentWithProofCoversPreflightBranches(t *testing.T) {
 	// closedStore、closedCleanup 保存随后关闭数据库连接的测试存储。
 	closedStore, closedCleanup := newAutomationTestStore(t)
 	defer closedCleanup()
-	// closeErr 保存关闭测试数据库连接的资源释放错误。
 	if closeErr := closedStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

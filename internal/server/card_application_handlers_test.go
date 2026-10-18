@@ -78,7 +78,6 @@ func TestCardApplicationEndpointsTreatNonPositiveIDAsMissing(t *testing.T) {
 	defer cleanup()
 	// handler 是包含认证中间件和卡券路由的测试处理器。
 	handler := server.Router()
-	// sessionCookie 是管理员登录后的认证 Cookie。
 	sessionCookie := loginHelper(t, handler)
 	// testCase 是当前待验证的卡券操作和请求体。
 	for _, testCase := range []struct {

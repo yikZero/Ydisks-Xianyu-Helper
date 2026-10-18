@@ -16,7 +16,6 @@ func TestAccountLoginAuditRepositoryMapping(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定测试存储的登录审计适配器。
 	repository := NewAccountLoginAuditRepository(store)
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// markErr 保存登录方式写入结果。
 	if markErr := repository.MarkLogin(ctx, "cid", accountapp.LoginMethodQRScan, 123); markErr != nil {
@@ -58,7 +57,6 @@ func TestAccountLoginAuditRepositoryInfrastructureErrors(t *testing.T) {
 	defer cleanup()
 	// repository 是绑定已关闭数据库的登录审计适配器。
 	repository := NewAccountLoginAuditRepository(store)
-	// closeErr 保存主动关闭测试数据库的资源释放结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

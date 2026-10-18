@@ -9,10 +9,8 @@ import (
 
 // TestKeywordRepositoryExpressionFields 验证适配器在旧 Keyword-only 调用和多表达式字段之间保持一致映射。
 func TestKeywordRepositoryExpressionFields(t *testing.T) {
-	// store、cleanup 保存临时 SQLite 存储及其释放责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试数据库操作共用的非取消上下文。
 	ctx := context.Background()
 	// owner、ownerErr 保存测试账号所属用户摘要及读取错误。
 	owner, ownerErr := store.Users.GetByUsername(ctx, "admin")

@@ -33,14 +33,14 @@ type adjustPricePayload struct {
 func (c *ClientImpl) AdjustOrderPriceContext(ctx context.Context, cookiesStr, orderID string, priceCents int64) (ok bool, ret []string, updatedCookies string, err error) {
 	// currentCookies 是本轮请求实际使用的扁平 Cookie，优先取上下文中的会话状态。
 	currentCookies := cookiesStr
-	if // session 是上下文携带的响应 Cookie 会话，存在时以其合并状态为准。
-	session := cookieSessionFromContext(ctx); session != nil {
+	// session 是上下文携带的响应 Cookie 会话，存在时以其合并状态为准。
+	if session := cookieSessionFromContext(ctx); session != nil {
 		currentCookies, _, _ = session.State()
 	}
 	// lastRet 保存最后一次业务返回，供重试耗尽后回传调用方。
 	var lastRet []string
-	for // attempt 是含首次在内的 token 重签尝试序号。
-	attempt := 0; attempt < 4; attempt++ {
+	// attempt 是含首次在内的 token 重签尝试序号。
+	for attempt := 0; attempt < 4; attempt++ {
 		// previousCookies 记录本次请求前的 Cookie，用于判断响应是否下发了新 token。
 		previousCookies := currentCookies
 		// ok、ret、updated、requestErr 分别是单次调用的业务成功标志、业务返回、Cookie 更新和传输错误。
@@ -82,8 +82,8 @@ func (c *ClientImpl) AdjustOrderPriceContext(ctx context.Context, cookiesStr, or
 				currentCookies = refreshed.UpdatedCookies
 			}
 		}
-		if // err 是重试间隔等待期间的上下文取消错误。
-		err := sleepCtx(ctx, MTopRetryGap); err != nil {
+		// err 是重试间隔等待期间的上下文取消错误。
+		if err := sleepCtx(ctx, MTopRetryGap); err != nil {
 			return false, ret, currentCookies, err
 		}
 	}
@@ -149,8 +149,8 @@ func (c *ClientImpl) adjustOrderPriceOnce(ctx context.Context, cookiesStr, order
 			Success bool `json:"success"`
 		} `json:"data"`
 	}
-	if // err 是响应 JSON 解析错误。
-	err := json.Unmarshal(raw, &res); err != nil {
+	// err 是响应 JSON 解析错误。
+	if err := json.Unmarshal(raw, &res); err != nil {
 		return false, nil, updated, c.mtopResponseFailureWithCause("订单改价接口", resp.StatusCode, nil, "JSON 解析失败", err)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {

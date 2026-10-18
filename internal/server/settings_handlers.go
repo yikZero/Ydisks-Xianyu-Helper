@@ -84,7 +84,6 @@ func (s *Server) mountSettingsReal(r chi.Router) {
 	})
 }
 
-// setSettings 封装set设置业务协调。
 func (s *Server) setSettings(w http.ResponseWriter, r *http.Request) {
 	// raw 保存兼容旧客户端和显式 DTO 的原始请求字段。
 	var raw map[string]json.RawMessage
@@ -233,9 +232,7 @@ func validSecretSettingAction(action string) bool {
 	}
 }
 
-// publicSettings 封装public设置业务协调。
 func (s *Server) publicSettings(w http.ResponseWriter, r *http.Request) {
-	// m、err 用于本次流程后续判断的m、err
 	m, err := s.settingsApplication().PublicSystem(r.Context())
 	if err != nil {
 		writeErrRequest(w, r, http.StatusInternalServerError, "查询失败")
@@ -244,7 +241,6 @@ func (s *Server) publicSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newSettingsResponse(m))
 }
 
-// allSettings 封装all设置业务协调。
 func (s *Server) allSettings(w http.ResponseWriter, r *http.Request) {
 	// sess 保存当前管理员会话，用于应用服务执行敏感配置读取审计。
 	sess := authSess(r)
@@ -261,14 +257,10 @@ func (s *Server) allSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newSettingsResponse(m))
 }
 
-// setSetting 封装set设置业务协调。
 func (s *Server) setSetting(w http.ResponseWriter, r *http.Request) {
-	// key 用于本次流程后续判断的key
 	key := chi.URLParam(r, "key")
-	// req 用于本次流程后续判断的req
 	var req systemSettingUpdateRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -323,14 +315,12 @@ func (s *Server) setSetting(w http.ResponseWriter, r *http.Request) {
 
 // ---- AI 回复设置 ----
 
-// mountAIReplyReal 封装mountAI回复Real业务协调。
 func (s *Server) mountAIReplyReal(r chi.Router) {
 	r.Get("/ai-reply-settings", s.listAIReply)
 	r.Get("/ai-reply-settings/{cookie_id}", s.getAIReply)
 	r.Put("/ai-reply-settings/{cookie_id}", s.setAIReply)
 }
 
-// listAIReply 封装listAI回复业务协调。
 func (s *Server) listAIReply(w http.ResponseWriter, r *http.Request) {
 	// sess 保存当前认证会话，用于应用服务执行用户范围查询。
 	sess := authSess(r)
@@ -340,9 +330,7 @@ func (s *Server) listAIReply(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "查询失败")
 		return
 	}
-	// result 用于本次流程后续判断的结果
 	result := make(map[string]aiReplySettingsResponse)
-	// row 表示当前遍历过程中的row
 	for _, row := range rows {
 		result[row.CookieID] = aiReplySettingsResponse{
 			CookieID: row.CookieID, AIEnabled: row.AIEnabled, AutoAdjustPriceEnabled: row.AutoAdjustPriceEnabled, MaxDiscountPercent: row.MaxDiscountPercent,
@@ -356,9 +344,7 @@ func (s *Server) listAIReply(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// getAIReply 封装getAI回复业务协调。
 func (s *Server) getAIReply(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
 	// sess 保存当前认证会话，用于应用服务执行账号归属校验。
 	sess := authSess(r)
@@ -366,7 +352,6 @@ func (s *Server) getAIReply(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "未授权访问")
 		return
 	}
-	// cfg、err 用于本次流程后续判断的cfg、err
 	cfg, err := s.settingsApplication().GetAIReply(r.Context(), sess.UserID, cid)
 	if err != nil {
 		if errors.Is(err, settingsapp.ErrConfigNotFound) {
@@ -390,14 +375,10 @@ func (s *Server) getAIReply(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, aiReplySettingsResponse{CookieID: cfg.CookieID, AIEnabled: cfg.AIEnabled, AutoAdjustPriceEnabled: cfg.AutoAdjustPriceEnabled, MaxDiscountPercent: cfg.MaxDiscountPercent, MaxDiscountAmount: cfg.MaxDiscountAmount, MaxBargainRounds: cfg.MaxBargainRounds, CustomPrompts: cfg.CustomPrompts, AIMode: cfg.AIMode})
 }
 
-// setAIReply 封装setAI回复业务协调。
 func (s *Server) setAIReply(w http.ResponseWriter, r *http.Request) {
-	// cid 用于本次流程后续判断的cid
 	cid := chi.URLParam(r, "cookie_id")
-	// req 用于本次流程后续判断的req
 	var req aiReplySettingsUpdateRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -469,12 +450,10 @@ func writeSettingsAccountError(w http.ResponseWriter, err error) bool {
 	return false
 }
 
-// listAIModels 封装listAI模型列表业务协调。
 func (s *Server) listAIModels(w http.ResponseWriter, r *http.Request) {
 	// req 保存 HTTP 层接收的模型目录查询参数。
 	var req aiModelListRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
@@ -524,14 +503,12 @@ func (s *Server) testAIConnection(w http.ResponseWriter, r *http.Request) {
 
 // ---- 用户设置 ----
 
-// mountUserReal 封装mount用户Real业务协调。
 func (s *Server) mountUserReal(r chi.Router) {
 	r.Get("/user-settings", s.listUserSettings)
 	r.Put("/user-settings/{key}", s.setUserSetting)
 	r.Get("/user-settings/{key}", s.getUserSetting)
 }
 
-// listUserSettings 封装list用户设置业务协调。
 func (s *Server) listUserSettings(w http.ResponseWriter, r *http.Request) {
 	// sess 保存当前认证会话，用于应用服务执行用户范围查询。
 	sess := authSess(r)
@@ -544,11 +521,9 @@ func (s *Server) listUserSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newSettingsResponse(settings))
 }
 
-// getUserSetting 封装get用户设置业务协调。
 func (s *Server) getUserSetting(w http.ResponseWriter, r *http.Request) {
 	// sess 保存当前认证会话，用于应用服务执行用户范围查询。
 	sess := authSess(r)
-	// key 用于本次流程后续判断的key
 	key := chi.URLParam(r, "key")
 	// v、err 保存用户设置值及查询错误。
 	v, err := s.settingsApplication().GetUser(r.Context(), sess.UserID, key)
@@ -559,16 +534,11 @@ func (s *Server) getUserSetting(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, userSettingResponse{Value: v})
 }
 
-// setUserSetting 封装set用户设置业务协调。
 func (s *Server) setUserSetting(w http.ResponseWriter, r *http.Request) {
-	// sess 用于本次流程后续判断的sess
 	sess := authSess(r)
-	// key 用于本次流程后续判断的key
 	key := chi.URLParam(r, "key")
-	// req 用于本次流程后续判断的req
 	var req userSettingUpdateRequest
-	if // err 用于本次流程后续判断的err
-	err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}

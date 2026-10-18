@@ -11,7 +11,6 @@ import (
 
 // TestItemSessionCommitPortsCoverFlatFallbacks 覆盖商品类目、单商品和批量发布的扁平 Cookie 兼容写回。
 func TestItemSessionCommitPortsCoverFlatFallbacks(t *testing.T) {
-	// ctx 是本测试数据库和 Cookie 会话共用的非取消上下文。
 	ctx := context.Background()
 	// categoryStore、categoryCleanup 保存商品类目写回测试存储。
 	categoryStore, categoryCleanup := newAdapterTestStore(t)
@@ -80,7 +79,6 @@ func TestItemSessionCommitPortsCoverFlatFallbacks(t *testing.T) {
 
 // TestItemSessionCommitPortsCoverAuthoritativeChanges 覆盖三个商品适配器提交权威 Cookie 快照的路径。
 func TestItemSessionCommitPortsCoverAuthoritativeChanges(t *testing.T) {
-	// ctx 是本测试数据库和 Cookie 会话共用的非取消上下文。
 	ctx := context.Background()
 	// categoryStore、categoryCleanup 保存商品类目权威写回测试存储。
 	categoryStore, categoryCleanup := newAdapterTestStore(t)

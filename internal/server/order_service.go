@@ -98,10 +98,8 @@ func refreshResultsFromApplication(items []orderapp.RefreshOrderResult) []orderR
 	return results
 }
 
-// errOrderDetailUnsupported 用于本次流程后续判断的err订单DetailUnsupported
 var errOrderDetailUnsupported = errors.New("当前 Go MTOP 客户端不支持订单详情接口")
 
-// errOrderCredentialChanged 用于本次流程后续判断的err订单CredentialChanged
 var errOrderCredentialChanged = errors.New("账号凭证已变化，请重试")
 
 // orderErrorKind 标识应用服务错误的业务分类，避免 HTTP 层依赖错误文本判断状态码。
@@ -133,7 +131,6 @@ func newOrderBadRequest(message string) error {
 
 // orderErrorKindOf 读取订单应用服务错误分类。
 func orderErrorKindOf(err error) (orderErrorKind, bool) {
-	// applicationErr 用于本次流程后续判断的applicationErr
 	var applicationErr *orderApplicationError
 	if !errors.As(err, &applicationErr) {
 		return 0, false
@@ -178,7 +175,6 @@ type orderListResult struct {
 
 // orderDTOFromRow 把数据库订单列表行转换为稳定的订单响应视图。
 func orderDTOFromRow(row orderapp.OrderRow) orderDTO {
-	// status 用于本次流程后续判断的状态
 	status := orderapp.NormalizeOrderStatus(row.OrderStatus)
 	return orderDTO{
 		OrderID: row.OrderID, ItemID: row.ItemID, ItemTitle: row.ItemTitle,
@@ -194,13 +190,11 @@ func orderDTOFromRow(row orderapp.OrderRow) orderDTO {
 
 // orderDTOFromOrder 把订单实体和关联商品信息转换为详情响应视图。
 func orderDTOFromOrder(order *orderapp.Order, item *orderapp.ItemInfo) orderDTO {
-	// itemTitle、itemImage 用于本次流程后续判断的商品Title、item图片
 	itemTitle, itemImage := "", ""
 	if item != nil {
 		itemTitle = item.ItemTitle
 		itemImage = itemImageFromDetail(item.ItemDetail)
 	}
-	// status 用于本次流程后续判断的状态
 	status := orderapp.NormalizeOrderStatus(order.OrderStatus)
 	return orderDTO{
 		OrderID: order.OrderID, ItemID: order.ItemID, ItemTitle: itemTitle, ItemImage: itemImage,
@@ -232,9 +226,7 @@ func (a *orderHTTPAdapter) List(ctx context.Context, query orderListQuery) (orde
 	if err != nil {
 		return orderListResult{}, err
 	}
-	// orders 用于本次流程后续判断的订单列表
 	orders := make([]orderDTO, 0, len(result.Rows))
-	// row 表示当前遍历过程中的row
 	for _, row := range result.Rows {
 		orders = append(orders, orderDTOFromRow(row))
 	}

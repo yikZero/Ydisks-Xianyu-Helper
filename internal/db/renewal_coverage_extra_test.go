@@ -8,10 +8,8 @@ import (
 
 // TestRenewalScheduleAndLogs 覆盖续期计划、三类日志和最近状态查询的确定性路径。
 func TestRenewalScheduleAndLogs(t *testing.T) {
-	// store、cleanup 提供迁移后的 SQLite 测试数据库。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库上下文。
 	ctx := context.Background()
 	// userID、cookieID 保存续期账号归属。
 	_, cookieID := seedAccount(t, store)

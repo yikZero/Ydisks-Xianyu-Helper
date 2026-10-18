@@ -52,7 +52,6 @@ func testOpenAPISessionInitializeSuccess(t *testing.T) {
 	// srv、_、cleanup 分别是未初始化服务、当前场景无需读取的存储和资源释放函数。
 	srv, _, cleanup := newUninitializedTestServer(t)
 	defer cleanup()
-	// handler 是未经包装的真实 Router，初始化会在响应中写入会话 Cookie。
 	handler := srv.Router()
 	// request 是提交首次管理员密码的版本化初始化请求。
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/session/initialize", strings.NewReader(`{"password":"initial-password"}`))
@@ -123,7 +122,6 @@ func testOpenAPIAIModelsSuccess(t *testing.T) {
 	// srv、_、cleanup 分别是服务、无需直接读取的存储和资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是访问管理员模型代理所需的认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -148,7 +146,6 @@ func testOpenAPIAITestSuccess(t *testing.T) {
 	// srv、_、cleanup 分别是服务、无需直接读取的存储和资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是访问管理员连接测试所需的认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -167,7 +164,6 @@ func testOpenAPICardsBatchSuccess(t *testing.T) {
 	// srv、_、cleanup 分别是服务、无需直接读取的存储和资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是当前管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -208,7 +204,6 @@ func testOpenAPIChatHistoryAndReadSuccess(t *testing.T) {
 	if saveErr != nil {
 		t.Fatalf("写入聊天夹具失败: %v", saveErr)
 	}
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是当前管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -339,7 +334,6 @@ func testOpenAPILocalItemAndManualShipSuccess(t *testing.T) {
 	if seedErr != nil {
 		t.Fatalf("写入手动发货订单失败: %v", seedErr)
 	}
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是当前管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -371,7 +365,6 @@ func testOpenAPIItemCategoryRecommendationSuccess(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"ret":["SUCCESS::调用成功"],"data":{"cardList":[{"cardData":{"propertyId":"-10000","propertyName":"分类","valuesList":[{"catId":"5001","catName":"虚拟商品","channelCatId":"6001","isClicked":"1"}]}}]}}`)), Request: request}, nil
 	})}
 	setTestMTop(srv, client)
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是当前管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -390,7 +383,6 @@ func testOpenAPIPublishBatchPreviewSuccess(t *testing.T) {
 	// srv、_、cleanup 分别是服务、无需直接读取的存储和资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是当前管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -454,7 +446,6 @@ func testOpenAPIUncertainNotificationSuccess(t *testing.T) {
 	if marked, markErr := store.Notifications.MarkOutboxUncertain(context.Background(), claimed[0].ID, "contract-worker", "contract-error"); markErr != nil || !marked {
 		t.Fatalf("标记不确定通知失败: marked=%v err=%v", marked, markErr)
 	}
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -483,7 +474,6 @@ func testOpenAPIChatSendSuccess(t *testing.T) {
 	defer cleanup()
 	// srv.applications.chat 注入只返回确定性消息的测试端口，避免调用真实账号运行时。
 	srv.applications.chat = contractChatPort{}
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -546,7 +536,6 @@ func testOpenAPIItemSyncSuccess(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"ret":["SUCCESS::调用成功"],"data":{"cardList":[{"cardData":{"id":"sync-contract","title":"同步商品","priceInfo":{"price":"10.00","preText":"¥"},"picInfo":{"picUrl":"https://img.example/s.png"},"detailParams":{"itemId":"sync-contract"}}}]}}`)), Request: request}, nil
 	})}
 	setTestMTop(srv, client)
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -572,7 +561,6 @@ func testOpenAPIItemPublishSuccess(t *testing.T) {
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.applications.itemSinglePublish = contractItemPublishPort{}
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -607,7 +595,6 @@ func testOpenAPIBatchLifecycleSuccess(t *testing.T) {
 	// srv、store、cleanup 分别是服务、批次状态夹具存储和资源释放函数。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -681,7 +668,6 @@ func testOpenAPIAutomationResolveSuccess(t *testing.T) {
 	if runIDErr != nil {
 		t.Fatalf("读取自动化异常运行主键失败: %v", runIDErr)
 	}
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -726,7 +712,6 @@ func testOpenAPINotificationChannelTestSuccess(t *testing.T) {
 	defer cleanup()
 	// srv.applications.notificationChannels 注入成功替身，避免测试依赖进程级通知器。
 	srv.applications.notificationChannels = contractNotificationChannelsPort{}
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是管理员认证会话。
 	sessionCookie := loginHelper(t, handler)
@@ -761,7 +746,6 @@ func testOpenAPIAccountTaskRunSuccess(t *testing.T) {
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.applications.accountTasks = contractAccountTasksPort{}
-	// handler 是当前场景的真实 Router。
 	handler := srv.Router()
 	// sessionCookie 是管理员认证会话。
 	sessionCookie := loginHelper(t, handler)

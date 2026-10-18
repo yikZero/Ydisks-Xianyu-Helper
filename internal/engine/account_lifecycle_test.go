@@ -11,7 +11,6 @@ import (
 func TestAccountStopWaitsForTaskAndConcurrentStop(t *testing.T) {
 	// account 是未连接但已允许任务登记的测试账号 facade。
 	account := New(Config{CookieID: "lifecycle-test", CookieStr: "unb=1"})
-	// ctx 是测试业务任务使用的账号生命周期上下文。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	account.lifecycle.start(ctx, cancel)

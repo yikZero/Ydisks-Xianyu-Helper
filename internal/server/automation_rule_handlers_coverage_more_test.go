@@ -88,7 +88,6 @@ func (port *automationRuleHandlerCoveragePort) Delete(context.Context, int64, in
 
 // TestAutomationRuleHandlersCoverPaginationAndUpdateErrors 覆盖自动化规则分页、创建和更新的错误映射。
 func TestAutomationRuleHandlersCoverPaginationAndUpdateErrors(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	// port 是当前测试注入的自动化规则应用端口。
@@ -106,9 +105,7 @@ func TestAutomationRuleHandlersCoverPaginationAndUpdateErrors(t *testing.T) {
 		createID: 9,
 	}
 	srv.applications.automationRules = port
-	// handler 是注入可控自动化规则端口后的真实路由。
 	handler := srv.Router()
-	// cookie 是通过真实登录流程取得的管理员会话。
 	cookie := loginHelper(t, handler)
 
 	// listRecorder 保存非分页规则列表成功响应。

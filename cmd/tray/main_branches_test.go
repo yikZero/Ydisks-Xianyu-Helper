@@ -79,11 +79,9 @@ func TestWaitForServiceTimeouts(t *testing.T) {
 	}))
 	t.Cleanup(degraded.Close)
 	useServiceURL(t, degraded.URL)
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := waitForService(degraded.Client(), true, 10*time.Millisecond); err == nil || !strings.Contains(err.Error(), "启动超时") {
 		t.Fatalf("err=%v", err)
 	}
-	// err 保存下方被测调用返回的错误，用于断言该路径按预期成功或失败。
 	if err := waitForService(degraded.Client(), false, 10*time.Millisecond); err == nil || !strings.Contains(err.Error(), "退出超时") {
 		t.Fatalf("err=%v", err)
 	}
@@ -92,12 +90,10 @@ func TestWaitForServiceTimeouts(t *testing.T) {
 // TestEnvOr 验证环境变量去空白后非空则优先，否则使用默认值。
 func TestEnvOr(t *testing.T) {
 	t.Setenv("XIANYU_TRAY_TEST_ENV", "  value  ")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := envOr("XIANYU_TRAY_TEST_ENV", "fallback"); got != "value" {
 		t.Fatalf("got=%q", got)
 	}
 	t.Setenv("XIANYU_TRAY_TEST_ENV", "   ")
-	// got 保存下方被测函数的实际返回值，随后与期望值比较。
 	if got := envOr("XIANYU_TRAY_TEST_ENV", "fallback"); got != "fallback" {
 		t.Fatalf("got=%q", got)
 	}

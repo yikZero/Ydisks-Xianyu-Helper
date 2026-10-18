@@ -20,21 +20,17 @@ var embeddedURLPattern = regexp.MustCompile(`(?i)\b(?:https?|wss?|mysql|postgres
 var quotedRequestTargetPattern = regexp.MustCompile(`(?i)\b(?:parse|connect|request|get|post|put|patch|delete|head|options)\s+"[^"\r\n]*"`)
 
 // ID returns a short stable fingerprint for a sensitive identifier.
-// ID 封装标识业务协调。
 func ID(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ""
 	}
-	// sum 用于本次流程后续判断的sum
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])[:12]
 }
 
 // URL returns origin + path for URLs that may contain session tokens.
-// URL 封装URL业务协调。
 func URL(raw string) string {
-	// u、err 用于本次流程后续判断的u、err
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return "<redacted>"

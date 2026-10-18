@@ -34,10 +34,8 @@ func (c *itemSyncListClient) FetchItemsPage(context.Context, string, int, int) (
 
 // TestItemSyncRepositoryRunsSQLiteAndPlatformFakePaths 验证商品全量/分页同步主链及本地 reconcile。
 func TestItemSyncRepositoryRunsSQLiteAndPlatformFakePaths(t *testing.T) {
-	// store、cleanup 保存隔离的 SQLite 存储和关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试同步数据库操作共用的上下文。
 	ctx := context.Background()
 	// updates、recoveries 保存平台响应 Cookie 更新和会话恢复通知。
 	updates := make([]string, 0, 2)
@@ -102,10 +100,8 @@ func TestItemSyncRepositoryRunsSQLiteAndPlatformFakePaths(t *testing.T) {
 
 // TestItemSyncRepositoryMapsPlatformFailureAndRecovery 验证平台失败被包装并触发账号恢复回调。
 func TestItemSyncRepositoryMapsPlatformFailureAndRecovery(t *testing.T) {
-	// store、cleanup 保存隔离的 SQLite 存储和关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是本测试平台失败操作共用的上下文。
 	ctx := context.Background()
 	// platformErr 保存本地平台替身返回的可识别错误。
 	platformErr := errors.New("platform unavailable")
@@ -143,7 +139,6 @@ func TestItemSyncCredentialHelpers(t *testing.T) {
 	if hasStoredCredential(emptyDetail) {
 		t.Fatal("空凭证不应被识别为有效凭证")
 	}
-	// ctx 是本测试 Cookie 会话包装共用的上下文。
 	ctx := context.Background()
 	// sessionCtx、session 保存平面 Cookie 会话上下文及会话对象。
 	sessionCtx, session := withCookieSnapshot(ctx, detail)
@@ -161,10 +156,8 @@ func TestItemSyncCredentialHelpers(t *testing.T) {
 
 // TestItemSyncClearsStaleMultiSpecFlag 验证平台返回单规格时会清除本地历史多规格标记。
 func TestItemSyncClearsStaleMultiSpecFlag(t *testing.T) {
-	// store、cleanup 管理隔离数据库及关闭责任。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
-	// ctx 是商品标记读写共用的上下文。
 	ctx := context.Background()
 	// seedErr 写入一个历史多规格商品。
 	if seedErr := store.Items.Upsert(ctx, &db.ItemInfoRow{CookieID: "cid", ItemID: "item", IsMultiSpec: true}); seedErr != nil {

@@ -21,7 +21,6 @@ import (
 	"xianyu-go/internal/xianyu/protocol"
 )
 
-// HasLoginURL 用于本次流程后续判断的Has登录URL
 const (
 	HasLoginURL            = "https://passport.goofish.com/newlogin/hasLogin.do"
 	SilentHasLoginURL      = "https://passport.goofish.com/newlogin/silentHasLogin.do"
@@ -49,7 +48,7 @@ type Service struct {
 	PromiseTimeout time.Duration
 }
 
-// LongLoginSettings 用于本次流程后续判断的Long登录设置
+// LongLoginSettings 是账号“长期登录”开关状态，以及开启时平台下发的新 Cookie。
 type LongLoginSettings struct {
 	CanOpenLongLogin       bool                          `json:"can_open_long_login"`
 	Enabled                bool                          `json:"enabled"`
@@ -83,7 +82,6 @@ type Result struct {
 	responseCookies []responseCookieBatch
 }
 
-// pendingRenewResult 用于本次流程后续判断的pendingRenew结果
 type pendingRenewResult struct {
 	result *Result
 	err    error
@@ -100,8 +98,7 @@ func (r *Result) AwaitPending(ctx context.Context) (*Result, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case // outcome、ok 用于本次流程后续判断的outcome、ok
-	outcome, ok := <-r.pending:
+	case outcome, ok := <-r.pending:
 		if !ok {
 			return nil, nil
 		}
@@ -112,27 +109,20 @@ func (r *Result) AwaitPending(ctx context.Context) (*Result, error) {
 // RebaseResponseCookies 把续期响应的 Set-Cookie 应用到“当前最新”凭证状态。
 // 后台 fetch 可能晚于其他 MTOP 请求返回，必须重放响应头而不是覆盖成请求发起
 // 时计算出的旧快照。
-// RebaseResponseCookies 封装Rebase响应Cookies业务协调。
 func RebaseResponseCookies(currentCookies, currentMetadata string, result *Result) (string, string, bool) {
 	if result == nil || len(result.SetCookies) == 0 {
 		return currentCookies, currentMetadata, false
 	}
-	if // snapshot、complete 用于本次流程后续判断的snapshot、complete
-	snapshot, complete := cookierefresh.SnapshotFromMetadataOK(currentMetadata); complete {
-		// updated 用于本次流程后续判断的updated
+	if snapshot, complete := cookierefresh.SnapshotFromMetadataOK(currentMetadata); complete {
 		updated := result.applyResponseCookies(snapshot)
 		if updated == nil {
 			updated = []cookierefresh.BrowserCookie{}
 		}
-		// value 用于本次流程后续判断的值
 		value, _ := cookierefresh.ScopedCookieHeaderForRequest(updated, goofishIMDocumentURL, goofishTopSite, time.Now())
-		// metadata 用于本次流程后续判断的metadata
 		metadata := cookierefresh.MetadataWithSnapshot(currentMetadata, updated)
 		return value, metadata, value != currentCookies || metadata != currentMetadata
 	}
-	// value 用于本次流程后续判断的值
 	value := MergeSetCookies(currentCookies, result.SetCookies)
-	// metadata 用于本次流程后续判断的metadata
 	metadata := cookierefresh.MetadataWithoutSnapshot(currentMetadata)
 	return value, metadata, value != currentCookies || metadata != currentMetadata
 }
@@ -146,7 +136,6 @@ type StepResult struct {
 	Message        string
 }
 
-// autoLoginModeHavana 用于本次流程后续判断的auto登录模式Havana
 const (
 	autoLoginModeHavana  = "havana"
 	autoLoginModeCookie3 = "cookie3"
@@ -162,7 +151,6 @@ func (s Service) RenewAPIFirst(ctx context.Context, cookiesStr string, snapshots
 // RenewAfterSessionExpired 用于服务端已经明确返回 SESSION_EXPIRED 的恢复路径。
 // sdkSilent 只用于限制健康账号的主动静默续期；它不能阻止一次已经被业务接口
 // 证实为失效的凭证恢复。长登录凭证本身过期时仍拒绝请求并要求重新扫码。
-// RenewAfterSessionExpired 封装RenewAfter会话Expired业务协调。
 func (s Service) RenewAfterSessionExpired(ctx context.Context, cookiesStr string, snapshots ...[]cookierefresh.BrowserCookie) (*Result, error) {
 	return s.renewAPIFirst(ctx, true, cookiesStr, snapshots...)
 }
@@ -172,21 +160,13 @@ func (s Service) RenewAfterSessionExpired(ctx context.Context, cookiesStr string
 // 返回 SDK 成功/跳过/超时语义和响应 Cookie，错误不代表可以丢弃已收到的 Cookie。
 func (s Service) renewAPIFirst(ctx context.Context, sessionExpired bool, cookiesStr string, snapshots ...[]cookierefresh.BrowserCookie) (*Result, error) {
 	cookiesStr = strings.TrimSpace(cookiesStr)
-	// authoritativeSnapshot 用于本次流程后续判断的authoritativeSnapshot
 	authoritativeSnapshot := len(snapshots) > 0 && snapshots[0] != nil
-	// documentURL 用于本次流程后续判断的documentURL
 	documentURL := s.documentReferer()
-	// requestURL 用于本次流程后续判断的请求URL
 	requestURL := s.urlOrDefault(s.SilentHasLoginURL, SilentHasLoginURL)
-	// now 用于本次流程后续判断的now
 	now := time.Now()
-	// decisionCookies 用于本次流程后续判断的decisionCookies
 	decisionCookies := cookiesStr
-	// requestCookies 用于本次流程后续判断的请求Cookies
 	requestCookies := cookiesStr
-	// newCookies 用于本次流程后续判断的newCookies
 	newCookies := cookiesStr
-	// snapshot 用于本次流程后续判断的snapshot
 	var snapshot []cookierefresh.BrowserCookie
 	if authoritativeSnapshot {
 		snapshot = cookierefresh.NormalizeSnapshot(snapshots[0])
@@ -199,20 +179,16 @@ func (s Service) renewAPIFirst(ctx context.Context, sessionExpired bool, cookies
 				visibleSnapshot = append(visibleSnapshot, cookie)
 			}
 		}
-		if // scoped、authoritative 用于本次流程后续判断的scoped、authoritative
-		scoped, authoritative := cookierefresh.ScopedCookieHeaderForRequest(visibleSnapshot, documentURL, goofishTopSite, now); authoritative {
+		if scoped, authoritative := cookierefresh.ScopedCookieHeaderForRequest(visibleSnapshot, documentURL, goofishTopSite, now); authoritative {
 			decisionCookies = scoped
 		}
-		if // scoped、authoritative 用于本次流程后续判断的scoped、authoritative
-		scoped, authoritative := cookierefresh.ScopedCookieHeaderForRequest(snapshot, requestURL, goofishTopSite, now); authoritative {
+		if scoped, authoritative := cookierefresh.ScopedCookieHeaderForRequest(snapshot, requestURL, goofishTopSite, now); authoritative {
 			requestCookies = scoped
 		}
-		if // scoped、authoritative 用于本次流程后续判断的scoped、authoritative
-		scoped, authoritative := cookierefresh.ScopedCookieHeaderForRequest(snapshot, goofishIMDocumentURL, goofishTopSite, now); authoritative {
+		if scoped, authoritative := cookierefresh.ScopedCookieHeaderForRequest(snapshot, goofishIMDocumentURL, goofishTopSite, now); authoritative {
 			newCookies = scoped
 		}
 	}
-	// result 用于本次流程后续判断的结果
 	result := &Result{
 		RenewMethod:       "auto_login_plugin",
 		NewCookies:        newCookies,
@@ -256,9 +232,7 @@ func (s Service) renewAPIFirst(ctx context.Context, sessionExpired bool, cookies
 		// 请求发送时重新筛除已过期 Cookie，但不改变等待前捕获的 SDK 判断值。
 		requestCookies, _ = cookierefresh.ScopedCookieHeaderForRequest(snapshot, requestURL, goofishTopSite, time.Now())
 	}
-	// call、err 用于本次流程后续判断的call、err
 	call, err := s.callAutoLogin(ctx, requestCookies, mode, snapshot)
-	// populate 用于本次流程后续判断的populate
 	populate := func(target *Result, finished callResult, callErr error, promiseTimedOut bool) (*Result, error) {
 		target.RequestCount = 1
 		target.SetCookies = append([]string(nil), finished.SetCookies...)
@@ -269,12 +243,10 @@ func (s Service) renewAPIFirst(ctx context.Context, sessionExpired bool, cookies
 			target.StepDetails = []StepResult{finished.Step}
 		}
 		if authoritativeSnapshot {
-			// updatedSnapshot 用于本次流程后续判断的updatedSnapshot
 			updatedSnapshot := target.applyResponseCookies(snapshot)
 			target.CookieSnapshot = updatedSnapshot
 			target.CookieSnapshotComplete = true
-			if // scoped、authoritative 用于本次流程后续判断的scoped、authoritative
-			scoped, authoritative := cookierefresh.ScopedCookieHeaderForRequest(updatedSnapshot, goofishIMDocumentURL, goofishTopSite, time.Now()); authoritative {
+			if scoped, authoritative := cookierefresh.ScopedCookieHeaderForRequest(updatedSnapshot, goofishIMDocumentURL, goofishTopSite, time.Now()); authoritative {
 				target.NewCookies = scoped
 			}
 			target.UpdatedCookieNames = cookierefresh.ChangedSnapshotLabels(snapshot, updatedSnapshot)
@@ -296,7 +268,6 @@ func (s Service) renewAPIFirst(ctx context.Context, sessionExpired bool, cookies
 			target.NeedPasswordLogin = true
 			return target, callErr
 		}
-		// message 用于本次流程后续判断的消息
 		message := "静默续期成功"
 		if !finished.Step.BusinessOK {
 			message = firstNonEmpty(finished.Step.Message, "静默续期未通过")
@@ -311,17 +282,14 @@ func (s Service) renewAPIFirst(ctx context.Context, sessionExpired bool, cookies
 		result.StepDetails = []StepResult{call.Step}
 		result.Message = call.Step.Message
 		result.NeedPasswordLogin = false
-		// pending 用于本次流程后续判断的pending
 		pending := make(chan pendingRenewResult, 1)
 		result.pending = pending
 		go func() {
-			// outcome、ok 用于本次流程后续判断的outcome、ok
 			outcome, ok := <-call.pending
 			if !ok {
 				close(pending)
 				return
 			}
-			// late 用于本次流程后续判断的late
 			late := &Result{
 				RenewMethod:       "auto_login_plugin",
 				NewCookies:        newCookies,
@@ -342,7 +310,6 @@ func (s Service) renewAPIFirst(ctx context.Context, sessionExpired bool, cookies
 	return populate(result, call, err, false)
 }
 
-// autoLoginModeWithoutFatigue 封装auto登录模式WithoutFatigue业务协调。
 func autoLoginModeWithoutFatigue(cookies map[string]string, now time.Time) (mode, skipReason string) {
 	if cookieTimeAfter(cookies["havana_lgc_exp"], now) {
 		return autoLoginModeHavana, ""
@@ -353,7 +320,6 @@ func autoLoginModeWithoutFatigue(cookies map[string]string, now time.Time) (mode
 	return "", "long_login_expired"
 }
 
-// autoLoginMode 封装auto登录模式业务协调。
 func autoLoginMode(cookies map[string]string, now time.Time) (mode, skipReason string) {
 	if strictCookieTimeAfter(cookies["sdkSilent"], now) {
 		return "", "fatigue"
@@ -367,7 +333,6 @@ func autoLoginMode(cookies map[string]string, now time.Time) (mode, skipReason s
 	return "", "long_login_expired"
 }
 
-// autoLoginSkipMessage 封装auto登录Skip消息业务协调。
 func autoLoginSkipMessage(reason string) string {
 	switch reason {
 	case "fatigue":
@@ -379,7 +344,6 @@ func autoLoginSkipMessage(reason string) string {
 	}
 }
 
-// callResult 用于本次流程后续判断的call结果
 type callResult struct {
 	Step       StepResult
 	SetCookies []string
@@ -391,7 +355,6 @@ type callResult struct {
 	responses []responseCookieBatch
 }
 
-// callOutcome 用于本次流程后续判断的callOutcome
 type callOutcome struct {
 	call callResult
 	err  error
@@ -400,14 +363,11 @@ type callOutcome struct {
 // callAutoLogin 按 mode 选择官方查询参数，以 s 的配置和 ctx 发起单次静默续期。
 // cookiesStr 是只在 HTTP 内使用的明文降级凭证，snapshots 为可选权威 Jar；返回响应及请求错误。
 func (s Service) callAutoLogin(ctx context.Context, cookiesStr, mode string, snapshots ...[]cookierefresh.BrowserCookie) (callResult, error) {
-	// partial 用于本次流程后续判断的partial
 	partial := callResult{Step: StepResult{Name: "silentHasLogin"}}
-	// req、err 用于本次流程后续判断的req、err
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.urlOrDefault(s.SilentHasLoginURL, SilentHasLoginURL), nil)
 	if err != nil {
 		return partial, err
 	}
-	// query 用于本次流程后续判断的查询
 	query := [][2]string{
 		{"documentReferer", s.documentReferer()},
 		{"appName", "xianyu"},
@@ -431,7 +391,6 @@ func (s Service) callAutoLogin(ctx context.Context, cookiesStr, mode string, sna
 // 本函数拥有请求协程：响应头与两秒 Promise 窗口竞速，正文不在竞速内；请求有三十秒硬上限。
 // 窗口超时后返回单消费者 pending 通道，协程通过该通道交付 Cookie 并结束，不改变超时终态。
 func (s Service) doRenewRequest(req *http.Request, name string, snapshots ...[]cookierefresh.BrowserCookie) (callResult, error) {
-	// hc 用于本次流程后续判断的hc
 	hc := s.HTTPClient
 	if hc == nil {
 		hc = &http.Client{Timeout: backgroundFetchTimeout}
@@ -445,11 +404,8 @@ func (s Service) doRenewRequest(req *http.Request, name string, snapshots ...[]c
 	client, cookieTransport := requestClient(hc, req, snapshot)
 	// Promise.race 的计时器不能取消底层 fetch。使用 WithoutCancel 让 2 秒
 	// 窗口结束后请求继续，但仍以 30 秒硬上限防止后台泄漏。
-	// requestCtx、cancel 用于本次流程后续判断的请求Ctx、cancel
 	requestCtx, cancel := context.WithTimeout(context.WithoutCancel(req.Context()), backgroundFetchTimeout)
-	// backgroundReq 用于本次流程后续判断的backgroundReq
 	backgroundReq := req.Clone(requestCtx)
-	// done 用于本次流程后续判断的done
 	done := make(chan callOutcome, 1)
 	// headersReceived 由请求协程在响应头到达时关闭；Promise 只与此阶段竞速。
 	headersReceived := make(chan struct{})
@@ -458,7 +414,6 @@ func (s Service) doRenewRequest(req *http.Request, name string, snapshots ...[]c
 	// 请求协程由本次续期拥有，硬超时或调用方取消终止，通过 done 交付唯一结果。
 	go func() {
 		defer cancel()
-		// call、err 用于本次流程后续判断的call、err
 		call, err := executeRenewRequest(client, backgroundReq, name, signalHeaders)
 		call.responses = cookieTransport.responses
 		call.SetCookies = nil
@@ -469,7 +424,6 @@ func (s Service) doRenewRequest(req *http.Request, name string, snapshots ...[]c
 		call.Step.SetCookieCount = len(call.SetCookies)
 		done <- callOutcome{call: call, err: err}
 	}()
-	// timer 用于本次流程后续判断的定时器
 	timer := time.NewTimer(s.promiseTimeout())
 	defer timer.Stop()
 	// timeout 只在等待响应头时启用；收到头后等待正文，不再受 Promise 计时器影响。
@@ -478,11 +432,9 @@ func (s Service) doRenewRequest(req *http.Request, name string, snapshots ...[]c
 		select {
 		case <-req.Context().Done():
 			cancel()
-			// result 用于本次流程后续判断的结果
 			result := callResult{Step: StepResult{Name: name, Message: req.Context().Err().Error()}}
 			return result, req.Context().Err()
-		case // outcome 用于本次流程后续判断的outcome
-		outcome := <-done:
+		case outcome := <-done:
 			return outcome.call, outcome.err
 		case <-headersReceived:
 			headersReceived = nil
@@ -504,7 +456,6 @@ func (s Service) doRenewRequest(req *http.Request, name string, snapshots ...[]c
 	}
 }
 
-// promiseTimeout 封装promiseTimeout业务协调。
 func (s Service) promiseTimeout() time.Duration {
 	if s.PromiseTimeout > 0 {
 		return s.PromiseTimeout
@@ -515,9 +466,7 @@ func (s Service) promiseTimeout() time.Duration {
 // executeRenewRequest 使用 hc 执行 req，按 name 标记结果，并在响应头到达时关闭
 // headersReceived。返回响应 Cookie、正文及读取错误；正文读取受 req 的硬超时限制。
 func executeRenewRequest(hc *http.Client, req *http.Request, name string, headersReceived chan<- struct{}) (callResult, error) {
-	// result 用于本次流程后续判断的结果
 	result := callResult{Step: StepResult{Name: name}}
-	// resp、err 用于本次流程后续判断的resp、err
 	resp, err := hc.Do(req)
 	if err != nil {
 		result.Step.Message = fmt.Sprintf("请求失败: %v", err)
@@ -535,7 +484,6 @@ func executeRenewRequest(hc *http.Client, req *http.Request, name string, header
 		result.Step.Message = fmt.Sprintf("HTTP状态异常: %d", resp.StatusCode)
 		return result, nil
 	}
-	// body、err 用于本次流程后续判断的body、err
 	body, err := readRenewBody(resp.Body)
 	if err != nil {
 		result.Step.Message = fmt.Sprintf("响应读取失败: %v", err)
@@ -551,21 +499,16 @@ func executeRenewRequest(hc *http.Client, req *http.Request, name string, header
 	return result, nil
 }
 
-// renewBusinessOK 封装renewBusinessOK业务协调。
 func renewBusinessOK(body []byte) bool {
 	if len(body) == 0 {
 		return false
 	}
-	// payload 用于本次流程后续判断的请求载荷
 	var payload map[string]any
-	if // err 用于本次流程后续判断的err
-	err := json.Unmarshal(body, &payload); err != nil {
+	if err := json.Unmarshal(body, &payload); err != nil {
 		return false
 	}
-	// content 用于本次流程后续判断的内容
 	content, _ := payload["content"].(map[string]any)
-	if // data 用于本次流程后续判断的数据
-	data, _ := payload["data"].(map[string]any); data != nil {
+	if data, _ := payload["data"].(map[string]any); data != nil {
 		if javascriptTruthy(data["content"]) {
 			content, _ = data["content"].(map[string]any)
 		}
@@ -573,10 +516,8 @@ func renewBusinessOK(body []byte) bool {
 	if content == nil {
 		return false
 	}
-	// data 用于本次流程后续判断的数据
 	data, _ := content["data"].(map[string]any)
 	if data != nil {
-		// finished 用于本次流程后续判断的finished
 		finished, _ := data["processFinished"].(bool)
 		if finished && numericResultCode(data["resultCode"]) == 100 {
 			return true
@@ -587,15 +528,13 @@ func renewBusinessOK(body []byte) bool {
 
 // numericResultCode 从 v 读取整数业务码；小数不能截断为成功码，字符串不隐式转换。
 func numericResultCode(v any) int {
-	switch // value 用于本次流程后续判断的值
-	value := v.(type) {
+	switch value := v.(type) {
 	case float64:
 		if math.Trunc(value) != value || math.IsInf(value, 0) {
 			return 0
 		}
 		return int(value)
 	case json.Number:
-		// n 用于本次流程后续判断的n
 		n, _ := strconv.Atoi(value.String())
 		return n
 	case int:
@@ -622,7 +561,6 @@ func javascriptTruthy(value any) bool {
 	}
 }
 
-// setSilentHasLoginHeaders 封装setSilentHas登录Headers业务协调。
 func setSilentHasLoginHeaders(req *http.Request, cookiesStr, documentReferer string) {
 	xianyu.ApplyBrowserFingerprint(req.Header)
 	req.Header.Set("Accept", "*/*")
@@ -635,14 +573,11 @@ func setSilentHasLoginHeaders(req *http.Request, cookiesStr, documentReferer str
 	req.Header.Set("Cookie", strings.ReplaceAll(strings.ReplaceAll(cookiesStr, "\n", ""), "\r", ""))
 }
 
-// appendOrderedQuery 封装appendOrdered查询业务协调。
 func appendOrderedQuery(target *url.URL, values [][2]string) {
-	// parts 用于本次流程后续判断的parts
 	parts := make([]string, 0, len(values)+1)
 	if strings.TrimSpace(target.RawQuery) != "" {
 		parts = append(parts, target.RawQuery)
 	}
-	// item 表示当前遍历过程中的商品
 	for _, item := range values {
 		parts = append(parts, encodeURIComponent(item[0])+"="+encodeURIComponent(item[1]))
 	}
@@ -654,7 +589,6 @@ func encodeURIComponent(value string) string {
 	return strings.NewReplacer("+", "%20", "%21", "!", "%27", "'", "%28", "(", "%29", ")", "%2A", "*").Replace(url.QueryEscape(value))
 }
 
-// urlOrDefault 封装地址OrDefault业务协调。
 func (s Service) urlOrDefault(v, fallback string) string {
 	if strings.TrimSpace(v) != "" {
 		return v
@@ -662,7 +596,6 @@ func (s Service) urlOrDefault(v, fallback string) string {
 	return fallback
 }
 
-// documentReferer 封装documentReferer业务协调。
 func (s Service) documentReferer() string {
 	if strings.TrimSpace(s.DocumentReferer) != "" {
 		// 官方捕获 location.href.split("?")[0]，查询参数不进入 documentReferer。
@@ -671,9 +604,7 @@ func (s Service) documentReferer() string {
 	return "https://www.goofish.com/im"
 }
 
-// readRenewBody 封装readRenew请求体业务协调。
 func readRenewBody(r io.Reader) ([]byte, error) {
-	// body、err 用于本次流程后续判断的body、err
 	body, err := io.ReadAll(io.LimitReader(r, maxRenewBodyBytes+1))
 	if err != nil {
 		return nil, err
@@ -684,9 +615,7 @@ func readRenewBody(r io.Reader) ([]byte, error) {
 	return body, nil
 }
 
-// firstNonEmpty 封装firstNonEmpty业务协调。
 func firstNonEmpty(values ...string) string {
-	// v 表示当前遍历过程中的v
 	for _, v := range values {
 		if strings.TrimSpace(v) != "" {
 			return v
@@ -695,14 +624,11 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// filterValidSetCookies 封装filter有效SetCookies业务协调。
 func filterValidSetCookies(setCookies []string) []string {
 	if len(setCookies) == 0 {
 		return nil
 	}
-	// out 用于本次流程后续判断的out
 	out := make([]string, 0, len(setCookies))
-	// sc 表示当前遍历过程中的sc
 	for _, sc := range setCookies {
 		if strings.TrimSpace(sc) == "" {
 			continue
@@ -714,13 +640,9 @@ func filterValidSetCookies(setCookies []string) []string {
 
 // MergeSetCookies 将 Set-Cookie 头合并到 Cookie 头字符串。只保留 name=value，
 // 忽略 Path/Domain/Expires 等属性，因为后续出站请求只需要 Cookie header。
-// MergeSetCookies 封装MergeSetCookies业务协调。
 func MergeSetCookies(original string, setCookies []string) string {
-	// cookies 用于本次流程后续判断的cookies
 	cookies := protocol.TransCookies(original)
-	// sc 表示当前遍历过程中的sc
 	for _, sc := range setCookies {
-		// parsed、err 用于本次流程后续判断的parsed、err
 		parsed, err := http.ParseSetCookie(sc)
 		if err != nil || strings.TrimSpace(parsed.Name) == "" {
 			continue
@@ -736,23 +658,16 @@ func MergeSetCookies(original string, setCookies []string) string {
 
 // ChangedCookieNames 返回 newCookies 相对 original 变化过的字段名，按字典序排序。
 func ChangedCookieNames(original, newCookies string) []string {
-	// oldMap 用于本次流程后续判断的oldMap
 	oldMap := protocol.TransCookies(original)
-	// newMap 用于本次流程后续判断的newMap
 	newMap := protocol.TransCookies(newCookies)
-	// changed 用于本次流程后续判断的changed
 	changed := make([]string, 0)
-	// seen 用于本次流程后续判断的seen
 	seen := make(map[string]struct{}, len(oldMap)+len(newMap))
-	// k 表示当前遍历过程中的k
 	for k := range oldMap {
 		seen[k] = struct{}{}
 	}
-	// k 表示当前遍历过程中的k
 	for k := range newMap {
 		seen[k] = struct{}{}
 	}
-	// k 表示当前遍历过程中的k
 	for k := range seen {
 		if oldMap[k] != newMap[k] {
 			changed = append(changed, k)
@@ -762,18 +677,13 @@ func ChangedCookieNames(original, newCookies string) []string {
 	return changed
 }
 
-// marshalCookies 封装marshalCookies业务协调。
 func marshalCookies(cookies map[string]string) string {
-	// keys 用于本次流程后续判断的keys
 	keys := make([]string, 0, len(cookies))
-	// k 表示当前遍历过程中的k
 	for k := range cookies {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	// parts 用于本次流程后续判断的parts
 	parts := make([]string, 0, len(keys))
-	// k 表示当前遍历过程中的k
 	for _, k := range keys {
 		parts = append(parts, k+"="+cookies[k])
 	}

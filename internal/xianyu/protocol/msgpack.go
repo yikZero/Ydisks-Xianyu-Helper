@@ -9,29 +9,24 @@ import (
 // msgpackDecoder 解析闲鱼消息使用的 MessagePack 数据。
 // 解码结果类型：int64/uint64/float64/string/bool/nil/[]byte/[]any/map[any]any。
 // bin 解码为 []byte，map 键保留原类型（整数键为 int64）。
-// msgpackDecoder 用于本次流程后续判断的msgpackDecoder
 type msgpackDecoder struct {
 	data []byte
 	pos  int
 }
 
-// readByte 封装readByte业务协调。
 func (d *msgpackDecoder) readByte() (byte, error) {
 	if d.pos >= len(d.data) {
 		return 0, fmt.Errorf("msgpack: unexpected end of data")
 	}
-	// b 用于本次流程后续判断的b
 	b := d.data[d.pos]
 	d.pos++
 	return b, nil
 }
 
-// readBytes 封装readBytes业务协调。
 func (d *msgpackDecoder) readBytes(n int) ([]byte, error) {
 	if d.pos+n > len(d.data) {
 		return nil, fmt.Errorf("msgpack: unexpected end of data")
 	}
-	// r 用于本次流程后续判断的r
 	r := d.data[d.pos : d.pos+n]
 	d.pos += n
 	return r, nil
@@ -195,9 +190,7 @@ func (d *msgpackDecoder) readLength(width int) (int, error) {
 	}
 }
 
-// readString 封装readString业务协调。
 func (d *msgpackDecoder) readString(n int) (string, error) {
-	// b、err 用于本次流程后续判断的b、err
 	b, err := d.readBytes(n)
 	if err != nil {
 		return "", err
@@ -205,13 +198,9 @@ func (d *msgpackDecoder) readString(n int) (string, error) {
 	return string(b), nil // UTF-8
 }
 
-// decodeArray 封装decodeArray业务协调。
 func (d *msgpackDecoder) decodeArray(n int) (any, error) {
-	// arr 用于本次流程后续判断的arr
 	arr := make([]any, n)
-	for // i 用于本次流程后续判断的i
-	i := 0; i < n; i++ {
-		// v、err 用于本次流程后续判断的v、err
+	for i := 0; i < n; i++ {
 		v, err := d.decodeValue()
 		if err != nil {
 			return nil, err
@@ -221,18 +210,13 @@ func (d *msgpackDecoder) decodeArray(n int) (any, error) {
 	return arr, nil
 }
 
-// decodeMap 封装decodeMap业务协调。
 func (d *msgpackDecoder) decodeMap(n int) (any, error) {
-	// m 用于本次流程后续判断的m
 	m := make(map[any]any, n)
-	for // i 用于本次流程后续判断的i
-	i := 0; i < n; i++ {
-		// k、err 用于本次流程后续判断的k、err
+	for i := 0; i < n; i++ {
 		k, err := d.decodeValue()
 		if err != nil {
 			return nil, err
 		}
-		// v、err 用于本次流程后续判断的v、err
 		v, err := d.decodeValue()
 		if err != nil {
 			return nil, err

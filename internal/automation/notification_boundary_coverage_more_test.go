@@ -56,7 +56,6 @@ func TestAutomationNotifierPassesTriggerCategory(t *testing.T) {
 
 // TestAutomationNotificationsCoverOptionalAndTerminalBranches 验证自动化通知器的可选依赖、成功空跑、失败和人工核对通知。
 func TestAutomationNotificationsCoverOptionalAndTerminalBranches(t *testing.T) {
-	// ctx 是通知测试共用的上下文。
 	ctx := context.Background()
 	// nilNotifier 验证未装配通知器时所有入口都安全跳过。
 	nilNotifier := deliveryNotifier{current: func() Notifier { return nil }}
@@ -81,7 +80,6 @@ func TestAutomationNotificationsCoverOptionalAndTerminalBranches(t *testing.T) {
 	// nilCenter 验证 Center 兼容通知入口的空接收者保护。
 	var nilCenter *Center
 	nilCenter.notifyRunNeedsReview(ctx, db.AutomationRun{}, "nil center")
-	// store、cleanup 保存唤醒凭证阻断任务测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// center 保存具备自动化存储的通知中心。
@@ -99,10 +97,8 @@ func TestAutomationNotificationsCoverOptionalAndTerminalBranches(t *testing.T) {
 
 // TestBargainUncertainResultSendsManualInterventionNotification 验证免拼接口结果不确定时停止重试并发送独立人工处理通知。
 func TestBargainUncertainResultSendsManualInterventionNotification(t *testing.T) {
-	// store、cleanup 保存免拼人工处理通知测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是账号设置、免拼执行和阶段状态读取共用的上下文。
 	ctx := context.Background()
 	// admin、adminErr 保存账号所属管理员及查询错误。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")

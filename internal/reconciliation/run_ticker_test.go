@@ -47,7 +47,6 @@ func TestRunLogsTickerScanFailure(t *testing.T) {
 	// store 是下方语句引入的测试值，承载被测调用的结果或夹具，仅在当前测试内使用。
 	store := db.NewStore(database, dialect)
 	database.Close()
-	// ctx、cancel 控制后台扫描生命周期。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// warns 统计失败告警条数；第一条来自启动扫描，第二条来自定时轮次。

@@ -42,7 +42,6 @@ func TestOrderUpsertRefundWithdrawnRestoresPendingShipOnlyFromSnapshot(t *testin
 	// store、cleanup 是独立 SQLite 测试库及其释放函数。
 	store, cleanup := newTestDB(t)
 	defer cleanup()
-	// ctx 是不会取消的测试上下文。
 	ctx := context.Background()
 	// err 是创建订单所属用户的结果。
 	if _, err := store.Users.Create(ctx, "refund-owner", "refund-owner@example.com", "pw"); err != nil {

@@ -10,7 +10,6 @@ func TestRestartUsesCookieValueQuery(t *testing.T) {
 	// mgr、store 和 cleanup 分别是测试用账号管理器、数据库及资源清理函数。
 	mgr, store, cleanup := newManagerWithAccount(t, "restart-scope", "unb=1; _m_h5_tk=old;")
 	defer cleanup()
-	// ctx 是账号重启共用的上下文。
 	ctx := context.Background()
 	// admin 是测试账号所属的管理员用户。
 	admin, _ := store.Users.GetByUsername(ctx, "admin")

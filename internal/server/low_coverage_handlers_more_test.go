@@ -51,7 +51,6 @@ func TestLowCoverageHandlersCoverDatabaseAndResourceErrors(t *testing.T) {
 	cardRequest := requestWithServerSession(http.MethodGet, "/cards", nil)
 	// cardRecorder 保存卡券列表数据库错误响应。
 	cardRecorder := httptest.NewRecorder()
-	// closeErr 保存关闭卡券测试数据库连接的结果。
 	if closeErr := cardStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -67,7 +66,6 @@ func TestLowCoverageHandlersCoverDatabaseAndResourceErrors(t *testing.T) {
 	orderRequest := requestWithServerSession(http.MethodGet, "/api/orders", nil)
 	// orderRecorder 保存订单列表数据库错误响应。
 	orderRecorder := httptest.NewRecorder()
-	// closeErr 保存关闭订单测试数据库连接的结果。
 	if closeErr := orderStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -91,7 +89,6 @@ func TestLowCoverageHandlersCoverDatabaseAndResourceErrors(t *testing.T) {
 	closedRequest := requestWithServerSession(http.MethodDelete, "/notifications/accounts/cid", map[string]string{"cid": "cid"})
 	// closedRecorder 保存通知数据库错误响应。
 	closedRecorder := httptest.NewRecorder()
-	// closeErr 保存关闭通知测试数据库连接的结果。
 	if closeErr := notificationStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}

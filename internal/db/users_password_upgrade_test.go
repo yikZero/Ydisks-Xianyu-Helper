@@ -85,8 +85,8 @@ func TestLegacyPasswordUpgradeRejectsConcurrentPasswordChange(t *testing.T) {
 	const oldPassword = "old-legacy-password"
 	// legacyHash 是旧口令对应的 SHA-256 摘要。
 	legacyHash := legacySHA256(oldPassword)
-	if // updateLegacyErr 保存模拟历史数据库摘要时的写入错误。
-	_, updateLegacyErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, legacyHash, currentUser.ID); updateLegacyErr != nil {
+	// updateLegacyErr 保存模拟历史数据库摘要时的写入错误。
+	if _, updateLegacyErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, legacyHash, currentUser.ID); updateLegacyErr != nil {
 		t.Fatal(updateLegacyErr)
 	}
 	// staleUser、staleLookupErr 模拟登录请求已经读取并验证、但尚未执行升级的旧用户快照。
@@ -137,8 +137,8 @@ func TestLegacyPasswordUpgradePropagatesHashAndWriteFailures(t *testing.T) {
 	}
 	// legacyHash 保存超长历史口令的 SHA-256 摘要。
 	legacyHash := legacySHA256(longPassword)
-	if // updateLegacyErr 保存模拟历史摘要的数据库写入错误。
-	_, updateLegacyErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, legacyHash, legacyUser.ID); updateLegacyErr != nil {
+	// updateLegacyErr 保存模拟历史摘要的数据库写入错误。
+	if _, updateLegacyErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, legacyHash, legacyUser.ID); updateLegacyErr != nil {
 		t.Fatal(updateLegacyErr)
 	}
 	// verifiedUser、matched、verifyErr 保存超长旧密码命中后 bcrypt 升级失败的认证结果。
@@ -155,8 +155,8 @@ func TestLegacyPasswordUpgradePropagatesHashAndWriteFailures(t *testing.T) {
 	const shortPassword = "short-legacy-password"
 	// shortLegacyHash 是数据库写入取消场景使用的旧摘要。
 	shortLegacyHash := legacySHA256(shortPassword)
-	if // updateShortLegacyErr 保存第二个旧摘要的准备错误。
-	_, updateShortLegacyErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, shortLegacyHash, legacyUser.ID); updateShortLegacyErr != nil {
+	// updateShortLegacyErr 保存第二个旧摘要的准备错误。
+	if _, updateShortLegacyErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, shortLegacyHash, legacyUser.ID); updateShortLegacyErr != nil {
 		t.Fatal(updateShortLegacyErr)
 	}
 	// staleUser、staleLookupErr 保存数据库写入失败测试使用的旧用户快照。
@@ -235,8 +235,8 @@ func TestMultiDB_LegacyPasswordUpgradeCAS(t *testing.T) {
 			if upgradedLookupErr != nil {
 				t.Fatal(upgradedLookupErr)
 			}
-			if // prepareUpgradeErr 保存当前方言写入历史摘要时的错误。
-			_, prepareUpgradeErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, legacyHash, upgradedBefore.ID); prepareUpgradeErr != nil {
+			// prepareUpgradeErr 保存当前方言写入历史摘要时的错误。
+			if _, prepareUpgradeErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, legacyHash, upgradedBefore.ID); prepareUpgradeErr != nil {
 				t.Fatal(prepareUpgradeErr)
 			}
 			// upgradedUser、upgradedMatched、upgradeErr 保存正常历史账号的认证升级结果。
@@ -255,8 +255,8 @@ func TestMultiDB_LegacyPasswordUpgradeCAS(t *testing.T) {
 			if raceLookupErr != nil {
 				t.Fatal(raceLookupErr)
 			}
-			if // prepareRaceErr 保存并发场景写入历史摘要时的错误。
-			_, prepareRaceErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, legacyHash, raceBefore.ID); prepareRaceErr != nil {
+			// prepareRaceErr 保存并发场景写入历史摘要时的错误。
+			if _, prepareRaceErr := store.DB.ExecContext(ctx, `UPDATE users SET password_hash=? WHERE id=?`, legacyHash, raceBefore.ID); prepareRaceErr != nil {
 				t.Fatal(prepareRaceErr)
 			}
 			// staleUser、staleLookupErr 保存并发改密前读取的过期登录快照。

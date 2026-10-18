@@ -10,7 +10,6 @@ func TestServerPlatformRuntimeDetailSkipsLoginSecrets(t *testing.T) {
 	// srv、store 和 cleanup 分别是测试服务器、数据库和资源清理函数。
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
-	// ctx 是平台适配模型测试共用的上下文。
 	ctx := context.Background()
 	// corruptErr 表示写入故意损坏的登录密码密文失败的原因。
 	if _, corruptErr := store.DB.ExecContext(ctx,

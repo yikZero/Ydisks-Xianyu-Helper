@@ -6,10 +6,9 @@ import (
 	"testing"
 )
 
-// TestRedactionHelpers 封装TestRedactionHelpers业务协调。
 func TestRedactionHelpers(t *testing.T) {
-	if // emptyError 是 nil 错误的安全空文本。
-	emptyError := Error(nil); emptyError != "" {
+	// emptyError 是 nil 错误的安全空文本。
+	if emptyError := Error(nil); emptyError != "" {
 		t.Fatalf("nil 错误应返回空文本: %q", emptyError)
 	}
 	if ID(" secret ") != ID("secret") || len(ID("secret")) != 12 {
@@ -18,12 +17,10 @@ func TestRedactionHelpers(t *testing.T) {
 	if ID("") != "" {
 		t.Fatal("empty ID should remain empty")
 	}
-	if // got 用于本次流程后续判断的got
-	got := URL("https://example.com/path?q=token#secret"); got != "https://example.com/path" {
+	if got := URL("https://example.com/path?q=token#secret"); got != "https://example.com/path" {
 		t.Fatalf("URL leaked query or fragment: %q", got)
 	}
-	if // got 用于本次流程后续判断的got
-	got := URL("not-a-url"); got != "<redacted>" {
+	if got := URL("not-a-url"); got != "<redacted>" {
 		t.Fatalf("invalid URL = %q", got)
 	}
 }
@@ -71,8 +68,8 @@ func TestExternalErrorRedactsCredentialPaths(t *testing.T) {
 	if strings.Contains(malformedDiagnostic, "MALFORMED_WEBHOOK_SECRET") || !strings.Contains(malformedDiagnostic, `parse "<redacted>"`) {
 		t.Fatalf("不合法外部地址未完全脱敏: %s", malformedDiagnostic)
 	}
-	if // emptyExternalError 验证 nil 外部错误保持安全空文本。
-	emptyExternalError := ExternalError(nil); emptyExternalError != "" {
+	// emptyExternalError 验证 nil 外部错误保持安全空文本。
+	if emptyExternalError := ExternalError(nil); emptyExternalError != "" {
 		t.Fatalf("nil 外部错误应返回空文本: %q", emptyExternalError)
 	}
 }

@@ -35,7 +35,6 @@ func (ownerGapSummary) GetOwnedSummary(context.Context, int64, string) (accounta
 
 // passwordGapPort 是密码登录端口桩，所有操作返回同一个错误。
 type passwordGapPort struct {
-	// err 是 Start、Check、Cancel 返回的错误。
 	err error
 }
 
@@ -56,7 +55,6 @@ func (p passwordGapPort) Cancel(context.Context, accountapp.PasswordLoginSession
 
 // localPublishGapPort 是批量本地收口端口桩。
 type localPublishGapPort struct {
-	// err 是 EnsureAutomationRules 返回的错误。
 	err error
 }
 
@@ -80,7 +78,6 @@ func (testerGapPort) Test(context.Context, cardsapp.APIRequestTestInput) (cardsa
 
 // TestSessionlessGuardsReturnUnauthorized 通过直接调用 handler 覆盖会话缺失时的防御性响应。
 func TestSessionlessGuardsReturnUnauthorized(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
 	srv.applications.apiRequestTester = testerGapPort{}
@@ -92,7 +89,6 @@ func TestSessionlessGuardsReturnUnauthorized(t *testing.T) {
 		call func(http.ResponseWriter, *http.Request)
 		// body 是请求体。
 		body string
-		// want 是期望状态码。
 		want int
 	}{
 		{"qr generate", srv.generateQRLogin, ``, 401},
@@ -143,9 +139,7 @@ func TestOwnershipAndAccountTaskGuards(t *testing.T) {
 	// srv、cleanup 是启用聊天应用的测试服务及资源释放函数。
 	srv, _, cleanup := newTestServerWithChat(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// real 是真实账号摘要端口。
 	real := srv.applications.accountSummaries
@@ -237,16 +231,13 @@ func TestPasswordLoginHelpersAndLocalPublishGaps(t *testing.T) {
 
 	// srv 没有装配本地收口端口。
 	srv := &Server{}
-	// err 是未装配本地收口端口时返回的错误，应为 ErrBatchLocalPublishUnavailable
 	if _, err := srv.newBatchLocalPublishService(); !errors.Is(err, itemapp.ErrBatchLocalPublishUnavailable) {
 		t.Errorf("unwired service err = %v", err)
 	}
-	// err 是自动化规则补建调用返回的错误，应来自缺失或失败的端口
 	if err := srv.createPublishAutomationRules(context.Background(), 1, itemapp.BatchRow{}, nil); err == nil {
 		t.Error("unwired service should fail")
 	}
 	srv.applications = &ApplicationPorts{itemBatchLocalPublish: localPublishGapPort{err: errors.New("rules failed")}}
-	// err 是自动化规则补建调用返回的错误，应来自缺失或失败的端口
 	if err := srv.createPublishAutomationRules(context.Background(), 1, itemapp.BatchRow{}, nil); err == nil {
 		t.Error("port error should propagate")
 	}
@@ -254,12 +245,9 @@ func TestPasswordLoginHelpersAndLocalPublishGaps(t *testing.T) {
 
 // TestItemHandlerRound2Gaps 覆盖商品接口的账号归属失败、凭证服务缺失和规格图片校验。
 func TestItemHandlerRound2Gaps(t *testing.T) {
-	// srv、cleanup 是基础测试服务及资源释放函数。
 	srv, _, cleanup := newTestServer(t)
 	defer cleanup()
-	// handler 是真实路由。
 	handler := srv.Router()
-	// cookie 是管理员会话。
 	cookie := loginHelper(t, handler)
 	// ghostRoutes 是账号不存在时应提前返回的商品接口。
 	ghostRoutes := []struct{ method, path string }{
@@ -293,7 +281,6 @@ func TestItemHandlerRound2Gaps(t *testing.T) {
 	}
 
 	srv.applications.platformCredentials = nil
-	// code 是发布接口返回的 HTTP 状态码
 	if code, _ := postPublishForm(handler, cookie, baseFields, okImages); code != http.StatusInternalServerError {
 		t.Errorf("missing credential service => %d", code)
 	}
@@ -343,7 +330,6 @@ func TestPublishBatchFailureAndCredentialHelpers(t *testing.T) {
 	}
 	// credErrs 描述凭证端口错误与 cookieValueForUser 的映射结果是否应为统一文案。
 	credErrs := []struct {
-		// err 是凭证端口返回的错误。
 		err error
 		// value 是凭证端口返回的 Cookie 占位值。
 		value string

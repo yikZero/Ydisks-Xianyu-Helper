@@ -39,7 +39,6 @@ func TestExecuteLoginRenewHandlesAccountLoadFailure(t *testing.T) {
 	// store、cleanup 是随后关闭数据库连接的本地续期仓储及资源清理函数。
 	store, cleanup := newSchedulerTestStore(t)
 	defer cleanup()
-	// closeErr 保存关闭测试数据库连接的结果。
 	if closeErr := store.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -73,13 +72,11 @@ func TestExecuteLoginRenewProcessesActiveAccountsWithCanceledContext(t *testing.
 
 // TestLoginRenewOneCoversReloadAndDisabledBranches 验证单账号登录续期在重读失败和账号已停用时不访问平台。
 func TestLoginRenewOneCoversReloadAndDisabledBranches(t *testing.T) {
-	// ctx 是本测试登录续期入口共用的非取消上下文。
 	ctx := context.Background()
 	// closedStore、closedCleanup 保存随后关闭数据库连接的测试存储。
 	closedStore, closedCleanup := newSchedulerTestStore(t)
 	// closedAccount 是数据库关闭前创建的登录续期账号快照。
 	closedAccount := createSchedulerAccount(t, closedStore, "login-reload-failure", "unb=1")
-	// closeErr 保存关闭测试数据库连接的结果。
 	if closeErr := closedStore.DB.Close(); closeErr != nil {
 		t.Fatal(closeErr)
 	}
@@ -195,7 +192,6 @@ func TestSchedulerFixedLoopsCoverTimerAndDynamicDisable(t *testing.T) {
 	// store、cleanup 保存循环读取设置所需的本地仓储及关闭函数。
 	store, cleanup := newSchedulerTestStore(t)
 	defer cleanup()
-	// ctx、cancel 控制测试循环的有限生命周期。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// scheduler 保存本地设置仓储，不会访问外部平台。
@@ -249,7 +245,6 @@ func TestSchedulerAPILoopCoversTimerAndDynamicDisable(t *testing.T) {
 	// store、cleanup 保存 API 循环读取设置所需的本地仓储及关闭函数。
 	store, cleanup := newSchedulerTestStore(t)
 	defer cleanup()
-	// ctx、cancel 控制 API 循环的有限生命周期。
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// scheduler 保存本地设置仓储，API 续期开关明确关闭以避免外部请求。

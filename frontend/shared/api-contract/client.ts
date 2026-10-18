@@ -30,6 +30,7 @@ export const contractFetch: typeof fetch = (input, init) => fetch(input, { ...in
 // contractBaseUrl 是浏览器生产环境的当前 origin；Node 测试使用可被 fetch fixture 还原的占位 origin。
 const contractBaseUrl = typeof location === 'undefined' ? 'http://localhost' : location.origin;
 
+// contractClient 基于 OpenAPI 生成类型的共享 HTTP 客户端，feature adapter 通过它调用后端。
 export const contractClient = createClient<paths>({ baseUrl: contractBaseUrl, fetch: contractFetch });
 
 // contractMultipartBody 将原生 FormData 作为对应 OpenAPI multipart operation 的运行时载荷交给客户端。

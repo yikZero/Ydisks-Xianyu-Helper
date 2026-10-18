@@ -13,10 +13,8 @@ import (
 
 // TestAIBargainQuoteAutomaticallyAdjustsCreatedOrder 验证订单创建事件会消费四维匹配的 AI 报价并复用真实改价能力。
 func TestAIBargainQuoteAutomaticallyAdjustsCreatedOrder(t *testing.T) {
-	// store、cleanup 保存自动改价测试数据库及清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是 AI 报价和订单事件共用的测试上下文。
 	ctx := context.Background()
 	// err 是保存 AI 议价与真实改价开关时不应出现的错误。
 	if err := store.AIReply.UpsertSettings(ctx, "cid", db.AIReplySettings{AIEnabled: true, AutoAdjustPriceEnabled: true, MaxDiscountPercent: 10, MaxDiscountAmount: 20, MaxBargainRounds: 3, AIMode: "bargain_only"}); err != nil {
@@ -57,10 +55,8 @@ func TestAIBargainQuoteRetriesTransientBusy(t *testing.T) {
 	t.Cleanup(func() {
 		adjustPriceTransientRetryGap = previousGap
 	})
-	// store、cleanup 保存自动改价测试数据库及清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是 AI 报价和订单事件共用的测试上下文。
 	ctx := context.Background()
 	// err 是保存 AI 议价与真实改价开关时不应出现的错误。
 	if err := store.AIReply.UpsertSettings(ctx, "cid", db.AIReplySettings{AIEnabled: true, AutoAdjustPriceEnabled: true, MaxDiscountPercent: 10, MaxDiscountAmount: 20, MaxBargainRounds: 3, AIMode: "bargain_only"}); err != nil {
@@ -99,10 +95,8 @@ func TestAIBargainQuoteRetriesTransientBusy(t *testing.T) {
 
 // TestAINegotiationSuppressesLegacyFixedPriceRule 验证升级前遗留冲突配置也由 AI 模式优先，固定价格规则不会执行。
 func TestAINegotiationSuppressesLegacyFixedPriceRule(t *testing.T) {
-	// store、cleanup 保存遗留冲突配置测试数据库及清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是遗留规则和订单事件共用的测试上下文。
 	ctx := context.Background()
 	// owner 是测试账号所属用户，用于创建一条模拟升级前遗留的固定改价规则。
 	owner, err := store.Users.GetByUsername(ctx, "admin")
@@ -129,7 +123,6 @@ func TestAINegotiationSuppressesLegacyFixedPriceRule(t *testing.T) {
 
 // TestAdjustOrderPriceActionSuccess 验证改价动作成功时返回一个外部结果并传递整数分价格。
 func TestAdjustOrderPriceActionSuccess(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// fake 保存返回业务成功的 MTOP 客户端。
@@ -155,7 +148,6 @@ func TestAdjustOrderPriceActionRetriesTransientBusy(t *testing.T) {
 	t.Cleanup(func() {
 		adjustPriceTransientRetryGap = previousGap
 	})
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// fake 模拟首次订单状态尚未可改价、第二次成功的远端行为。
@@ -181,7 +173,6 @@ func TestAdjustOrderPriceActionRetriesTypedBusinessFailure(t *testing.T) {
 	t.Cleanup(func() {
 		adjustPriceTransientRetryGap = previousGap
 	})
-	// store、cleanup 保存自动化改价测试数据库及关闭责任。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// businessFailure 模拟 MTOP 已收到并确认的暂时性平台业务拒绝，而不是网络或解析错误。
@@ -234,7 +225,6 @@ func TestAdjustOrderPriceSystemFailureRemainsRetryable(t *testing.T) {
 
 // TestAdjustOrderPriceActionMissingOrderID 验证缺少订单号时动作标记为明确未执行。
 func TestAdjustOrderPriceActionMissingOrderID(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// fake 保存不应被调用的 MTOP 客户端。
@@ -254,7 +244,6 @@ func TestAdjustOrderPriceActionMissingOrderID(t *testing.T) {
 
 // TestAdjustOrderPriceActionInvalidConfig 验证目标价格非法时动作标记为明确未执行且不触网。
 func TestAdjustOrderPriceActionInvalidConfig(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// fake 保存不应被调用的 MTOP 客户端。
@@ -279,7 +268,6 @@ func TestAdjustOrderPriceActionInvalidConfig(t *testing.T) {
 
 // TestAdjustOrderPriceActionBizFailure 验证平台业务拒绝时返回带业务返回文本的失败。
 func TestAdjustOrderPriceActionBizFailure(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// fake 保存返回业务失败的 MTOP 客户端。
@@ -304,10 +292,8 @@ func TestAdjustOrderPriceActionBizFailure(t *testing.T) {
 
 // TestAdjustOrderPriceTerminalFailureDoesNotCreateRecoveryRetry 验证终态平台拒绝会收口为失败且不进入运行级恢复队列。
 func TestAdjustOrderPriceTerminalFailureDoesNotCreateRecoveryRetry(t *testing.T) {
-	// store、cleanup 保存自动化运行状态测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的数据库和自动化执行上下文。
 	ctx := context.Background()
 	// admin 是创建测试规则所需的管理员用户。
 	admin, adminErr := store.Users.GetByUsername(ctx, "admin")
@@ -354,7 +340,6 @@ func TestAdjustOrderPriceTerminalFailureDoesNotCreateRecoveryRetry(t *testing.T)
 
 // TestAdjustOrderPriceActionTransportErrorIsUncertain 验证传输错误标记为结果未知，禁止自动重放。
 func TestAdjustOrderPriceActionTransportErrorIsUncertain(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
 	// fake 保存返回传输错误的 MTOP 客户端。
@@ -376,10 +361,8 @@ func TestAdjustOrderPriceActionTransportErrorIsUncertain(t *testing.T) {
 
 // TestAdjustOrderPriceRecoversExpiredSessionOnce 验证 Session 明确失效时只恢复一次凭证，并使用新凭证重新提交改价。
 func TestAdjustOrderPriceRecoversExpiredSessionOnce(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// fake 保存先返回会话失效、恢复后返回成功的 MTOP 结果序列。
 	fake := &fakeMTop{adjustResults: []fakeAdjustPriceResult{
@@ -406,10 +389,8 @@ func TestAdjustOrderPriceRecoversExpiredSessionOnce(t *testing.T) {
 
 // TestAdjustOrderPriceDoesNotOverwriteConcurrentCookie 验证改价旧响应返回的 Cookie 不会覆盖外部调用期间并发写入的新凭证。
 func TestAdjustOrderPriceDoesNotOverwriteConcurrentCookie(t *testing.T) {
-	// store、cleanup 保存测试数据库及其清理函数。
 	store, cleanup := newAutomationTestStore(t)
 	defer cleanup()
-	// ctx 是本测试共用的上下文。
 	ctx := context.Background()
 	// initial 是外部请求开始时写入的旧 Cookie。
 	initial := "sid=old"
@@ -431,8 +412,7 @@ func TestAdjustOrderPriceDoesNotOverwriteConcurrentCookie(t *testing.T) {
 	result := make(chan struct {
 		// sent 是改价产生的外部结果数量。
 		sent int
-		// err 是改价执行返回的错误。
-		err error
+		err  error
 	}, 1)
 	go func() {
 		// sent、runErr 分别保存异步改价产生的外部结果数和执行错误。

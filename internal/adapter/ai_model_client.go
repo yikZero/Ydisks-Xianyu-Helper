@@ -139,8 +139,8 @@ func ParseAIModels(raw []byte) ([]string, error) {
 			// id、ok 保存优先使用的模型标识及其类型判断结果。
 			if id, ok := typed["id"].(string); ok && id != "" {
 				addModel(id)
-			} else if // name、ok 保存模型名称回退值及其类型判断结果。
-			name, ok := typed["name"].(string); ok && name != "" {
+			} else if name, ok := typed["name"].(string); ok && name != "" {
+				// name、ok 保存模型名称回退值及其类型判断结果。
 				addModel(name)
 			}
 		case string:
@@ -152,8 +152,8 @@ func ParseAIModels(raw []byte) ([]string, error) {
 		// data、ok 保存兼容 OpenAI 的 data 字段及存在性判断结果。
 		if data, ok := root["data"]; ok {
 			walk(data)
-		} else if // models、ok 保存兼容服务的 models 字段及存在性判断结果。
-		models, ok := root["models"]; ok {
+		} else if models, ok := root["models"]; ok {
+			// models、ok 保存兼容服务的 models 字段及存在性判断结果。
 			walk(models)
 		}
 	} else {

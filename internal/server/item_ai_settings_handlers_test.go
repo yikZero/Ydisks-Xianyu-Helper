@@ -71,8 +71,7 @@ func TestItemAISettingsHandlersEnforceOwnershipAndValidation(t *testing.T) {
 		name string
 		// method、path、body 是请求内容。
 		method, path, body string
-		// want 是期望状态码。
-		want int
+		want               int
 	}{
 		{"读取他人账号", http.MethodGet, "/api/v1/items/other-acc/item-1/ai-settings", "", http.StatusForbidden},
 		{"保存他人账号", http.MethodPut, "/api/v1/items/other-acc/item-1/ai-settings", `{"ai_override":"enabled","item_context":""}`, http.StatusForbidden},
@@ -135,8 +134,7 @@ func TestWriteItemAISettingsErrorMapsApplicationErrors(t *testing.T) {
 		// name 是子用例说明。
 		name string
 		// err 是传入映射函数的错误。
-		err error
-		// want 是期望状态码。
+		err  error
 		want int
 	}{
 		{"越权", itemapp.ErrItemAISettingsForbidden, http.StatusForbidden},

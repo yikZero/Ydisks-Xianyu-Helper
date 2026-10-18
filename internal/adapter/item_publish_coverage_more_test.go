@@ -11,7 +11,6 @@ import (
 
 // TestItemPublishPortCoversInputAndPlatformErrorBranches 验证单商品发布的空依赖、归属校验、空响应和普通平台错误分支。
 func TestItemPublishPortCoversInputAndPlatformErrorBranches(t *testing.T) {
-	// ctx 是本测试发布入口共用的非取消上下文。
 	ctx := context.Background()
 	// emptyPort 表示未装配存储的单商品发布端口。
 	var emptyPort *ItemPublishPort
@@ -20,7 +19,6 @@ func TestItemPublishPortCoversInputAndPlatformErrorBranches(t *testing.T) {
 	if emptyPortErr == nil {
 		t.Fatal("空发布端口应拒绝执行")
 	}
-	// store、cleanup 保存本地商品发布测试数据库及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// platformErr 是平台返回的普通传输错误。
@@ -87,7 +85,6 @@ func TestItemPublishPortCoversInputAndPlatformErrorBranches(t *testing.T) {
 
 // TestItemPublishPortCoversCategoryErrorMappings 验证类目推荐的账号归属、平台错误和会话持久化错误映射。
 func TestItemPublishPortCoversCategoryErrorMappings(t *testing.T) {
-	// ctx 是本测试类目推荐入口共用的非取消上下文。
 	ctx := context.Background()
 	// emptyPort 表示未装配存储的空类目推荐端口。
 	var emptyPort *ItemPublishPort
@@ -96,7 +93,6 @@ func TestItemPublishPortCoversCategoryErrorMappings(t *testing.T) {
 	if emptyPortErr == nil {
 		t.Fatal("空类目推荐端口应拒绝执行")
 	}
-	// store、cleanup 保存类目账号归属校验测试数据库及清理函数。
 	store, cleanup := newAdapterTestStore(t)
 	defer cleanup()
 	// client 是返回不同平台错误的类目推荐平台替身。

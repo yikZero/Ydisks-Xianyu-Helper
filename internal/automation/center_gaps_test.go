@@ -2,6 +2,7 @@ package automation
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -266,5 +267,47 @@ func TestRunAccountTaskGapBranches(t *testing.T) {
 	center.logger = nil
 	if _, err := center.RunAccountTask(context.Background(), "cid", "unknown_task"); err == nil {
 		t.Fatal("未知任务类型应报错")
+	}
+}
+
+// TestTaskRawIntegersSurviveJSONRoundTrip 覆盖延期任务经 JSON 往返后运行 ID 和延时游标仍能解析，
+// 包括 fmt.Sprint 会输出科学计数法的 1000000，同时确认明文凭证不会随任务持久化。
+func TestTaskRawIntegersSurviveJSONRoundTrip(t *testing.T) {
+	task := Task{AccountID: "a", CookieStr: "unb=secret", Raw: map[string]any{"automation_run_id": int64(1000000), "automation_delay_cursor": 2}}
+	encoded, err := json.Marshal(task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "secret") {
+		t.Fatalf("持久化任务不应包含明文凭证: %s", encoded)
+	}
+	var decoded Task
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if got := taskAutomationRunID(decoded); got != 1000000 {
+		t.Fatalf("run id = %d, want 1000000", got)
+	}
+	if got := taskDelayCursor(decoded); got != 2 {
+		t.Fatalf("delay cursor = %d, want 2", got)
+	}
+	for _, tc := range []struct {
+		value any
+		want  int64
+		ok    bool
+	}{
+		{int(7), 7, true}, {int64(8), 8, true}, {float64(9), 9, true},
+		{1.5, 0, false}, {"10", 0, false}, {nil, 0, false}, {float64(1 << 60), 0, false},
+	} {
+		got, ok := rawInt64(map[string]any{"k": tc.value}, "k")
+		if got != tc.want || ok != tc.ok {
+			t.Fatalf("rawInt64(%v) = %d,%v want %d,%v", tc.value, got, ok, tc.want, tc.ok)
+		}
+	}
+	if _, ok := rawInt64(nil, "k"); ok {
+		t.Fatal("nil map 不应解析成功")
+	}
+	if taskAutomationRunID(Task{Raw: map[string]any{"automation_run_id": -1}}) != 0 || taskDelayCursor(Task{}) != -1 {
+		t.Fatal("非法值应回落到默认")
 	}
 }

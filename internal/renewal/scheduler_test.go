@@ -1,9 +1,11 @@
 package renewal
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -821,5 +823,25 @@ func TestAPICookieRenewOneUsesSingleSilentRequestAndSavesCookies(t *testing.T) {
 	log := lastAPIRenewLog(t, store, account.ID)
 	if log.status != "cookie_updated" || log.requestCount != 1 || !strings.Contains(log.responseContent, "single-silent") {
 		t.Fatalf("silent renewal log=%+v", log)
+	}
+}
+
+// TestClampIntervalWarnsOncePerConfiguredValue 验证过短间隔每轮都被提升到下限，但同一配置值只告警一次。
+func TestClampIntervalWarnsOncePerConfiguredValue(t *testing.T) {
+	var logs bytes.Buffer
+	s := NewScheduler(nil, nil, nil, slog.New(slog.NewTextHandler(&logs, nil)))
+	for i := 0; i < 3; i++ {
+		if got := s.clampInterval("k", time.Millisecond); got != minRenewalInterval {
+			t.Fatalf("clamp = %s want %s", got, minRenewalInterval)
+		}
+	}
+	if got := s.clampInterval("k", 2*time.Millisecond); got != minRenewalInterval {
+		t.Fatalf("clamp = %s want %s", got, minRenewalInterval)
+	}
+	if got := s.clampInterval("k", 2*time.Minute); got != 2*time.Minute {
+		t.Fatalf("合法间隔不应被修改: %s", got)
+	}
+	if n := strings.Count(logs.String(), "续期间隔配置过短"); n != 2 {
+		t.Fatalf("同一配置值只应告警一次，配置变化后再告警；got %d 条:\n%s", n, logs.String())
 	}
 }

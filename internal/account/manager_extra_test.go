@@ -375,7 +375,7 @@ func TestManagerStopAndRestartErrorBoundaries(t *testing.T) {
 //   - done 已关 + err=nil：覆盖为 RuntimeError + "账号服务已退出"
 //   - done 已关 + err=非 context.Canceled：覆盖为 RuntimeError + err 文案
 //   - done 已关 + err=context.Canceled：覆盖为 RuntimeError + "账号服务已退出"
-//   - done 已关 + 状态=RuntimeAuthExpired：保持原状态（通过 session-expired 走 handleMaxFailures）
+//   - done 已关 + 状态=RuntimeAuthExpired：保持原状态（session-expired 走凭证续期失败分支）
 //   - done 已关 + 状态=RuntimeVerificationRequired：保持原状态（通过验证类错误 + 取消）
 func TestRuntimeStatuses(t *testing.T) {
 	mgr, store, cleanup := newManagerWithAccount(t, "seed", "unb=1; _m_h5_tk=t1_1;")
@@ -421,7 +421,7 @@ func TestRuntimeStatuses(t *testing.T) {
 	mgr.accounts["canceled"] = canceledMA
 	mgr.mu.Unlock()
 
-	// 5) 状态=RuntimeAuthExpired（session-expired 错误让 Run 走到 handleMaxFailures 慢重试）。
+	// 5) 状态=RuntimeAuthExpired（session-expired 错误让 Run 进入凭证续期失败分支）。
 	//    新行为：账号不再硬退出，而是保持 goroutine 存活、慢重试，状态停在 RuntimeAuthExpired。
 	store.Cookies.Save(context.Background(), "auth-exp", "unb=5; _m_h5_tk=t_1;", admin.ID)
 	authMgr := mgr

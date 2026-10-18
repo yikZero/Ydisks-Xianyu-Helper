@@ -76,6 +76,10 @@ type Scheduler struct {
 	stopRequested bool
 	// minInterval 是续期任务的最短执行间隔，构造后只读；测试可在 Run 之前调小。
 	minInterval time.Duration
+	// clampMu 保护 clampWarned；各续期循环在各自 goroutine 中读取间隔设置。
+	clampMu sync.Mutex
+	// clampWarned 记录每个设置键最近一次告警过的过短配置值，同一值只告警一次。
+	clampWarned map[string]time.Duration
 }
 
 // RenewalNotifier 发送账号续期相关告警。

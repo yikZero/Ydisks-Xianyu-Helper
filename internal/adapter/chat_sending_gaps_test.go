@@ -122,52 +122,6 @@ func (c *racingChatItemClient) SearchChatItems(ctx context.Context, _, _, _, _ s
 	return nil, c.err
 }
 
-// TestChatCredentialRepositoryPersistBranches 覆盖凭证仓储的空依赖、读取失败、平面更新与未变化路径。
-func TestChatCredentialRepositoryPersistBranches(t *testing.T) {
-	ctx := context.Background()
-	if _, _, err := (chatCredentialRepository{}).persistCookieSession(ctx, db.CookiePlatformRuntimeData{ID: "cid"}, nil, ""); !errors.Is(err, chatapp.ErrUnavailable) {
-		t.Fatalf("空存储: %v", err)
-	}
-	store, cleanup := newAdapterTestStore(t)
-	defer cleanup()
-	// repository 绑定隔离存储。
-	repository := chatCredentialRepository{store: store}
-	if _, _, err := repository.persistCookieSession(ctx, db.CookiePlatformRuntimeData{ID: "missing"}, nil, ""); err == nil {
-		t.Fatal("账号缺失应失败")
-	}
-	// initial 是平台请求开始前的凭证视图。
-	initial, err := store.Cookies.GetCookiePlatformRuntimeData(ctx, "cid")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// 无会话且无更新：不同步。
-	if _, sync, err := repository.persistCookieSession(ctx, initial, nil, ""); sync || err != nil {
-		t.Fatalf("无变化: %v %v", sync, err)
-	}
-	// 会话未变化且带空快照：同样不同步。
-	_, session := withCookieSnapshot(ctx, initial)
-	// err、sync 依次为：保存本步骤调用返回的错误，用于断言预期的成功或失败路径；测试中的局部对象，承载被测流程的输入、依赖或输出。
-	if _, sync, err := repository.persistCookieSession(ctx, initial, session, ""); sync || err != nil {
-		t.Fatalf("会话未变化: %v %v", sync, err)
-	}
-	// 平面 Cookie 更新被保存并要求同步。
-	if value, sync, err := repository.persistCookieSession(ctx, initial, nil, "unb=1; flat=1"); !sync || err != nil || value != "unb=1; flat=1" {
-		t.Fatalf("平面更新: %q %v %v", value, sync, err)
-	}
-	// 凭证读取服务：getCookieValue/updateCookieValue 成功路径。
-	if _, err := repository.getCookieValue(ctx, "cid"); err != nil {
-		t.Fatal(err)
-	}
-	if err := repository.updateCookieValue(ctx, "cid", "unb=1; z=1"); err != nil {
-		t.Fatal(err)
-	}
-	// 数据库关闭后写回失败。
-	cleanup()
-	if _, _, err := repository.persistCookieSession(ctx, initial, nil, "unb=1; other=1"); err == nil {
-		t.Fatal("数据库关闭后应失败")
-	}
-}
-
 // TestChatImageUploaderGuardsAndErrors 覆盖图片上传的依赖缺失、凭证缺失、能力缺失、平台错误和写回冲突。
 func TestChatImageUploaderGuardsAndErrors(t *testing.T) {
 	ctx := context.Background()

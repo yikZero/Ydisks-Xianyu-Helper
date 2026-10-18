@@ -5,25 +5,7 @@ import (
 	"time"
 )
 
-// 本文件保存只被测试使用的历史薄包装：生产代码已改走带凭证/租约的正式入口，测试仍通过它们覆盖同一实现。
-
-// MergeSetCookies 将 Set-Cookie 响应头合并进原 Cookie 字符串。
-func MergeSetCookies(original string, setCookies []string) string {
-	m := ParseCookieString(original)
-	for _, raw := range setCookies {
-		first := strings.TrimSpace(strings.Split(raw, ";")[0])
-		eq := strings.Index(first, "=")
-		if eq <= 0 {
-			continue
-		}
-		name := strings.TrimSpace(first[:eq])
-		if name == "" {
-			continue
-		}
-		m[name] = strings.TrimSpace(first[eq+1:])
-	}
-	return MarshalCookieString(m)
-}
+// 本文件保存测试断言用的 Cookie 头与字符串生成入口，委托给生产中的 ScopedCookieHeaderForRequest 与 NormalizeSnapshot。
 
 // CookieHeaderForURL 按浏览器 Domain/Path/Secure/Expires 规则生成指定 URL 的
 // Cookie header，并保留不同路径下的同名 Cookie。
@@ -52,13 +34,4 @@ func CookieStringFromSnapshot(cookies []BrowserCookie) string {
 		parts = append(parts, c.Name+"="+c.Value)
 	}
 	return strings.Join(parts, "; ")
-}
-
-// MergeOriginalFields 补回浏览器未返回但原 Cookie 中存在的字段。
-func MergeOriginalFields(original, browserCookieString string) string {
-	m := ParseCookieString(original)
-	for k, v := range ParseCookieString(browserCookieString) {
-		m[k] = v
-	}
-	return MarshalCookieString(m)
 }

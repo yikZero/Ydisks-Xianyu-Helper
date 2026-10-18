@@ -12,7 +12,7 @@ func TestTokenFailureCannotMasqueradeAsSessionExpired(t *testing.T) {
 	tokenErr := &MTopResponseError{Kind: MTopErrorTokenExpired, Ret: []string{"FAIL_SYS_TOKEN_EXOIRED::令牌过期"}}
 	// failure 覆盖原始、旧版包装和存储错误合并后的 Token 错误链。
 	for _, failure := range []error{tokenErr, fmt.Errorf("token API 登录凭证已失效: %w", tokenErr), errors.Join(tokenErr, errors.New("保存 Cookie 失败"))} {
-		if !IsMTopTokenExpiredErr(failure) || IsSessionExpiredErr(failure) || IsCredentialRefreshableErr(failure) {
+		if !IsMTopTokenExpiredErr(failure) || IsSessionExpiredErr(failure) {
 			t.Fatalf("Token 分类不得触发账号级恢复: %v", failure)
 		}
 	}
@@ -24,7 +24,7 @@ func TestTokenFailureCannotMasqueradeAsSessionExpired(t *testing.T) {
 	}
 	// sessionErr 是实际 Session 失效，必须继续允许账号恢复。
 	sessionErr := &SessionExpiredError{Ret: []string{"FAIL_SYS_SESSION_EXPIRED"}}
-	if !IsSessionExpiredErr(fmt.Errorf("请求失败: %w", sessionErr)) || !IsCredentialRefreshableErr(sessionErr) {
+	if !IsSessionExpiredErr(fmt.Errorf("请求失败: %w", sessionErr)) || !IsSessionExpiredErr(sessionErr) {
 		t.Fatal("明确 Session 失效必须继续允许账号恢复")
 	}
 }

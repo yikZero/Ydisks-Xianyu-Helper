@@ -105,18 +105,28 @@ func dialBackoff(failures int) time.Duration {
 	return dialBackoffSteps[failures-1]
 }
 
-// dialRetryDelay 返回当前连续拨号失败次数对应的退避时长，测试可通过 dialRetryDelayFn 覆盖。
+// dialRetryDelay 返回当前连续拨号失败次数对应的退避时长。
 func (a *Account) dialRetryDelay() time.Duration {
 	a.runtimeMu.Lock()
 	// failures 是连续拨号或注册网络失败次数快照。
 	failures := a.connFailures
-	// override 是测试注入的退避函数快照。
+	a.runtimeMu.Unlock()
+	return a.backoffDelay(failures, false)
+}
+
+// backoffDelay 返回第 n 次连续失败后的退避时长；jitter 为 true 时加 0-30% 抖动，错开多账号同时重连。
+// 测试可通过 dialRetryDelayFn 覆盖，覆盖时直接返回其结果、不加抖动。
+func (a *Account) backoffDelay(n int, jitter bool) time.Duration {
+	a.runtimeMu.Lock()
 	override := a.dialRetryDelayFn
 	a.runtimeMu.Unlock()
 	if override != nil {
-		return override(failures)
+		return override(n)
 	}
-	return dialBackoff(failures)
+	if jitter {
+		return withRetryJitter(dialBackoff(n))
+	}
+	return dialBackoff(n)
 }
 
 func (a *Account) tokenRetryDelay() time.Duration {

@@ -370,12 +370,16 @@ func TestPauseBeforeReconnectBacksOffRapidDisconnects(t *testing.T) {
 	}
 }
 
-// TestRapidReconnectDefaultBackoffIsBounded 验证未注入覆盖时退避使用拨号退避序列并带有限抖动。
-func TestRapidReconnectDefaultBackoffIsBounded(t *testing.T) {
-	for n := 1; n <= 8; n++ {
+// TestBackoffDelayJitterIsBounded 验证未注入覆盖时 backoffDelay 使用拨号退避序列，抖动不超过 30%。
+func TestBackoffDelayJitterIsBounded(t *testing.T) {
+	account, _, _, cleanup := newAccountForTest(t)
+	defer cleanup()
+	for n := 1; n <= len(dialBackoffSteps)+1; n++ {
 		base := dialBackoff(n)
-		got := withRetryJitter(base)
-		if got < base || got > base+base*3/10 {
+		if got := account.backoffDelay(n, false); got != base {
+			t.Fatalf("n=%d 无抖动退避 %s want %s", n, got, base)
+		}
+		if got := account.backoffDelay(n, true); got < base || got > base+base*3/10 {
 			t.Fatalf("n=%d 抖动后的退避 %s 超出 [%s, %s]", n, got, base, base+base*3/10)
 		}
 	}

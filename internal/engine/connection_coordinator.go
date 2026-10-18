@@ -179,14 +179,14 @@ func (c *connectionCoordinator) finishSession(ctx context.Context, session conne
 		return true
 	}
 	if ws.IsAuthenticationError(session.ReceiveErr) {
-		// 官网把 /push/kickout 转成 UNCONNECTED，页面监听器随后立即
-		// reConnect，并由 authTokenCallback 获取新的连接凭证。
+		// 官网把 /push/kickout 转成 UNCONNECTED 后重新连接，并由 authTokenCallback 获取新的连接凭证；
+		// 反复被踢时由 pauseBeforeReconnect 退避。
 		a.clearConnectionToken(ctx)
 		a.setRuntimeState(RuntimeReconnecting, "消息会话被服务端踢下线，正在重新连接")
 		return false
 	}
 	// 心跳失败会先关闭连接，ReceiveLoop 往往只观察到 context canceled。
-	// 官网以心跳 Promise 的 reject 为真实断线原因并立即 reConnect。
+	// 官网以心跳 Promise 的 reject 为真实断线原因并重新连接。
 	// receiveErr 是后续错误分类使用的本地副本；心跳错误优先于 context canceled。
 	// receiveErr 是用于下方重连分类的最终接收错误。
 	receiveErr := session.ReceiveErr
@@ -206,7 +206,7 @@ func (c *connectionCoordinator) finishSession(ctx context.Context, session conne
 		a.clearConnectionToken(ctx)
 		a.setRuntimeState(RuntimeReconnecting, "网络连接已断开，正在重新连接")
 		a.logger.Warn("WS 网络连接结束", "err", receiveErr, "connected_duration", session.ConnectedDuration.Round(time.Second), "heartbeat_err", session.HeartbeatErr)
-		// 官网当前页面在 CONN_UNCONNECTED 事件后立即调用 reConnect。
+		// 官网在 CONN_UNCONNECTED 事件后重新连接；连续短连接的退避见 pauseBeforeReconnect。
 		return false
 	}
 
@@ -232,15 +232,11 @@ func (c *connectionCoordinator) pauseBeforeReconnect(ctx context.Context, connec
 	}
 	a.rapidReconnects++
 	consecutive := a.rapidReconnects
-	override := a.dialRetryDelayFn
 	a.runtimeMu.Unlock()
 	if consecutive < 2 {
 		return nil
 	}
-	delay := withRetryJitter(dialBackoff(consecutive - 1))
-	if override != nil {
-		delay = override(consecutive - 1)
-	}
+	delay := a.backoffDelay(consecutive-1, true)
 	a.logger.Warn("消息连接频繁断开，延迟重连", "consecutive", consecutive, "connected_duration", connected.Round(time.Millisecond), "delay", delay.Round(time.Second))
 	return sleepCtx(ctx, delay)
 }
@@ -300,7 +296,6 @@ func (c *connectionCoordinator) markConnectionOnline(ctx context.Context, conn W
 	a.conn = conn
 	a.connStartedAt = time.Now()
 	a.connFailures = 0
-	a.networkFailures = 0
 	a.authExpiredAlerted = false
 	// shouldRecovered 表示本次连接是否结束了一个已经通知用户的离线周期。
 	shouldRecovered := a.offlineNotified

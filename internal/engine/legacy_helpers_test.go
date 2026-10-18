@@ -2,7 +2,7 @@ package engine
 
 import "time"
 
-// 本文件保存只被测试使用的历史薄包装：生产代码已改走带凭证/租约的正式入口，测试仍通过它们覆盖同一实现。
+// 本文件保存只供测试调用的同步消息分发入口；生产路径经 messageDispatcher.dispatch 异步进入同一实现。
 
 // handleMessage 分类并投递消息。
 func (a *Account) handleMessage(decrypted map[string]any) {

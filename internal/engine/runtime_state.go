@@ -15,9 +15,7 @@ type accountRuntimeState struct {
 
 	// connFailures 是连续连接或认证失败次数。
 	connFailures int
-	// networkFailures 是网络断线累计次数。
-	networkFailures int
-	// dialRetryDelayFn 仅供测试覆盖拨号失败退避时长，参数为连续失败次数；生产环境保持 nil 并使用 dialBackoff。
+	// dialRetryDelayFn 仅供测试覆盖退避时长（拨号失败与连续短连接共用），参数为连续次数；生产环境保持 nil 并使用 dialBackoff。
 	dialRetryDelayFn func(failures int) time.Duration
 	// rapidReconnects 是连续“连上即断”（持续不足 ShortConnectionThreshold）的会话次数，用于重连退避。
 	rapidReconnects int

@@ -5,18 +5,13 @@ import (
 	"xianyu-go/internal/db"
 )
 
-// 本文件保存只被测试使用的历史薄包装：生产代码已改走带凭证/租约的正式入口，测试仍通过它们覆盖同一实现。
+// 本文件保存只供测试调用的便捷入口：生产路径直接使用 *WithProof 与带预算的扫描函数，这里只补默认参数。
 
 // executeAction 执行一个动作，并把消息发送错误分类为可安全重试或结果未知。
 func (e *automationActionExecutor) executeAction(ctx context.Context, task Task, action db.AutomationAction) (int, error) {
 	// result 保存不带发货凭证的兼容动作结果；直接调用该入口的旧调用方不附加确认发货内容。
 	result, err := e.executeActionWithProof(ctx, task, action, shipmentDeliveryProof{})
 	return result.sent, err
-}
-
-// confirmShipment 根据账号设置和任务强制标记决定是否确认订单发货。
-func (e *automationActionExecutor) confirmShipment(ctx context.Context, task Task) error {
-	return e.confirmShipmentWithProof(ctx, task, shipmentDeliveryProof{})
 }
 
 // sendCard 按规格和购买数量分配文本、图片或数据卡密。
@@ -52,29 +47,24 @@ func (s *Scheduler) scanPendingShipResumes(ctx context.Context) {
 	// scanCtx 为直接调用该扫描入口时提供的独立单轮预算；正式调度由 scan 传入共享预算上下文。
 	scanCtx, cancel := context.WithTimeout(ctx, s.pendingShipScanBudgetValue())
 	defer cancel()
-	s.scanPendingShipResumesWithContext(scanCtx)
-}
-
-// scanPendingShipResumesWithContext 在给定预算内扫描并续跑尚未完成的待发货运行。
-func (s *Scheduler) scanPendingShipResumesWithContext(ctx context.Context) {
-	// remainingTasks 保存本次直接调用可使用的待发货任务额度。
-	remainingTasks := s.pendingShipScanMaxTasksValue()
-	_ = s.scanPendingShipResumesWithContextAndLimit(ctx, remainingTasks)
+	_ = s.scanPendingShipResumesWithContextAndLimit(scanCtx, s.pendingShipScanMaxTasksValue())
 }
 
 // executeAction 将具体动作委托给发货动作执行器。
 func (c *Center) executeAction(ctx context.Context, task Task, action db.AutomationAction) (int, error) {
-	return c.actions.executeAction(ctx, task, action)
+	result, err := c.actions.executeActionWithProof(ctx, task, action, shipmentDeliveryProof{})
+	return result.sent, err
 }
 
 // confirmShipment 将确认发货委托给发货动作执行器。
 func (c *Center) confirmShipment(ctx context.Context, task Task) error {
-	return c.actions.confirmShipment(ctx, task)
+	return c.actions.confirmShipmentWithProof(ctx, task, shipmentDeliveryProof{})
 }
 
 // sendCard 将卡密发送委托给发货动作执行器。
 func (c *Center) sendCard(ctx context.Context, task Task, action db.AutomationAction) (int, error) {
-	return c.actions.sendCard(ctx, task, action)
+	result, err := c.actions.sendCardWithProof(ctx, task, action)
+	return result.sent, err
 }
 
 // cardContent 获取卡密组内容的兼容入口。

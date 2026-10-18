@@ -379,19 +379,8 @@ func TestChatReadReporterAndSenderProviderRejectMissingRuntime(t *testing.T) {
 	}
 }
 
-// TestChatSendingConstructionAndCredentialGuards 验证聊天应用构造和凭证仓储的缺失依赖保护。
+// TestChatSendingConstructionAndCredentialGuards 验证聊天应用在缺失依赖时的构造与保护。
 func TestChatSendingConstructionAndCredentialGuards(t *testing.T) {
-	ctx := context.Background()
-	// emptyRepository 保存没有数据库入口的聊天凭证仓储。
-	emptyRepository := chatCredentialRepository{}
-	// readErr 保存缺少 Cookie 子仓储时的读取错误。
-	if _, readErr := emptyRepository.getCookieValue(ctx, "cid"); !errors.Is(readErr, chatapp.ErrUnavailable) {
-		t.Fatalf("缺失 Cookie 仓储读取错误=%v", readErr)
-	}
-	// updateErr 保存缺少 Cookie 子仓储时的写入错误。
-	if updateErr := emptyRepository.updateCookieValue(ctx, "cid", "cookie"); !errors.Is(updateErr, chatapp.ErrUnavailable) {
-		t.Fatalf("缺失 Cookie 仓储写入错误=%v", updateErr)
-	}
 	// emptyService 保存缺少领域服务时仍可构造的历史聊天应用服务。
 	emptyService := NewChatSendingApplication(nil, nil, nil, nil)
 	if emptyService == nil {

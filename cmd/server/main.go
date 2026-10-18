@@ -52,6 +52,15 @@ type serverOptions struct {
 	adminPassword         string
 	service               bool
 	showVersion           bool
+	// apiTokenCreate 非空时创建同名 API Token 后退出；apiTokenScope 是其权限范围。
+	apiTokenCreate string
+	apiTokenScope  string
+	// apiTokenList 为 true 时列出 API Token 后退出。
+	apiTokenList bool
+	// apiTokenRevoke 大于 0 时吊销该 ID 的 API Token 后退出。
+	apiTokenRevoke int64
+	// apiTokenUser 是 Token 命令操作的用户名，默认 admin。
+	apiTokenUser string
 }
 
 // defaultDBPath 保存默认 SQLite 数据库的相对路径；桌面运行时会根据 dataDir 重定位。
@@ -206,6 +215,11 @@ func parseOptions() serverOptions {
 	flag.StringVar(&opts.adminPassword, "admin-password", "", "初始化/重置 admin 密码；也可用 XIANYU_ADMIN_PASSWORD 环境变量")
 	flag.BoolVar(&opts.service, "service", false, "以 Windows Service 模式运行")
 	flag.BoolVar(&opts.showVersion, "version", false, "显示版本和构建信息后退出")
+	flag.StringVar(&opts.apiTokenCreate, "api-token-create", "", "创建指定名称的 API Token（供 MCP 客户端使用），打印明文后退出")
+	flag.StringVar(&opts.apiTokenScope, "api-token-scope", db.APITokenScopeRead, "新建 API Token 的权限：read（只读）或 write（可修改）")
+	flag.BoolVar(&opts.apiTokenList, "api-token-list", false, "列出 API Token 后退出")
+	flag.Int64Var(&opts.apiTokenRevoke, "api-token-revoke", 0, "吊销指定 ID 的 API Token 后退出")
+	flag.StringVar(&opts.apiTokenUser, "api-token-user", "admin", "API Token 命令操作的用户名")
 	flag.Parse()
 	return opts
 }
@@ -408,6 +422,14 @@ func openServerInfrastructure(ctx context.Context, startup serverStartupConfig, 
 			return serverInfrastructure{}, fmt.Errorf("初始化管理员失败: %w", err)
 		}
 		logger.Info("管理员初始化完成", "username", "admin")
+		return serverInfrastructure{database: database, store: store, logger: logger, logWriter: logWriter, closeLog: closeLog, initializationOnly: true}, nil
+	}
+	if opts.apiTokenCreate != "" || opts.apiTokenList || opts.apiTokenRevoke > 0 {
+		if err := runAPITokenCommand(ctx, store, opts, os.Stdout); err != nil {
+			_ = database.Close()
+			closeLog()
+			return serverInfrastructure{}, fmt.Errorf("API Token 命令失败: %w", err)
+		}
 		return serverInfrastructure{database: database, store: store, logger: logger, logWriter: logWriter, closeLog: closeLog, initializationOnly: true}, nil
 	}
 	if opts.ensureAdmin {

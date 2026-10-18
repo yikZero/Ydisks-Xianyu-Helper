@@ -33,6 +33,7 @@ const (
 	codeMethodNotFound = -32601
 	codeInvalidParams  = -32602
 	codeUnauthorized   = -32001
+	codeUpstream       = -32000
 )
 
 // Principal 是 API Token 认证后的调用者身份。

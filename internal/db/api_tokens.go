@@ -2,10 +2,8 @@ package db
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -68,11 +66,11 @@ func (t *APITokens) Create(ctx context.Context, userID int64, name, scope string
 	if scope != APITokenScopeRead && scope != APITokenScopeWrite {
 		return "", nil, ErrInvalidAPITokenScope
 	}
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
+	secret, err := randomSessionID()
+	if err != nil {
 		return "", nil, fmt.Errorf("生成 API Token: %w", err)
 	}
-	plain := APITokenPrefix + base64.RawURLEncoding.EncodeToString(raw)
+	plain := APITokenPrefix + secret
 	token := &APIToken{UserID: userID, Name: name, Prefix: plain[:len(APITokenPrefix)+6], Scope: scope, CreatedAt: time.Now().Unix()}
 	id, err := insertReturningID(ctx, t.DB, t.Dialect,
 		`INSERT INTO api_tokens (user_id, name, token_hash, token_prefix, scope, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -111,16 +109,20 @@ func (t *APITokens) Revoke(ctx context.Context, userID, tokenID int64) error {
 	if err != nil {
 		return err
 	}
-	if n, err := res.RowsAffected(); err != nil || n == 0 {
-		if err != nil {
-			return err
-		}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
 		return ErrNotFound
 	}
 	return nil
 }
 
-// Authenticate 校验明文 Token，返回所属的已激活用户身份并记录最近使用时间。
+// apiTokenTouchInterval 是刷新 last_used_at 的最小间隔，避免每次调用都写库。
+const apiTokenTouchInterval = 60
+
+// Authenticate 校验明文 Token，返回所属的已激活用户身份并按分钟粒度记录最近使用时间。
 // Token 不存在、已吊销或用户已停用时返回 ErrNotFound。
 func (t *APITokens) Authenticate(ctx context.Context, plain string) (*APITokenIdentity, error) {
 	plain = strings.TrimSpace(plain)
@@ -129,12 +131,13 @@ func (t *APITokens) Authenticate(ctx context.Context, plain string) (*APITokenId
 	}
 	var identity APITokenIdentity
 	var isAdmin int
+	var lastUsedAt int64
 	err := t.DB.QueryRowContext(ctx,
-		`SELECT t.id, t.user_id, u.username, u.is_admin, t.scope
+		`SELECT t.id, t.user_id, u.username, u.is_admin, t.scope, t.last_used_at
 		   FROM api_tokens t
 		   JOIN users u ON u.id=t.user_id
 		  WHERE t.token_hash=? AND t.revoked_at=0 AND u.is_active=1`,
-		hashAPIToken(plain)).Scan(&identity.TokenID, &identity.UserID, &identity.Username, &isAdmin, &identity.Scope)
+		hashAPIToken(plain)).Scan(&identity.TokenID, &identity.UserID, &identity.Username, &isAdmin, &identity.Scope, &lastUsedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -143,6 +146,8 @@ func (t *APITokens) Authenticate(ctx context.Context, plain string) (*APITokenId
 	}
 	identity.IsAdmin = isAdmin != 0
 	// 最近使用时间只用于展示，写入失败不影响本次认证。
-	_, _ = t.DB.ExecContext(ctx, `UPDATE api_tokens SET last_used_at=? WHERE id=?`, time.Now().Unix(), identity.TokenID)
+	if now := time.Now().Unix(); now-lastUsedAt >= apiTokenTouchInterval {
+		_, _ = t.DB.ExecContext(ctx, `UPDATE api_tokens SET last_used_at=? WHERE id=?`, now, identity.TokenID)
+	}
 	return &identity, nil
 }

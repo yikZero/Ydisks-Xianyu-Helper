@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestAPITokensLifecycle 覆盖创建、认证、列表、吊销和停用用户后的拒绝，并确认只保存摘要。
@@ -51,6 +52,16 @@ func TestAPITokensLifecycle(t *testing.T) {
 	tokens, err := store.APITokens.List(ctx, user.ID)
 	if err != nil || len(tokens) != 1 || tokens[0].LastUsedAt == 0 {
 		t.Fatalf("tokens=%+v err=%v", tokens, err)
+	}
+	recent := time.Now().Unix() - 10
+	if _, err := store.DB.ExecContext(ctx, `UPDATE api_tokens SET last_used_at=? WHERE id=?`, recent, token.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.APITokens.Authenticate(ctx, plain); err != nil {
+		t.Fatal(err)
+	}
+	if tokens, err = store.APITokens.List(ctx, user.ID); err != nil || tokens[0].LastUsedAt != recent {
+		t.Fatalf("一分钟内重复认证不应刷新最近使用时间: %+v err=%v", tokens, err)
 	}
 	if err := store.APITokens.Revoke(ctx, user.ID+1, token.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("不能吊销他人的 Token: %v", err)

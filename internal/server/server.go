@@ -198,7 +198,7 @@ func (s *Server) Router() chi.Router {
 	s.mountPublicSettings(r)
 
 	// MCP 端点（API Token 认证），工具调用转发回本路由树。
-	s.mountMCP(r).API = r
+	s.mountMCP(r)
 
 	// SPA 静态资源 catch-all（最后挂载）。
 	s.mountSPA(r)

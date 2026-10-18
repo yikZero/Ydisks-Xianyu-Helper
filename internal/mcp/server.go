@@ -41,19 +41,15 @@ type Principal struct {
 	TokenID int64
 	// UserID 是 Token 所属用户，所有工具都以该用户身份访问数据。
 	UserID int64
-	// Username 和 IsAdmin 用于构造转发请求的会话视图。
-	Username string
-	IsAdmin  bool
 	// Write 为 false 时只允许调用只读工具。
 	Write bool
 }
 
 // Handler 是 MCP 的 HTTP 端点。所有字段都是必需依赖，由服务端组装时提供。
 type Handler struct {
-	// Authenticate 校验 Bearer Token；失败时返回非 nil 错误。
-	Authenticate func(ctx context.Context, token string) (Principal, error)
-	// Trust 返回携带已认证身份的 Context，API 收到后视为该用户已登录。
-	Trust func(ctx context.Context, principal Principal) context.Context
+	// Authenticate 校验 Bearer Token，返回调用者身份和携带该身份的 Context；API 收到该 Context 的请求时视为该用户已登录。
+	// 失败时返回非 nil 错误。
+	Authenticate func(ctx context.Context, token string) (context.Context, Principal, error)
 	// API 是完整的管理接口路由，工具调用在进程内转发到这里。
 	API http.Handler
 	// Logger 记录工具调用审计日志，不记录参数内容（可能包含卡密）。
@@ -93,50 +89,46 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if !ok || strings.TrimSpace(token) == "" {
-		h.writeUnauthorized(w, "缺少 Authorization: Bearer <API Token>")
+		writeUnauthorized(w, "缺少 Authorization: Bearer <API Token>")
 		return
 	}
-	principal, err := h.Authenticate(r.Context(), strings.TrimSpace(token))
+	ctx, principal, err := h.Authenticate(r.Context(), strings.TrimSpace(token))
 	if err != nil {
-		h.writeUnauthorized(w, "API Token 无效或已吊销")
+		writeUnauthorized(w, "API Token 无效或已吊销")
 		return
 	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxRequestBytes+1))
 	if err != nil || len(body) > maxRequestBytes {
-		writeJSON(w, http.StatusRequestEntityTooLarge, rpcResponse{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{Code: codeInvalidRequest, Message: "请求体过大或读取失败"}})
+		writeRPCError(w, http.StatusRequestEntityTooLarge, codeInvalidRequest, "请求体过大或读取失败")
 		return
 	}
-	trimmed := bytes.TrimSpace(body)
-	if len(trimmed) > 0 && trimmed[0] == '[' {
-		var batch []rpcMessage
-		if err := json.Unmarshal(trimmed, &batch); err != nil || len(batch) == 0 {
-			writeJSON(w, http.StatusBadRequest, rpcResponse{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{Code: codeParseError, Message: "JSON-RPC 批量请求格式错误"}})
-			return
-		}
-		responses := make([]rpcResponse, 0, len(batch))
-		for _, message := range batch {
-			if response, ok := h.handleMessage(r.Context(), principal, message); ok {
-				responses = append(responses, response)
-			}
-		}
-		if len(responses) == 0 {
-			w.WriteHeader(http.StatusAccepted)
-			return
-		}
-		writeJSON(w, http.StatusOK, responses)
+	body = bytes.TrimSpace(body)
+	batch := len(body) > 0 && body[0] == '['
+	var messages []rpcMessage
+	if batch {
+		err = json.Unmarshal(body, &messages)
+	} else {
+		messages = make([]rpcMessage, 1)
+		err = json.Unmarshal(body, &messages[0])
+	}
+	if err != nil || len(messages) == 0 {
+		writeRPCError(w, http.StatusBadRequest, codeParseError, "JSON-RPC 请求格式错误")
 		return
 	}
-	var message rpcMessage
-	if err := json.Unmarshal(trimmed, &message); err != nil {
-		writeJSON(w, http.StatusBadRequest, rpcResponse{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{Code: codeParseError, Message: "JSON-RPC 请求格式错误"}})
-		return
+	responses := make([]rpcResponse, 0, len(messages))
+	for _, message := range messages {
+		if response, ok := h.handleMessage(ctx, principal, message); ok {
+			responses = append(responses, response)
+		}
 	}
-	response, ok := h.handleMessage(r.Context(), principal, message)
-	if !ok {
+	switch {
+	case len(responses) == 0:
 		w.WriteHeader(http.StatusAccepted)
-		return
+	case batch:
+		writeJSON(w, http.StatusOK, responses)
+	default:
+		writeJSON(w, http.StatusOK, responses[0])
 	}
-	writeJSON(w, http.StatusOK, response)
 }
 
 // handleMessage 处理单条消息；返回 false 表示这是通知或客户端响应，不需要回复。
@@ -187,7 +179,7 @@ func (h *Handler) initializeResult(params json.RawMessage) map[string]any {
 	}
 }
 
-// callTool 执行 tools/call。参数或工具名错误返回协议错误；业务失败以 isError 结果返回给模型。
+// callTool 执行 tools/call；ctx 携带 Authenticate 返回的可信身份。参数或工具名错误返回协议错误；业务失败以 isError 结果返回给模型。
 func (h *Handler) callTool(ctx context.Context, principal Principal, params json.RawMessage) (map[string]any, *rpcError) {
 	var request struct {
 		Name      string          `json:"name"`
@@ -210,14 +202,9 @@ func (h *Handler) callTool(ctx context.Context, principal Principal, params json
 		if len(arguments) == 0 || string(arguments) == "null" {
 			arguments = json.RawMessage("{}")
 		}
-		client := apiClient{handler: h.API, ctx: h.Trust(ctx, principal)}
-		result, err = definition.run(client, arguments)
+		result, err = definition.run(apiClient{handler: h.API, ctx: ctx}, arguments)
 	}
-	logger := h.Logger
-	if logger == nil {
-		logger = slog.Default()
-	}
-	logger.Info("MCP 工具调用", "tool", request.Name, "mcp_client_id", principal.TokenID, "user_id", principal.UserID,
+	h.Logger.Info("MCP 工具调用", "tool", request.Name, "mcp_client_id", principal.TokenID, "user_id", principal.UserID,
 		"ok", err == nil, "duration", time.Since(started).Round(time.Millisecond))
 	if err != nil {
 		return toolText(err.Error(), true), nil
@@ -235,9 +222,14 @@ func toolText(text string, isError bool) map[string]any {
 }
 
 // writeUnauthorized 返回 401，并按 MCP 授权约定附带 WWW-Authenticate。
-func (h *Handler) writeUnauthorized(w http.ResponseWriter, message string) {
+func writeUnauthorized(w http.ResponseWriter, message string) {
 	w.Header().Set("WWW-Authenticate", `Bearer realm="ydisks-xianyu-helper"`)
-	writeJSON(w, http.StatusUnauthorized, rpcResponse{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{Code: codeUnauthorized, Message: message}})
+	writeRPCError(w, http.StatusUnauthorized, codeUnauthorized, message)
+}
+
+// writeRPCError 写一个无请求 ID 的 JSON-RPC 错误响应，用于无法定位到具体消息的传输层失败。
+func writeRPCError(w http.ResponseWriter, status, code int, message string) {
+	writeJSON(w, status, rpcResponse{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{Code: code, Message: message}})
 }
 
 // writeJSON 写 JSON 响应。

@@ -31,7 +31,7 @@ const mcpUsage = `用法：
   echo '{"keyword":"夸克"}' | ssh frybox xianyu-server mcp call list_items -
 
 选项：
-  -url URL          服务地址，默认读取 XIANYU_SERVICE_URL，否则 http://127.0.0.1:59188
+  -url URL          服务地址，默认读取 XIANYU_SERVICE_URL，否则 http://192.168.31.5:59188
   -token-file PATH  API Token 文件，默认是 -api-token-save 写入的位置；
                     设置了 XIANYU_API_TOKEN 环境变量时优先使用环境变量
 `
@@ -50,7 +50,7 @@ func runMCPCommand(ctx context.Context, args []string, stdin io.Reader, stdout, 
 	flags := flag.NewFlagSet("xianyu-server mcp", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.Usage = func() { _, _ = io.WriteString(stderr, mcpUsage) }
-	serviceURL := flags.String("url", cmp.Or(os.Getenv("XIANYU_SERVICE_URL"), "http://127.0.0.1:59188"), "")
+	serviceURL := flags.String("url", cmp.Or(os.Getenv("XIANYU_SERVICE_URL"), "http://192.168.31.5:59188"), "")
 	tokenFile := flags.String("token-file", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 2

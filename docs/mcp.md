@@ -33,7 +33,7 @@
 ```
 
 `-api-token-save` 把明文写入 `~/.config/ydisks-xianyu-helper/api-token`（权限 0600，不打印到终端），`mcp` 子命令默认读取这里；
-也可以用 `XIANYU_API_TOKEN` 环境变量或 `-token-file` 指定。服务地址默认 `http://127.0.0.1:59188`，可用 `-url` 或 `XIANYU_SERVICE_URL` 修改。
+也可以用 `XIANYU_API_TOKEN` 环境变量或 `-token-file` 指定。服务地址默认 `http://192.168.31.5:59188`，可用 `-url` 或 `XIANYU_SERVICE_URL` 修改。
 
 之后 AI 通过 SSH 执行命令即可（`xianyu-server` 写成实际路径，Linux 安装包为 `/opt/ydisks-xianyu-helper/xianyu-server`；
 非交互 SSH 不一定加载用户的 PATH，所以建议写完整路径）：

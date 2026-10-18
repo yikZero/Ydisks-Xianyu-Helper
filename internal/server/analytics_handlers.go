@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -79,11 +78,6 @@ func (s *Server) validOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, validOrdersResponseFromApplication(result))
-}
-
-// analyticsDateBoundary 保留日期边界测试使用的应用层转换入口。
-func analyticsDateBoundary(raw string, endExclusive bool, location *time.Location) string {
-	return analyticsapp.DateBoundary(raw, endExclusive, location)
 }
 
 // dashboardStatsResponseFromApplication 将应用摘要映射为 HTTP DTO。

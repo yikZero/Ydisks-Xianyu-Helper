@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"testing"
@@ -134,44 +133,6 @@ func TestNewAcceptsPrebuiltApplicationSet(t *testing.T) {
 	}
 }
 
-// TestServerStartStopIsIdempotentAndWaitsForWorkers 验证 Start/Stop 可重复调用且 Stop 等待 worker。
-func TestServerStartStopIsIdempotentAndWaitsForWorkers(t *testing.T) {
-	// srv 是待验证幂等生命周期的 HTTP 服务；cleanup 负责释放测试资源。
-	srv, _, cleanup := newTestServer(t)
-	defer cleanup()
-	srv.Addr = freeAddr(t)
-	if err := srv.Start(context.Background()); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	if err := srv.Start(context.Background()); err != nil {
-		t.Fatalf("重复 Start: %v", err)
-	}
-	// workerDone 是模拟批量发布 worker 完成时调用的释放函数。
-	workerDone := srv.beginWorker()
-	// stopDone 是显式 Stop 完成时关闭的测试信号。
-	stopDone := make(chan struct{})
-	go func() {
-		// 显式停止过程的错误不影响本测试对等待语义的判断。
-		_ = srv.Stop(context.Background())
-		close(stopDone)
-	}()
-	select {
-	case <-stopDone:
-		t.Fatal("Stop 在 worker 完成前提前返回")
-	case <-time.After(50 * time.Millisecond):
-	}
-	workerDone()
-	select {
-	case <-stopDone:
-	case <-time.After(3 * time.Second):
-		t.Fatal("Stop 未在 worker 完成后返回")
-	}
-	// err 是重复 Stop 返回的关闭错误。
-	if err := srv.Stop(context.Background()); err != nil {
-		t.Fatalf("重复 Stop: %v", err)
-	}
-}
-
 // TestServerBindReportsOccupiedPort 验证端口冲突在应用 worker 启动前由同步 Bind 返回。
 func TestServerBindReportsOccupiedPort(t *testing.T) {
 	// occupied、listenErr 分别是故意占用的本机监听器及创建错误。
@@ -214,36 +175,4 @@ func TestServerStopReleasesBoundListener(t *testing.T) {
 		t.Fatalf("停止后端口未释放: %v", listenErr)
 	}
 	defer replacement.Close()
-}
-
-// TestServerStopContextBoundsWorkerWait 验证关闭上下文到期时不会无限等待后台 worker。
-func TestServerStopContextBoundsWorkerWait(t *testing.T) {
-	// srv 是用于验证关闭超时的 HTTP 服务；cleanup 负责释放测试数据库。
-	srv, _, cleanup := newTestServer(t)
-	defer cleanup()
-	srv.Addr = freeAddr(t)
-	// err 表示 HTTP 服务启动失败。
-	if err := srv.Start(context.Background()); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	// workerDone 保持 worker 未完成，模拟不响应关闭的后台任务。
-	workerDone := srv.beginWorker()
-	// stopCtx 是刻意很短的关闭上下文，用于验证 Stop 的等待边界。
-	stopCtx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
-	defer cancel()
-	// started 记录停止开始时间，用于验证上下文确实限制等待时长。
-	started := time.Now()
-	err := srv.Stop(stopCtx)
-	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("Stop error=%v, want deadline exceeded", err)
-	}
-	// elapsed 表示停止调用实际耗时。
-	if elapsed := time.Since(started); elapsed > time.Second {
-		t.Fatalf("Stop waited too long: %s", elapsed)
-	}
-	workerDone()
-	// err 表示释放 worker 后第二次幂等停止的返回错误。
-	if err := srv.Stop(context.Background()); err != nil {
-		t.Fatalf("second Stop: %v", err)
-	}
 }

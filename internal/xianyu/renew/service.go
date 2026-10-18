@@ -320,19 +320,6 @@ func autoLoginModeWithoutFatigue(cookies map[string]string, now time.Time) (mode
 	return "", "long_login_expired"
 }
 
-func autoLoginMode(cookies map[string]string, now time.Time) (mode, skipReason string) {
-	if strictCookieTimeAfter(cookies["sdkSilent"], now) {
-		return "", "fatigue"
-	}
-	if cookieTimeAfter(cookies["havana_lgc_exp"], now) {
-		return autoLoginModeHavana, ""
-	}
-	if cookieTimeAfter(cookies["cookie3_bak_exp"], now) {
-		return autoLoginModeCookie3, ""
-	}
-	return "", "long_login_expired"
-}
-
 func autoLoginSkipMessage(reason string) string {
 	switch reason {
 	case "fatigue":

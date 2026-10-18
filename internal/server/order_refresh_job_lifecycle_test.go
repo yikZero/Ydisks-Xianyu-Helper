@@ -260,21 +260,3 @@ func TestOrderRefreshWorkerUsesCanceledServerLifecycle(t *testing.T) {
 		t.Fatalf("取消生命周期后不应使用后台 Context 覆盖租约状态: %+v", persisted)
 	}
 }
-
-// TestStartBackgroundTaskResultTracksFailure 验证后台任务错误会进入 Server 任务状态。
-func TestStartBackgroundTaskResultTracksFailure(t *testing.T) {
-	// srv 是只装配任务注册表的最小 Server 生命周期实例。
-	srv := &Server{taskRegistry: newTaskRegistry()}
-	// taskErr 是后台任务返回的确定性错误。
-	taskErr := errors.New("后台任务失败")
-	// taskID 是登记后用于读取任务状态的进程内标识。
-	taskID := srv.startBackgroundTaskResult("订单刷新测试任务", context.Background(), func() error {
-		return taskErr
-	})
-	srv.WaitForBackground()
-	// snapshots 保存任务注册表返回的状态快照。
-	snapshots := srv.taskRegistry.list()
-	if len(snapshots) != 1 || snapshots[0].ID != taskID || snapshots[0].State != taskStateFailed {
-		t.Fatalf("后台任务失败状态未记录: %+v", snapshots)
-	}
-}

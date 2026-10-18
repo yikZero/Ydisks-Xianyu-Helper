@@ -89,20 +89,6 @@ func (c *Conn) recorderSnapshot() func(direction, rawText, parsedJSON, parseStat
 	return recorder
 }
 
-// Dial 保留旧的一步式入口；新账号主循环使用 Open → 获取 token → Register，
-// 从而与官网 authConnect 的顺序一致。
-func Dial(ctx context.Context, cfg Config, logger *slog.Logger) (*Conn, error) {
-	conn, err := Open(ctx, cfg, logger)
-	if err != nil {
-		return nil, err
-	}
-	if err := conn.Register(ctx, cfg.DeviceID, cfg.AccessToken); err != nil {
-		_ = conn.Close()
-		return nil, err
-	}
-	return conn, nil
-}
-
 // Open 按官网 batchConnectWs 策略并行打开最多五条原生 WebSocket，由最先
 // settle 的成功或失败决定本轮结果，并关闭迟到连接。此阶段不请求 token，
 // 也不发送 /reg。
@@ -305,11 +291,6 @@ func (c *Conn) Register(ctx context.Context, deviceID, accessToken string) error
 		return nil
 	}
 	return newRegError(code, response)
-}
-
-// register 兼容包内旧测试。
-func (c *Conn) register(ctx context.Context) error {
-	return c.Register(ctx, c.cfg.DeviceID, c.cfg.AccessToken)
 }
 
 func midKey(mid string) string {

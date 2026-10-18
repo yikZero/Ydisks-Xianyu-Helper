@@ -322,32 +322,6 @@ func mustPaidDeliveryCard(t *testing.T) map[string]any {
 	return m
 }
 
-// TestRetryDelay 复刻 _calculate_retry_delay 的分段逻辑。
-func TestRetryDelay(t *testing.T) {
-	acc, _, _, cleanup := newAccountForTest(t)
-	defer cleanup()
-	defer acc.Stop()
-
-	acc.connFailures = 1
-	expectDelayRange(t, acc.retryDelay("no close frame received or sent"), 2*time.Second)
-	acc.connFailures = 10
-	expectDelayRange(t, acc.retryDelay("no close frame received or sent"), 30*time.Second)
-	acc.connFailures = 2
-	expectDelayRange(t, acc.retryDelay("connection refused"), 8*time.Second)
-	acc.connFailures = 10
-	expectDelayRange(t, acc.retryDelay("connection refused"), 90*time.Second)
-	acc.connFailures = 1
-	expectDelayRange(t, acc.retryDelay("some other error"), 2*time.Second)
-}
-
-func expectDelayRange(t *testing.T, got, base time.Duration) {
-	t.Helper()
-	max := base + base*3/10
-	if got < base || got > max {
-		t.Fatalf("retryDelay=%v want in [%v,%v]", got, base, max)
-	}
-}
-
 func TestRuntimeStatusClassifiesAuthenticationFailures(t *testing.T) {
 	acc, _, _, cleanup := newAccountForTest(t)
 	defer cleanup()

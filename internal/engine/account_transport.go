@@ -11,24 +11,6 @@ import (
 	"xianyu-go/internal/xianyu/protocol"
 )
 
-// acquireToken 为当前账号取得连接级 Token 与其绑定 Cookie 快照，供 WebSocket 注册使用。
-func (a *Account) acquireToken(ctx context.Context) (string, string, error) {
-	return a.acquireTokenWithMinGap(ctx, false)
-}
-
-// acquireRuntimeToken is retained as a compatibility wrapper for focused
-// tests and older internal callers. It follows the same fresh-token rule.
-func (a *Account) acquireRuntimeToken(ctx context.Context) (string, string, error) {
-	return a.acquireFreshConnectionToken(ctx)
-}
-
-func (a *Account) acquireTokenWithMinGap(ctx context.Context, _ bool) (string, string, error) {
-	// Invalidate any access token left by an older process/attempt before asking
-	// MTOP for the token that will be bound to this connection.
-	a.clearTokenCache(ctx)
-	return a.refreshToken(ctx)
-}
-
 func (c *credentialCoordinator) setLastTokenStatus(status string) {
 	// a 是本凭证协调器绑定的账号 facade，持有刷新诊断状态。
 	a := c.account

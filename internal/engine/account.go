@@ -269,20 +269,8 @@ type cookieRenewer interface {
 	RenewAPIFirst(ctx context.Context, cookiesStr string, snapshots ...[]cookierefresh.BrowserCookie) (*renew.Result, error)
 }
 
-type loginStatusChecker interface {
-	CheckLoginStatusContext(ctx context.Context, cookiesStr string) (*mtop.LoginStatusResult, error)
-}
-
 type scopedTokenClient interface {
 	RefreshTokenWithCredentialContext(ctx context.Context, cookiesStr, deviceID string, snapshot []cookierefresh.BrowserCookie) (*mtop.RefreshResult, error)
-}
-
-type loginStatusCheckResult struct {
-	recovered       bool
-	riskRequired    bool
-	verificationURL string
-	// sessionExpired 只表示平台明确报告会话失效，网络或 Token 失败不能置真。
-	sessionExpired bool
 }
 
 // Config 构造 Account 所需依赖。
@@ -467,60 +455,6 @@ func (a *Account) beginTask() (context.Context, func(), bool) {
 	return a.lifecycle.beginTask()
 }
 
-// handleMaxFailures 使用 ctx 处理 a 的历史连续失败入口；只有核验明确 Session 过期才续期，返回等待或恢复错误。
-func (a *Account) handleMaxFailures(ctx context.Context) error {
-	// 先执行低成本登录态检查。它可能仅凭 loginuser.get 响应头恢复签名
-	// Cookie，也能在进入静默续期前准确识别风控状态。
-	loginStatus := a.tryLoginStatusCheck(ctx)
-	if loginStatus.riskRequired {
-		return fmt.Errorf("账号 %s 需要完成安全验证", a.CookieID)
-	}
-	if loginStatus.recovered {
-		a.logger.Info("登录态检查已恢复 Cookie，重置失败计数")
-		a.setRuntimeState(RuntimeConnecting, "登录凭证已刷新，正在重新连接")
-		a.resetFailures()
-		return sleepCtx(ctx, 2*time.Second)
-	}
-	if !loginStatus.sessionExpired {
-		a.setRuntimeState(RuntimeReconnecting, "连接失败，等待重试")
-		return sleepCtx(ctx, 2*time.Second)
-	}
-	a.logger.Warn("连续失败达上限，触发 Go 协议续期", "failures", MaxConnectionFailures)
-	a.notifyRecoveringOffline(ctx, fmt.Sprintf("消息服务连续认证/连接失败 %d 次，开始自动恢复", MaxConnectionFailures))
-	// passwordRefreshResult 保存外部凭证恢复调用结果；恢复调用不得持有账号凭证锁。
-	passwordRefreshResult := a.handler != nil && a.handler.OnPasswordLoginRefresh(ctx, a.CookieID)
-	if passwordRefreshResult {
-		if cookieValue, err := a.store.Cookies.GetValue(ctx, a.CookieID); err == nil && cookieValue != "" { // cookieValue 是恢复回调刚写入的 Cookie 明文。
-			a.replaceCookieStr(cookieValue)
-			a.clearCurrentToken()
-			a.clearTokenCache(ctx)
-		}
-		a.logger.Info("Go 协议续期成功，重置失败计数")
-		a.setRuntimeState(RuntimeConnecting, "登录凭证已刷新，正在重新连接")
-		a.resetFailures()
-		return sleepCtx(ctx, 2*time.Second)
-	}
-	a.clearTokenCache(ctx)
-	a.setRuntimeState(RuntimeAuthExpired, "登录凭证已失效，自动恢复失败")
-	if a.markAuthExpired() {
-		a.alertEvent(ctx, EventAccountOffline, AlertLevelCritical, "账号自动恢复失败，需人工处理",
-			fmt.Sprintf("账号 %s 连续失败 %d 次，登录凭证未能自动恢复。", a.CookieID, MaxConnectionFailures))
-	}
-	return fmt.Errorf("账号 %s 登录凭证自动恢复失败", a.CookieID)
-}
-
-// markAuthExpired 标记进入 auth_expired 状态。仅在首次（未告警过）返回 true，
-// 连接恢复后由 Run 的 online 分支复位 authExpiredAlerted，避免重复告警刷屏。
-func (a *Account) markAuthExpired() bool {
-	a.runtimeMu.Lock()
-	defer a.runtimeMu.Unlock()
-	if a.authExpiredAlerted {
-		return false
-	}
-	a.authExpiredAlerted = true
-	return true
-}
-
 func (a *Account) notifyOffline(ctx context.Context, reason string) {
 	if !a.markOfflineNotified(reason) {
 		return
@@ -539,14 +473,6 @@ func (a *Account) notifyDialRetrying(ctx context.Context, reason string) {
 		fmt.Sprintf("账号 %s 连续多次无法连接闲鱼消息服务，疑似网络故障。原因：%s。系统会持续退避重试，网络恢复后自动重新上线。", a.CookieID, reason))
 }
 
-func (a *Account) notifyRecoveringOffline(ctx context.Context, reason string) {
-	if !a.markOfflineNotified(reason) {
-		return
-	}
-	a.alertEvent(ctx, EventAccountOffline, AlertLevelWarn, "账号已掉线，正在自动恢复",
-		fmt.Sprintf("账号 %s 出现登录凭证过期或认证掉线。原因：%s。系统会先发送本通知，再继续尝试 Go 协议续期；如仍失败则需要重新扫码登录。", a.CookieID, reason))
-}
-
 func (a *Account) markOfflineNotified(reason string) bool {
 	a.runtimeMu.Lock()
 	if a.offlineNotified {
@@ -558,11 +484,6 @@ func (a *Account) markOfflineNotified(reason string) bool {
 	a.lastOfflineReason = reason
 	a.runtimeMu.Unlock()
 	return true
-}
-
-// alert 触发账号告警通知。handler 未注入或为 nil 时静默跳过。
-func (a *Account) alert(ctx context.Context, level, title, body string) {
-	a.alertEvent(ctx, EventTokenRenewal, level, title, body)
 }
 
 func (a *Account) alertEvent(ctx context.Context, eventType, level, title, body string) {
@@ -587,48 +508,6 @@ func formatTimeOrUnknown(t time.Time) string {
 		return "未知"
 	}
 	return t.Format("2006-01-02 15:04:05")
-}
-
-// retryDelay 按错误类型计算退避，并加入 0-30% 抖动。
-// 多账号同时断线时，纯固定退避会让所有账号在同一秒重连，容易形成重连风暴。
-func (a *Account) retryDelay(errMsg string) time.Duration {
-	a.runtimeMu.Lock()
-	f := a.connFailures
-	a.runtimeMu.Unlock()
-	if f < 1 {
-		f = 1
-	}
-	base := exponentialSeconds(f)
-	secs := 0
-	switch {
-	case contains(errMsg, "no close frame received or sent"):
-		secs = min(base, 30)
-	case contains(errMsg, "connection refused") || contains(errMsg, "timeout"):
-		secs = min(2*base, 90)
-	default:
-		secs = min(base, 45)
-	}
-	return withRetryJitter(time.Duration(secs) * time.Second)
-}
-
-func (a *Account) networkRetryDelay() time.Duration {
-	a.runtimeMu.Lock()
-	f := a.networkFailures
-	a.runtimeMu.Unlock()
-	if f < 1 {
-		f = 1
-	}
-	return withRetryJitter(time.Duration(min(2+exponentialSeconds(f), 60)) * time.Second)
-}
-
-func exponentialSeconds(failures int) int {
-	if failures < 1 {
-		failures = 1
-	}
-	if failures > 30 {
-		failures = 30
-	}
-	return 1 << failures
 }
 
 func withRetryJitter(base time.Duration) time.Duration {
@@ -662,26 +541,6 @@ func isEstablishedNetworkError(err error) bool {
 		}
 	}
 	return false
-}
-
-func (a *Account) recordShortDisconnect(connectedDuration time.Duration) bool {
-	a.runtimeMu.Lock()
-	defer a.runtimeMu.Unlock()
-	if connectedDuration >= ShortConnectionThreshold {
-		a.shortDisconnects = nil
-		return false
-	}
-	now := time.Now()
-	a.shortDisconnects = append(a.shortDisconnects, now)
-	cutoff := now.Add(-FrequentDisconnectWindow)
-	kept := a.shortDisconnects[:0]
-	for _, disconnectedAt := range a.shortDisconnects {
-		if !disconnectedAt.Before(cutoff) {
-			kept = append(kept, disconnectedAt)
-		}
-	}
-	a.shortDisconnects = kept
-	return len(a.shortDisconnects) >= FrequentDisconnectLimit
 }
 
 // acquireToken is kept for internal callers and tests, but intentionally does

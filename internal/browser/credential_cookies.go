@@ -50,10 +50,6 @@ func syncCredentialCookies(bctx playwright.BrowserContext, cookieStr string, sna
 	return bctx.AddCookies(snapshotToOptionalCookies(preserved))
 }
 
-func credentialCookieSnapshot(existing []cookierefresh.BrowserCookie, incoming map[string]string) []cookierefresh.BrowserCookie {
-	return credentialCookieSnapshotForURL(existing, incoming, goofishIMURL)
-}
-
 func credentialCookieSnapshotForURL(existing []cookierefresh.BrowserCookie, incoming map[string]string, rawURL string) []cookierefresh.BrowserCookie {
 	preserved := make([]cookierefresh.BrowserCookie, 0, len(existing)+len(incoming))
 	matched := make(map[string]bool, len(incoming))

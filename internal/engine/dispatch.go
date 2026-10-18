@@ -18,11 +18,6 @@ func (a *Account) dispatch(decrypted map[string]any) {
 	a.messageDispatcher.dispatch(decrypted)
 }
 
-// handleMessage 分类并投递消息。
-func (a *Account) handleMessage(decrypted map[string]any) {
-	a.messageDispatcher.handleMessage(decrypted)
-}
-
 // extractMessageReadEvent 从解密 WebSocket 事件中提取出站消息已读回执。
 func extractMessageReadEvent(v map[string]any) (MessageReadEvent, bool) {
 	// 40103 解密后不会保留外层 objectType，只剩下固定的紧凑字段：
@@ -122,22 +117,6 @@ func extractNestedString(m map[string]any, keys ...string) string {
 		}
 	}
 	return ""
-}
-
-// markAndCheckDedup 提取消息 ID，检查 1 小时内是否已处理；未处理则标记。
-// 返回 true 表示应继续处理。移植自 _schedule_debounced_reply 的去重段。
-func (a *Account) markAndCheckDedup(decrypted map[string]any, chat *ChatMessage) bool {
-	return a.messageDispatcher.markAndCheckDedup(decrypted, chat)
-}
-
-func (a *Account) cleanupDedupLocked(now time.Time) {
-	a.messageDispatcher.cleanupDedupLocked(now)
-}
-
-// scheduleDebouncedReply 为 chat_id 调度防抖回复：
-// 同一 chat_id 连续来消息时取消旧定时器、用最新消息重新计时，1s 后投递最后一条。
-func (a *Account) scheduleDebouncedReply(chat ChatMessage) {
-	a.messageDispatcher.scheduleDebouncedReply(chat)
 }
 
 // extractMessageID 提取闲鱼消息状态接口使用的消息 ID。
@@ -660,8 +639,6 @@ func (a *Account) CurrentCookieStr() string {
 }
 
 // ---- 小工具 ----
-
-func contains(s, sub string) bool { return strings.Contains(strings.ToLower(s), strings.ToLower(sub)) }
 
 func toString(v any) string {
 	switch x := v.(type) {

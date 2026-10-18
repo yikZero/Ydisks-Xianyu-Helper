@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -300,32 +299,4 @@ func copyAutomationCustomVariables(values map[string]string) map[string]string {
 		copied[key] = value
 	}
 	return copied
-}
-
-// defaultAutomationRuleName 保留旧测试和兼容调用所需的默认名称函数。
-func defaultAutomationRuleName(triggerType, itemID string) string {
-	// name 保存按触发类型选择的默认规则名称，必要时附加商品标识。
-	name := map[string]string{automationapp.TriggerOrderCreated: "拍下未付款自动改价", automationapp.TriggerOrderPaid: "付款后自动发货", automationapp.TriggerBuyerReviewed: "评价后发送赠品", automationapp.TriggerReviewMissingTimeout: "超时未评价求评价"}[triggerType]
-	if name == "" {
-		name = "自动化规则"
-	}
-	if strings.TrimSpace(itemID) != "" {
-		return name + " - " + strings.TrimSpace(itemID)
-	}
-	return name
-}
-
-// isJSONObject 保留规则配置测试需要的 JSON 对象判断。
-func isJSONObject(raw string) bool {
-	// value 保存 JSON 对象解析结果，仅用于判断配置顶层类型。
-	var value map[string]any
-	return json.Unmarshal([]byte(raw), &value) == nil
-}
-
-// firstNonZero 保留旧兼容调用的非零回退行为。
-func firstNonZero(value, fallback int) int {
-	if value != 0 {
-		return value
-	}
-	return fallback
 }

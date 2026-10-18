@@ -674,8 +674,20 @@ func TestSchedulerSettingIntervalOverrides(t *testing.T) {
 	if err := store.Settings.Set(ctx, loginRenewIntervalSetting, "30"); err != nil {
 		t.Fatalf("Set seconds: %v", err)
 	}
-	if got := s.settingInterval(ctx, loginRenewIntervalSetting, loginRenewInterval); got != 30*time.Second {
-		t.Fatalf("秒数间隔=%s want 30s", got)
+	if got := s.settingInterval(ctx, loginRenewIntervalSetting, loginRenewInterval); got != minRenewalInterval {
+		t.Fatalf("低于下限的秒数间隔=%s want %s", got, minRenewalInterval)
+	}
+	if err := store.Settings.Set(ctx, loginRenewIntervalSetting, "90"); err != nil {
+		t.Fatalf("Set seconds: %v", err)
+	}
+	if got := s.settingInterval(ctx, loginRenewIntervalSetting, loginRenewInterval); got != 90*time.Second {
+		t.Fatalf("秒数间隔=%s want 90s", got)
+	}
+	if err := store.Settings.Set(ctx, loginRenewIntervalSetting, "1ms"); err != nil {
+		t.Fatalf("Set tiny duration: %v", err)
+	}
+	if got := s.settingInterval(ctx, loginRenewIntervalSetting, loginRenewInterval); got != minRenewalInterval {
+		t.Fatalf("毫秒级间隔必须提升到下限，got %s", got)
 	}
 	if err := store.Settings.Set(ctx, loginRenewIntervalSetting, "2m"); err != nil {
 		t.Fatalf("Set duration: %v", err)

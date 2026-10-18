@@ -65,45 +65,6 @@ func useTestLinuxFingerprint(t *testing.T) xianyu.BrowserFingerprint {
 	return fingerprint
 }
 
-func TestAutoLoginModeMatchesBrowserPlugin(t *testing.T) {
-	now := time.Now()
-	tests := []struct {
-		name       string
-		cookies    map[string]string
-		wantMode   string
-		wantReason string
-	}{
-		{name: "fatigue", cookies: map[string]string{"sdkSilent": strconv.FormatInt(now.Add(time.Hour).UnixMilli(), 10), "havana_lgc_exp": strconv.FormatInt(now.Add(time.Hour).UnixMilli(), 10)}, wantReason: "fatigue"},
-		{name: "malformed sdkSilent does not cause fatigue", cookies: map[string]string{"sdkSilent": "invalid", "havana_lgc_exp": strconv.FormatInt(now.Add(time.Hour).UnixMilli(), 10)}, wantMode: autoLoginModeHavana},
-		{name: "havana", cookies: map[string]string{"havana_lgc_exp": strconv.FormatInt(now.Add(time.Hour).UnixMilli(), 10)}, wantMode: autoLoginModeHavana},
-		{name: "cookie3 backup", cookies: map[string]string{"havana_lgc_exp": strconv.FormatInt(now.Add(-time.Hour).UnixMilli(), 10), "cookie3_bak_exp": strconv.FormatInt(now.Add(time.Hour).UnixMilli(), 10)}, wantMode: autoLoginModeCookie3},
-		{name: "malformed long-login expiry follows browser Invalid Date branch", cookies: map[string]string{"havana_lgc_exp": "bad", "cookie3_bak_exp": strconv.FormatInt(now.Add(-time.Hour).UnixMilli(), 10)}, wantMode: autoLoginModeHavana},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mode, reason := autoLoginMode(tt.cookies, now)
-			if mode != tt.wantMode || reason != tt.wantReason {
-				t.Fatalf("mode=%q reason=%q, want mode=%q reason=%q", mode, reason, tt.wantMode, tt.wantReason)
-			}
-		})
-	}
-}
-
-// TestAutoLoginDecisionUsesLastCookieForDuplicatePaths 验证插件解析同名 Cookie 时由末值覆盖首值。
-func TestAutoLoginDecisionUsesLastCookieForDuplicatePaths(t *testing.T) {
-	now := time.Now()
-	cookies := strings.Join([]string{
-		"sdkSilent=" + strconv.FormatInt(now.Add(-time.Hour).UnixMilli(), 10),
-		"sdkSilent=" + strconv.FormatInt(now.Add(time.Hour).UnixMilli(), 10),
-		"havana_lgc_exp=" + strconv.FormatInt(now.Add(time.Hour).UnixMilli(), 10),
-		"havana_lgc_exp=" + strconv.FormatInt(now.Add(-time.Hour).UnixMilli(), 10),
-	}, "; ")
-	mode, reason := autoLoginMode(autoLoginCookieValues(cookies), now)
-	if mode != "" || reason != "fatigue" {
-		t.Fatalf("mode=%q reason=%q；应采用插件解析后的末个同名 Cookie", mode, reason)
-	}
-}
-
 func TestLongLoginSettingsMatchOfficialRequest(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -5,25 +5,17 @@ package server
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io"
-	"mime"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-
-	"xianyu-go/internal/netguard"
 )
-
-// isPublicIP 保留给同包校验调用；实际策略统一由 netguard 维护。
-func isPublicIP(ip net.IP) bool { return netguard.IsPublicIP(ip) }
 
 func extractPublishImagesZip(raw []byte, dest string) error {
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
@@ -96,35 +88,6 @@ func extractPublishImagesZip(raw []byte, dest string) error {
 	return nil
 }
 
-func readBatchImageFile(uploadDir, ref string) ([]byte, string, string, error) {
-	rel, err := safeZipPath(ref)
-	if err != nil {
-		return nil, "", "", err
-	}
-	root, err := os.OpenRoot(uploadDir)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("打开图片目录失败")
-	}
-	defer root.Close()
-	file, err := root.Open(rel)
-	if err != nil {
-		return nil, "", "", fmt.Errorf("读取图片失败: %s", ref)
-	}
-	defer file.Close()
-	data, err := io.ReadAll(io.LimitReader(file, (10<<20)+1))
-	if err != nil || len(data) > 10<<20 {
-		return nil, "", "", fmt.Errorf("读取图片失败或文件过大: %s", ref)
-	}
-	if len(data) == 0 {
-		return nil, "", "", fmt.Errorf("图片文件为空: %s", ref)
-	}
-	contentType := http.DetectContentType(data)
-	if !strings.HasPrefix(contentType, "image/") {
-		return nil, "", "", fmt.Errorf("不是有效图片: %s", ref)
-	}
-	return data, contentType, filepath.Base(rel), nil
-}
-
 // writeFileWithinRoot 将上传文件限制在指定根目录内，拒绝符号链接和路径逃逸。
 func writeFileWithinRoot(rootDir, name string, data []byte) error {
 	root, err := os.OpenRoot(rootDir)
@@ -141,78 +104,6 @@ func writeFileWithinRoot(rootDir, name string, data []byte) error {
 		return err
 	}
 	return file.Close()
-}
-
-func downloadImageURL(ctx context.Context, rawURL string) ([]byte, string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil || (req.URL.Scheme != "http" && req.URL.Scheme != "https") || req.URL.Hostname() == "" {
-		return nil, "", fmt.Errorf("图片 URL 无效: %s", rawURL)
-	}
-	client := publicHTTPClient()
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, "", fmt.Errorf("下载图片失败: %s", rawURL)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, "", fmt.Errorf("下载图片失败: %s HTTP %d", rawURL, resp.StatusCode)
-	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, (10<<20)+1))
-	if err != nil {
-		return nil, "", fmt.Errorf("读取远程图片失败: %s", rawURL)
-	}
-	if len(data) > 10<<20 {
-		return nil, "", fmt.Errorf("远程图片不能超过 10 MiB: %s", rawURL)
-	}
-	contentType := resp.Header.Get("Content-Type")
-	if i := strings.Index(contentType, ";"); i >= 0 {
-		contentType = contentType[:i]
-	}
-	if contentType == "" || contentType == "application/octet-stream" {
-		contentType = http.DetectContentType(data)
-	}
-	if !strings.HasPrefix(contentType, "image/") {
-		return nil, "", fmt.Errorf("远程文件不是图片: %s", rawURL)
-	}
-	return data, contentType, nil
-}
-
-// publicHTTPClient 只允许连接公网地址，防止批量铺货图片 URL 访问本机或内网服务。
-func publicHTTPClient() *http.Client {
-	return netguard.ConfiguredHTTPClient(30 * time.Second)
-}
-
-func validateBatchImageRef(uploadDir, ref string) error {
-	if isHTTPURL(ref) {
-		return nil
-	}
-	rel, err := safeZipPath(ref)
-	if err != nil {
-		return err
-	}
-	path := filepath.Join(uploadDir, rel)
-	info, err := os.Stat(path)
-	if err != nil || info.IsDir() {
-		return fmt.Errorf("图片文件不存在: %s", ref)
-	}
-	return nil
-}
-
-func isHTTPURL(ref string) bool {
-	ref = strings.ToLower(strings.TrimSpace(ref))
-	return strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://")
-}
-
-func pathBaseFromURL(rawURL string) string {
-	base := filepath.Base(strings.Split(rawURL, "?")[0])
-	if base == "." || base == "/" || base == "" {
-		exts, _ := mime.ExtensionsByType(http.DetectContentType(nil))
-		if len(exts) > 0 {
-			return "image" + exts[0]
-		}
-		return "image.jpg"
-	}
-	return base
 }
 
 func randomHex(n int) string {
@@ -242,18 +133,4 @@ func safeZipPath(raw string) (string, error) {
 		return "", fmt.Errorf("图片路径不安全: %s", raw)
 	}
 	return clean, nil
-}
-
-func splitImageRefs(raw string) []string {
-	raw = strings.ReplaceAll(raw, "\n", ";")
-	raw = strings.ReplaceAll(raw, "；", ";")
-	parts := strings.Split(raw, ";")
-	out := []string{}
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }

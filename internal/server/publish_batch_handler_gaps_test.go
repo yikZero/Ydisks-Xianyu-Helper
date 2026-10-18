@@ -290,24 +290,3 @@ func TestPreviewItemPublishBatchRejectsInvalidInputs(t *testing.T) {
 		t.Errorf("foreign cookie status=%d", code)
 	}
 }
-
-// TestPublishBatchSmallHelpers 覆盖失败类型、最终状态以及账号归属和 Cookie 读取的辅助分支。
-func TestPublishBatchSmallHelpers(t *testing.T) {
-	if got := finalPublishBatchStatus(nil); got != "failed" {
-		t.Errorf("nil batch => %q", got)
-	}
-	if got := finalPublishBatchStatus(&itemapp.BatchInfo{FailedCount: 1}); got != "failed" {
-		t.Errorf("all failed => %q", got)
-	}
-	if got := finalPublishBatchStatus(&itemapp.BatchInfo{FailedCount: 1, SuccessCount: 1}); got != "partially_failed" {
-		t.Errorf("partial => %q", got)
-	}
-	// srv 是零值 Server，没有任何应用端口。
-	srv := &Server{}
-	if srv.cookieOwnedByUser(context.Background(), 1, "c") {
-		t.Error("nil summary port must not own")
-	}
-	if _, err := srv.cookieValueForUser(context.Background(), 1, "c"); err == nil {
-		t.Error("nil credential port should fail")
-	}
-}

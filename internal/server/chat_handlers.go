@@ -424,11 +424,6 @@ func (s *Server) resolveChatReadMessageIDs(ctx context.Context, accountID, chatI
 	return resolved
 }
 
-// findChatPlatformMessageID 保留既有包内测试入口，实际解析由聊天应用服务拥有。
-func findChatPlatformMessageID(value any, chatID, legacyID string) string {
-	return chatapp.FindPlatformMessageID(value, chatID, legacyID)
-}
-
 // chatWebSocket 将应用层聊天事件转发到当前认证用户的 WebSocket 连接。
 func (s *Server) chatWebSocket(w http.ResponseWriter, r *http.Request) {
 	sess := auth.SessionFromContext(r.Context())

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"xianyu-go/internal/logsafe"
 	"xianyu-go/internal/xianyu/cookierefresh"
 	"xianyu-go/internal/xianyu/mtop"
 	"xianyu-go/internal/xianyu/renew"
@@ -19,11 +18,6 @@ import (
 type credentialCoordinator struct {
 	// account 是本协调器唯一服务的账号 facade，运行期间不会替换。
 	account *Account
-}
-
-// tryLoginStatusCheck 保留 Account 的稳定内部入口，并委托给凭证协调器。
-func (a *Account) tryLoginStatusCheck(ctx context.Context) loginStatusCheckResult {
-	return a.credentials.tryLoginStatusCheck(ctx)
 }
 
 // tryAPIRenew 保留启动续期入口，并委托给凭证协调器。
@@ -158,132 +152,6 @@ func (a *Account) UpdateCookieContext(ctx context.Context, cookieStr string) err
 		return errors.New("同步运行时 Cookie 需要调用 Context")
 	}
 	return a.credentials.updateCookie(ctx, cookieStr)
-}
-
-// tryLoginStatusCheck 调用 mtop.taobao.idlemessage.pc.loginuser.get 做轻量登录态确认。
-// 这个接口的成本低于完整 token 刷新，且可能顺手下发新的签名 Cookie；
-// 因此在 session 失效后、接口续期前先跑一遍，避免已实现的登录态检查能力闲置。
-func (c *credentialCoordinator) tryLoginStatusCheck(ctx context.Context) loginStatusCheckResult {
-	// a 是本凭证协调器绑定的账号 facade，提供状态与固定依赖访问。
-	a := c.account
-	checker, ok := a.mtop.(loginStatusChecker)
-	if !ok {
-		return loginStatusCheckResult{}
-	}
-	credentialUnlock := func() {}
-	// credentialLocked 标识当前调用是否持有账号凭证锁。
-	credentialLocked := false
-	if a.store != nil {
-		credentialUnlock = a.store.LockAccountCredentials(a.CookieID)
-		credentialLocked = true
-	}
-	defer func() {
-		if credentialLocked {
-			credentialUnlock()
-		}
-	}()
-	a.mu.Lock()
-	cookieStr := a.CookieStr
-	a.mu.Unlock()
-	requestCtx := ctx
-	var cookieSession *mtop.CookieSession
-	metadataJSON := ""
-	if a.store != nil && a.store.Cookies != nil {
-		runtimeData, detailErr := a.store.Cookies.GetCookieRuntimeData(ctx, a.CookieID) // runtimeData 只包含登录态检查所需的 Cookie 与 metadata。
-		if detailErr != nil {
-			a.logger.Warn("登录态检查前读取最新 Cookie 失败", "err", detailErr)
-			return loginStatusCheckResult{}
-		}
-		cookieStr = runtimeData.Value
-		metadataJSON = runtimeData.MetadataJSON
-		// runtimeData 已在凭证锁内读取，下面只负责根据 metadata 建立 Cookie 会话。
-		// metadataJSON 保留完整 Jar 信息，不能退化为仅使用扁平 Cookie。
-		// snapshot 分支继续沿用登录态检查原有的请求作用域和持久化顺序。
-		if snapshot, complete := cookierefresh.SnapshotFromMetadataOK(metadataJSON); complete {
-			requestCtx, cookieSession = mtop.WithCookieSnapshot(ctx, snapshot)
-		} else {
-			requestCtx, cookieSession = mtop.WithFlatCookieSession(ctx, cookieStr)
-		}
-	}
-	// 登录态检查只使用当前凭证快照；慢速外部调用不得持有共享账号锁。
-	if credentialLocked {
-		credentialUnlock()
-		credentialLocked = false
-	}
-	res, err := checker.CheckLoginStatusContext(requestCtx, cookieStr)
-	if a.store != nil && a.store.Cookies != nil {
-		// credentialUnlock 保存外部检查完成后重新进入提交临界区的释放函数。
-		credentialUnlock = a.store.LockAccountCredentials(a.CookieID)
-		credentialLocked = true
-		// latestRuntimeData 和 reloadErr 保存外部检查完成后的最新凭证视图及重读错误。
-		latestRuntimeData, reloadErr := a.store.Cookies.GetCookieRuntimeData(ctx, a.CookieID)
-		if reloadErr != nil {
-			a.logger.Warn("登录态检查完成后读取最新 Cookie 失败", "err", reloadErr)
-			return loginStatusCheckResult{}
-		}
-		// credentialSnapshotChanged 表示外部检查期间已有其他流程更新 Cookie 或 metadata。
-		credentialSnapshotChanged := latestRuntimeData.Value != cookieStr || latestRuntimeData.MetadataJSON != metadataJSON
-		cookieStr = latestRuntimeData.Value
-		metadataJSON = latestRuntimeData.MetadataJSON
-		if credentialSnapshotChanged {
-			// 外部响应基于旧快照，当前切片不具备可安全重放的 Cookie 集合，因此丢弃旧响应状态。
-			cookieSession = nil
-			if res != nil {
-				res.UpdatedCookies = cookieStr
-			}
-		}
-	}
-	if cookieSession != nil {
-		value, snapshot, changed := cookieSession.State()
-		if changed {
-			metadata := cookierefresh.MetadataWithoutSnapshot(metadataJSON)
-			if snapshot != nil {
-				metadata = cookierefresh.MetadataWithSnapshot(metadataJSON, snapshot)
-			}
-			if persistErr := a.store.Cookies.UpdateRenewalCookie(ctx, a.CookieID, value, metadata, time.Now().Unix()); persistErr != nil {
-				a.logger.Warn("登录态检查保存响应 Cookie Jar 失败", "err", persistErr)
-				return loginStatusCheckResult{}
-			}
-			a.replaceCredentialState(value, credentialStateFingerprint(value, metadata))
-			a.clearTokenCache(ctx)
-			// Handler 实现可执行通知或其他外部 I/O，不能让其占用凭证提交锁。
-			if credentialLocked {
-				credentialUnlock()
-				credentialLocked = false
-			}
-			a.notifyCredentialUpdated(ctx)
-			if err != nil {
-				a.logger.Warn("登录态检查失败，已保存响应 Cookie", "err", err)
-			}
-			return loginStatusCheckResult{
-				recovered:      res != nil && res.Status == mtop.LoginStatusTokenRefreshed && err == nil,
-				sessionExpired: mtop.IsSessionExpiredErr(err) || (err == nil && res != nil && res.Status == mtop.LoginStatusSessionExpired),
-			}
-		}
-	}
-	// 以下恢复路径会触发可扩展 Handler；提交阶段已经结束，必须先释放凭证锁。
-	if credentialLocked {
-		credentialUnlock()
-		credentialLocked = false
-	}
-	if err != nil {
-		a.logger.Warn("登录态检查失败", "err", err)
-		return loginStatusCheckResult{sessionExpired: mtop.IsSessionExpiredErr(err)}
-	}
-	if res == nil {
-		return loginStatusCheckResult{}
-	}
-	if res.Status == mtop.LoginStatusRiskRequired {
-		a.setRuntimeState(RuntimeVerificationRequired, "闲鱼要求安全验证")
-		a.logger.Warn("登录态检查命中风控验证", "ret", strings.Join(res.Ret, ","), "verification_url", logsafe.URL(res.VerificationURL))
-		return loginStatusCheckResult{riskRequired: true, verificationURL: res.VerificationURL}
-	}
-	if res.Status == mtop.LoginStatusTokenRefreshed && len(cookierefresh.ChangedCookieNames(cookieStr, res.UpdatedCookies)) > 0 && a.adoptRecoveredCookie(ctx, res.UpdatedCookies, "登录态检查") {
-		a.logger.Info("登录态检查刷新了 Cookie", "status", res.Status, "message", res.Message)
-		return loginStatusCheckResult{recovered: true}
-	}
-	a.logger.Info("登录态检查未产生可用 Cookie 更新", "status", res.Status, "message", res.Message)
-	return loginStatusCheckResult{sessionExpired: res.Status == mtop.LoginStatusSessionExpired}
 }
 
 // tryAPIRenew 是密码登录前的轻量恢复层，只执行官网 auto-login plugin 的

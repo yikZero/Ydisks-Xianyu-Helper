@@ -296,52 +296,6 @@ func TestFetchOrderDetailDropsStaleCookieWhenCredentialChanged(t *testing.T) {
 	}
 }
 
-// TestOnPasswordLoginRefreshCoordinatorBranches 覆盖续期冷却、进行中、账号读取失败和成功/失败收尾路径。
-func TestOnPasswordLoginRefreshCoordinatorBranches(t *testing.T) {
-	ctx := context.Background()
-	store, cleanup := newAdapterTestStore(t)
-	defer cleanup()
-	// adapter 使用独立冷却管理器，避免污染全局状态。
-	adapter := New(store, nil, nil)
-	adapter.cooldown = renewal.NewCooldownManager()
-	// 账号不存在：读取失败路径。
-	if adapter.OnPasswordLoginRefresh(ctx, "missing") {
-		t.Fatal("账号缺失应失败")
-	}
-	// 协调器已有进行中的恢复：登记失败。
-	if !adapter.beginPasswordLogin("busy") {
-		t.Fatal("首次登记应成功")
-	}
-	if adapter.OnPasswordLoginRefresh(ctx, "busy") {
-		t.Fatal("进行中应返回 false")
-	}
-	adapter.finishPasswordLogin("busy")
-	// 无协调器时兼容入口安全。
-	bare := &Adapter{}
-	if bare.beginPasswordLogin("x") {
-		t.Fatal("无协调器应返回 false")
-	}
-	bare.finishPasswordLogin("x")
-	// 结果等待：无共享状态返回 false；已取消返回 false；完成后返回结果。
-	if adapter.waitPasswordRenewalResult(ctx, "none") {
-		t.Fatal("无状态应返回 false")
-	}
-	if !adapter.beginPasswordRenewalResult("w") || adapter.beginPasswordRenewalResult("w") {
-		t.Fatal("登记语义错误")
-	}
-	// cancelled 是已取消上下文。
-	cancelled, cancel := context.WithCancel(ctx)
-	cancel()
-	if adapter.waitPasswordRenewalResult(cancelled, "w") {
-		t.Fatal("取消应返回 false")
-	}
-	adapter.finishPasswordRenewalResult("w", true)
-	adapter.finishPasswordRenewalResult("w", true)
-	if truncateMessage("abcdef", 3) != "abc" || truncateMessage("abc", 0) != "abc" {
-		t.Fatal("truncateMessage 边界错误")
-	}
-}
-
 // TestTryProtocolCredentialRenewBranches 覆盖协议续期的空入参、平台拒绝与无结果分支。
 func TestTryProtocolCredentialRenewBranches(t *testing.T) {
 	ctx := context.Background()

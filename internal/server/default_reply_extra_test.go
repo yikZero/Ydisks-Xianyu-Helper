@@ -155,23 +155,3 @@ func TestDeleteDefaultReply(t *testing.T) {
 		t.Fatalf("delete status=%d", rec2.Code)
 	}
 }
-
-// TestBtoi btoi 表驱动。
-func TestBtoi(t *testing.T) {
-	if btoi(true) != 1 {
-		t.Fatal("btoi(true) should be 1")
-	}
-	if btoi(false) != 0 {
-		t.Fatal("btoi(false) should be 0")
-	}
-}
-
-// TestNullIfEmpty nullIfEmpty 表驱动。
-func TestNullIfEmpty(t *testing.T) {
-	if v := nullIfEmpty(""); v != nil {
-		t.Fatalf("空串应为 nil，got %v", v)
-	}
-	if v := nullIfEmpty("x"); v != "x" {
-		t.Fatalf("非空应原样返回，got %v", v)
-	}
-}

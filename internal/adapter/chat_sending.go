@@ -412,22 +412,6 @@ func (catalog chatItemCatalog) updateRuntimeCookie(ctx context.Context, accountI
 	runtime.UpdateCookie(value)
 }
 
-// getCookieValue 读取图片上传所需的账号凭证；调用方不得记录返回值。
-func (r chatCredentialRepository) getCookieValue(ctx context.Context, accountID string) (string, error) {
-	if r.store == nil || r.store.Cookies == nil {
-		return "", chatapp.ErrUnavailable
-	}
-	return r.store.Cookies.GetValue(ctx, accountID)
-}
-
-// updateCookieValue 保存图片上传后平台刷新的账号凭证。
-func (r chatCredentialRepository) updateCookieValue(ctx context.Context, accountID, cookieValue string) error {
-	if r.store == nil || r.store.Cookies == nil {
-		return chatapp.ErrUnavailable
-	}
-	return r.store.Cookies.UpdateValueExisting(ctx, accountID, cookieValue)
-}
-
 // chatImageUploader 将 MTOP 图片上传和凭证刷新适配为聊天应用端口。
 type chatImageUploader struct {
 	// clientProvider 返回当前可注入的 MTOP 客户端，便于运行时替换和测试。

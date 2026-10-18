@@ -114,6 +114,9 @@ func (c *connectionCoordinator) run(parent context.Context) error {
 		if !registerResult.Registered {
 			_ = conn.Close()
 			a.reloadCookieFromDB(ctx)
+			if pauseErr := c.pauseBeforeReconnect(ctx, 0); pauseErr != nil {
+				return pauseErr
+			}
 			continue
 		}
 		err = registerResult.Err
@@ -145,61 +148,101 @@ func (c *connectionCoordinator) run(parent context.Context) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-
-		// 连接结束：只有认证类失败才清 token。已经建立后的网络断线继续
-		// 使用内存 token 与数据库缓存，避免无意义调用 Token API。
-		if session.Rotated {
-			a.logger.Info("WS Token 到达提前轮换时间，正在重新获取 Token", "expires_at", expiresAt, "remaining", time.Until(expiresAt).Round(time.Second))
-			a.clearConnectionToken(ctx)
-			a.setRuntimeState(RuntimeReconnecting, "WS Token 即将到期，正在主动轮换")
-			continue
-		}
-		if ws.IsConnectLimitError(session.ReceiveErr) {
-			a.clearConnectionToken(ctx)
-			// reason 是服务端移除会话时记录给用户与通知的认证失效原因。
-			reason := "消息会话已被服务端移除"
-			a.setRuntimeState(RuntimeAuthExpired, reason)
-			a.notifyOffline(ctx, reason)
+		if c.finishSession(ctx, session, expiresAt) {
 			return nil
 		}
-		if ws.IsAuthenticationError(session.ReceiveErr) {
-			// 官网把 /push/kickout 转成 UNCONNECTED，页面监听器随后立即
-			// reConnect，并由 authTokenCallback 获取新的连接凭证。
-			a.clearConnectionToken(ctx)
-			a.setRuntimeState(RuntimeReconnecting, "消息会话被服务端踢下线，正在重新连接")
-			continue
+		// 连上即断时，连续第 2 次起按退避等待再重连，避免每轮都调用 Token API 形成请求风暴。
+		if pauseErr := c.pauseBeforeReconnect(ctx, session.ConnectedDuration); pauseErr != nil {
+			return pauseErr
 		}
-		// 心跳失败会先关闭连接，ReceiveLoop 往往只观察到 context canceled。
-		// 官网以心跳 Promise 的 reject 为真实断线原因并立即 reConnect。
-		// receiveErr 是后续错误分类使用的本地副本；心跳错误优先于 context canceled。
-		// receiveErr 是用于下方重连分类的最终接收错误。
-		receiveErr := session.ReceiveErr
-		if session.HeartbeatErr != nil && !errors.Is(session.HeartbeatErr, context.Canceled) &&
-			(receiveErr == nil || errors.Is(receiveErr, context.Canceled)) {
-			receiveErr = session.HeartbeatErr
-		}
-
-		// 正常 close 的 async-for 会直接进入下一轮，不计任何失败。
-		if receiveErr == nil {
-			a.clearConnectionToken(ctx)
-			a.setRuntimeState(RuntimeReconnecting, "消息连接已结束，正在重新连接")
-			continue
-		}
-
-		if isEstablishedNetworkError(receiveErr) || errors.Is(receiveErr, context.Canceled) {
-			a.clearConnectionToken(ctx)
-			a.setRuntimeState(RuntimeReconnecting, "网络连接已断开，正在重新连接")
-			a.logger.Warn("WS 网络连接结束", "err", receiveErr, "connected_duration", session.ConnectedDuration.Round(time.Second), "heartbeat_err", session.HeartbeatErr)
-			// 官网当前页面在 CONN_UNCONNECTED 事件后立即调用 reConnect。
-			continue
-		}
-
-		// 其他已经建立后的非认证错误同样进入 UNCONNECTED；不升级为
-		// 密码登录、指数退避或永久禁用。
-		a.clearConnectionToken(ctx)
-		a.setRuntimeState(RuntimeReconnecting, "消息连接已断开，正在重新连接")
-		a.logger.Warn("WS 连接结束", "err", receiveErr, "heartbeat_err", session.HeartbeatErr)
 	}
+}
+
+// finishSession 按已注册连接的结束原因更新运行状态并清理 Token；返回 true 表示服务端已移除会话、
+// 连接循环应停止，返回 false 表示继续下一轮重连。expiresAt 只用于 Token 轮换日志。
+func (c *connectionCoordinator) finishSession(ctx context.Context, session connectionSessionResult, expiresAt time.Time) bool {
+	a := c.account
+	// 连接结束：只有认证类失败才清 token。已经建立后的网络断线继续
+	// 使用内存 token 与数据库缓存，避免无意义调用 Token API。
+	if session.Rotated {
+		a.logger.Info("WS Token 到达提前轮换时间，正在重新获取 Token", "expires_at", expiresAt, "remaining", time.Until(expiresAt).Round(time.Second))
+		a.clearConnectionToken(ctx)
+		a.setRuntimeState(RuntimeReconnecting, "WS Token 即将到期，正在主动轮换")
+		return false
+	}
+	if ws.IsConnectLimitError(session.ReceiveErr) {
+		a.clearConnectionToken(ctx)
+		// reason 是服务端移除会话时记录给用户与通知的认证失效原因。
+		reason := "消息会话已被服务端移除"
+		a.setRuntimeState(RuntimeAuthExpired, reason)
+		a.notifyOffline(ctx, reason)
+		return true
+	}
+	if ws.IsAuthenticationError(session.ReceiveErr) {
+		// 官网把 /push/kickout 转成 UNCONNECTED，页面监听器随后立即
+		// reConnect，并由 authTokenCallback 获取新的连接凭证。
+		a.clearConnectionToken(ctx)
+		a.setRuntimeState(RuntimeReconnecting, "消息会话被服务端踢下线，正在重新连接")
+		return false
+	}
+	// 心跳失败会先关闭连接，ReceiveLoop 往往只观察到 context canceled。
+	// 官网以心跳 Promise 的 reject 为真实断线原因并立即 reConnect。
+	// receiveErr 是后续错误分类使用的本地副本；心跳错误优先于 context canceled。
+	// receiveErr 是用于下方重连分类的最终接收错误。
+	receiveErr := session.ReceiveErr
+	if session.HeartbeatErr != nil && !errors.Is(session.HeartbeatErr, context.Canceled) &&
+		(receiveErr == nil || errors.Is(receiveErr, context.Canceled)) {
+		receiveErr = session.HeartbeatErr
+	}
+
+	// 正常 close 的 async-for 会直接进入下一轮，不计任何失败。
+	if receiveErr == nil {
+		a.clearConnectionToken(ctx)
+		a.setRuntimeState(RuntimeReconnecting, "消息连接已结束，正在重新连接")
+		return false
+	}
+
+	if isEstablishedNetworkError(receiveErr) || errors.Is(receiveErr, context.Canceled) {
+		a.clearConnectionToken(ctx)
+		a.setRuntimeState(RuntimeReconnecting, "网络连接已断开，正在重新连接")
+		a.logger.Warn("WS 网络连接结束", "err", receiveErr, "connected_duration", session.ConnectedDuration.Round(time.Second), "heartbeat_err", session.HeartbeatErr)
+		// 官网当前页面在 CONN_UNCONNECTED 事件后立即调用 reConnect。
+		return false
+	}
+
+	// 其他已经建立后的非认证错误同样进入 UNCONNECTED；不升级为密码登录或永久禁用，
+	// 只有连续“连上即断”时才由 pauseBeforeReconnect 退避。
+	a.clearConnectionToken(ctx)
+	a.setRuntimeState(RuntimeReconnecting, "消息连接已断开，正在重新连接")
+	a.logger.Warn("WS 连接结束", "err", receiveErr, "heartbeat_err", session.HeartbeatErr)
+	return false
+}
+
+// pauseBeforeReconnect 防止“连上即断”时无间隔重连。会话持续不足 ShortConnectionThreshold 视为短连接：
+// 第一次短连接仍立即重连（与官网行为一致），连续第 2 次起按 dialBackoff 递增等待并加抖动；
+// 任一会话持续超过阈值后计数清零。每轮重连都要调用 Token API，没有间隔会形成请求风暴并增加风控风险。
+// 返回非 nil 表示 ctx 已取消，调用方必须退出连接循环。
+func (c *connectionCoordinator) pauseBeforeReconnect(ctx context.Context, connected time.Duration) error {
+	a := c.account
+	a.runtimeMu.Lock()
+	if connected >= ShortConnectionThreshold {
+		a.rapidReconnects = 0
+		a.runtimeMu.Unlock()
+		return nil
+	}
+	a.rapidReconnects++
+	consecutive := a.rapidReconnects
+	override := a.dialRetryDelayFn
+	a.runtimeMu.Unlock()
+	if consecutive < 2 {
+		return nil
+	}
+	delay := withRetryJitter(dialBackoff(consecutive - 1))
+	if override != nil {
+		delay = override(consecutive - 1)
+	}
+	a.logger.Warn("消息连接频繁断开，延迟重连", "consecutive", consecutive, "connected_duration", connected.Round(time.Millisecond), "delay", delay.Round(time.Second))
+	return sleepCtx(ctx, delay)
 }
 
 // handleWSOpenFailure 处理拨号或 /reg 阶段的失败：服务端明确的 RegError（Token 无效、鉴权失败、会话被移除）

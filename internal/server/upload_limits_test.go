@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -38,77 +37,6 @@ func buildMultipartFileRequest(t *testing.T, fieldName, filename string, size in
 	// recorder 保存共享 multipart 解析器分类错误时的响应。
 	recorder := httptest.NewRecorder()
 	return request, recorder
-}
-
-// TestMultipartFileLimitsLeaveMetadataSpace 验证恰好达到聊天 10 MiB、订单 32 MiB 文件上限时仍可通过 multipart 解析，超过文件上限则由后续文件读取拒绝。
-func TestMultipartFileLimitsLeaveMetadataSpace(t *testing.T) {
-	// chatExactRequest、chatExactRecorder 保存恰好 10 MiB 聊天图片请求及其解析响应。
-	chatExactRequest, chatExactRecorder := buildMultipartFileRequest(t, "image", "chat.png", maxChatImageBytes)
-	if !parseMultipartRequest(chatExactRecorder, chatExactRequest, maxChatImageMultipartBytes, maxChatImageMultipartBytes, "图片上传内容不能超过 11 MiB") {
-		t.Fatalf("exact 10 MiB chat image rejected: %s", chatExactRecorder.Body.String())
-	}
-	// chatExactFile、chatExactHeader、chatExactErr 保存表单中精确上限图片及其读取错误。
-	chatExactFile, chatExactHeader, chatExactErr := chatExactRequest.FormFile("image")
-	if chatExactErr != nil {
-		t.Fatalf("read exact chat image form field: %v", chatExactErr)
-	}
-	defer chatExactFile.Close()
-	// chatExactData、chatExactReadErr 保存带一字节探测读取后的图片内容及读取错误。
-	chatExactData, chatExactReadErr := io.ReadAll(io.LimitReader(chatExactFile, maxChatImageBytes+1))
-	if chatExactReadErr != nil || chatExactHeader.Filename != "chat.png" || len(chatExactData) != int(maxChatImageBytes) {
-		t.Fatalf("exact chat image filename=%q bytes=%d err=%v", chatExactHeader.Filename, len(chatExactData), chatExactReadErr)
-	}
-
-	// chatOverRequest、chatOverRecorder 保存超出单图片上限一字节但仍小于总 multipart 上限的请求。
-	chatOverRequest, chatOverRecorder := buildMultipartFileRequest(t, "image", "chat-over.png", maxChatImageBytes+1)
-	if !parseMultipartRequest(chatOverRecorder, chatOverRequest, maxChatImageMultipartBytes, maxChatImageMultipartBytes, "图片上传内容不能超过 11 MiB") {
-		t.Fatalf("chat file above 10 MiB should reach file validation: %s", chatOverRecorder.Body.String())
-	}
-	// chatOverFile、chatOverErr 保存超限图片字段及其读取错误。
-	chatOverFile, _, chatOverErr := chatOverRequest.FormFile("image")
-	if chatOverErr != nil {
-		t.Fatalf("read oversized chat image form field: %v", chatOverErr)
-	}
-	defer chatOverFile.Close()
-	// chatOverData、chatOverReadErr 保存含探测字节的超限图片内容及读取错误。
-	chatOverData, chatOverReadErr := io.ReadAll(io.LimitReader(chatOverFile, maxChatImageBytes+1))
-	if chatOverReadErr != nil || len(chatOverData) <= int(maxChatImageBytes) {
-		t.Fatalf("chat file limit not detectable: bytes=%d err=%v", len(chatOverData), chatOverReadErr)
-	}
-
-	// orderExactRequest、orderExactRecorder 保存恰好 32 MiB 订单文件请求及其解析响应。
-	orderExactRequest, orderExactRecorder := buildMultipartFileRequest(t, "file", "orders.csv", maxOrderImportBytes)
-	if !parseMultipartRequest(orderExactRecorder, orderExactRequest, maxOrderImportMultipartBytes, maxOrderImportBytes, "上传内容不能超过 33 MiB") {
-		t.Fatalf("exact 32 MiB order file rejected: %s", orderExactRecorder.Body.String())
-	}
-	// orderExactFile、orderExactErr 保存订单文件字段及其读取错误。
-	orderExactFile, _, orderExactErr := orderExactRequest.FormFile("file")
-	if orderExactErr != nil {
-		t.Fatalf("read exact order file form field: %v", orderExactErr)
-	}
-	defer orderExactFile.Close()
-	// orderExactData、orderExactReadErr 保存带一字节探测读取后的订单文件内容及读取错误。
-	orderExactData, orderExactReadErr := io.ReadAll(io.LimitReader(orderExactFile, maxOrderImportBytes+1))
-	if orderExactReadErr != nil || len(orderExactData) != int(maxOrderImportBytes) {
-		t.Fatalf("exact order file bytes=%d err=%v", len(orderExactData), orderExactReadErr)
-	}
-
-	// orderOverRequest、orderOverRecorder 保存超出订单文件上限一字节但仍可由 multipart 总请求限制接收的请求。
-	orderOverRequest, orderOverRecorder := buildMultipartFileRequest(t, "file", "orders-over.csv", maxOrderImportBytes+1)
-	if !parseMultipartRequest(orderOverRecorder, orderOverRequest, maxOrderImportMultipartBytes, maxOrderImportBytes, "上传内容不能超过 33 MiB") {
-		t.Fatalf("order file above 32 MiB should reach file validation: %s", orderOverRecorder.Body.String())
-	}
-	// orderOverFile、orderOverErr 保存超限订单文件字段及其读取错误。
-	orderOverFile, _, orderOverErr := orderOverRequest.FormFile("file")
-	if orderOverErr != nil {
-		t.Fatalf("read oversized order file form field: %v", orderOverErr)
-	}
-	defer orderOverFile.Close()
-	// orderOverData、orderOverReadErr 保存含探测字节的超限订单文件内容及读取错误。
-	orderOverData, orderOverReadErr := io.ReadAll(io.LimitReader(orderOverFile, maxOrderImportBytes+1))
-	if orderOverReadErr != nil || len(orderOverData) <= int(maxOrderImportBytes) {
-		t.Fatalf("order file limit not detectable: bytes=%d err=%v", len(orderOverData), orderOverReadErr)
-	}
 }
 
 // TestMultipartParseErrorsRemainClassified 验证格式错误、boundary 损坏和总请求超限返回不同错误，避免统一提示掩盖根因。

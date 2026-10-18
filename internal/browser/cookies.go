@@ -32,11 +32,6 @@ func cookieMarshal(m map[string]string) string {
 	return strings.Join(parts, "; ")
 }
 
-// MarshalCookies 把 cookie map 拼成标准 Cookie 头字符串。
-func MarshalCookies(m map[string]string) string {
-	return cookieMarshal(m)
-}
-
 // parseCookieStrToPlaywright 把 cookie 字符串转成 playwright OptionalCookie。
 func parseCookieStrToPlaywright(s string) []playwright.OptionalCookie {
 	var cookies []playwright.OptionalCookie

@@ -2,68 +2,9 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
-	"time"
 )
-
-// TestEnginePureHelpersCoverRetryAndNetworkBranches 验证引擎重试退避、网络错误识别和时间展示辅助逻辑。
-func TestEnginePureHelpersCoverRetryAndNetworkBranches(t *testing.T) {
-	if exponentialSeconds(0) != 2 || exponentialSeconds(1) != 2 || exponentialSeconds(31) != 1<<30 {
-		t.Fatal("指数退避边界异常")
-	}
-	if withRetryJitter(0) != 0 || withRetryJitter(-time.Second) != 0 {
-		t.Fatal("非正退避时间异常")
-	}
-	// oneNanosecondJitter 保存抖动上限小于一个纳秒时的稳定退避结果。
-	oneNanosecondJitter := withRetryJitter(time.Nanosecond)
-	if oneNanosecondJitter != time.Nanosecond {
-		t.Fatalf("极小退避异常: %v", oneNanosecondJitter)
-	}
-	// jitterBase 保存用于验证抖动上限的正退避基准。
-	jitterBase := 10 * time.Second
-	// jittered 保存随机抖动后的重试时间。
-	jittered := withRetryJitter(jitterBase)
-	if jittered < jitterBase || jittered >= jitterBase+3*time.Second {
-		t.Fatalf("抖动超出范围: %v", jittered)
-	}
-	if !isEstablishedNetworkError(errors.New("websocket: close 1006")) || !isEstablishedNetworkError(errors.New("unexpected EOF")) || isEstablishedNetworkError(errors.New("business rejected")) || isEstablishedNetworkError(nil) {
-		t.Fatal("网络错误识别异常")
-	}
-	if formatTimeOrUnknown(time.Time{}) != "未知" || formatTimeOrUnknown(time.Date(2026, 8, 26, 12, 34, 56, 0, time.UTC)) != "2026-08-26 12:34:56" {
-		t.Fatal("时间展示异常")
-	}
-	// account 保存用于验证网络失败次数归一和上限退避的账号运行时。
-	account := &Account{}
-	// zeroFailureDelay 保存零失败次数被归一为首次退避后的结果。
-	zeroFailureDelay := account.networkRetryDelay()
-	if zeroFailureDelay < 4*time.Second || zeroFailureDelay >= 6*time.Second {
-		t.Fatalf("零失败次数退避异常: %v", zeroFailureDelay)
-	}
-	account.runtimeMu.Lock()
-	account.networkFailures = 20
-	account.runtimeMu.Unlock()
-	// cappedFailureDelay 保存高失败次数被限制到六十秒基准后的结果。
-	cappedFailureDelay := account.networkRetryDelay()
-	if cappedFailureDelay < 60*time.Second || cappedFailureDelay >= 78*time.Second {
-		t.Fatalf("高失败次数退避异常: %v", cappedFailureDelay)
-	}
-	// emptyUserAccount 保存需要从 Cookie 中回退提取平台用户标识的账号。
-	emptyUserAccount := New(Config{CookieStr: "unb=engine-user"})
-	emptyUserAccount.UserID = ""
-	emptyUserAccount.rotatePageDeviceID()
-	if emptyUserAccount.deviceID == "" {
-		t.Fatal("Cookie 用户标识未生成设备 ID")
-	}
-	// explicitUserAccount 保存已经装配平台用户标识的账号。
-	explicitUserAccount := New(Config{CookieStr: "unb=engine-cookie"})
-	explicitUserAccount.UserID = "explicit-user"
-	explicitUserAccount.rotatePageDeviceID()
-	if explicitUserAccount.deviceID == "" {
-		t.Fatal("显式用户标识未生成设备 ID")
-	}
-}
 
 // TestEngineAITextHelpersCoverOfferAndTruncation 验证模型报价标记和 Unicode 文本截断边界。
 func TestEngineAITextHelpersCoverOfferAndTruncation(t *testing.T) {

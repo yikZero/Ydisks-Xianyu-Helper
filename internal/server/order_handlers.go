@@ -12,13 +12,6 @@ import (
 	"xianyu-go/internal/auth"
 )
 
-const refreshOrderChunkSize = 100
-
-type refreshTarget struct {
-	OrderID       string
-	CurrentStatus string
-}
-
 // mountOrders 订单端点（真实实现）。
 func (s *Server) mountOrdersReal(r chi.Router) {
 	r.Get("/api/orders", s.listOrders)
@@ -73,31 +66,6 @@ func (s *Server) getOrder(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, orderDetailResponse{
 		orderDTO: result.Order, Success: true, Data: result.Order,
 	})
-}
-
-func chunkRefreshTargets(targets []refreshTarget, size int) [][]refreshTarget {
-	if size <= 0 {
-		size = refreshOrderChunkSize
-	}
-	chunks := make([][]refreshTarget, 0, (len(targets)+size-1)/size)
-	for start := 0; start < len(targets); start += size {
-		end := start + size
-		if end > len(targets) {
-			end = len(targets)
-		}
-		chunks = append(chunks, targets[start:end])
-	}
-	return chunks
-}
-
-func missingRefreshTargetIDs(targets []refreshTarget, seen map[string]struct{}) []string {
-	missing := make([]string, 0)
-	for _, target := range targets {
-		if _, ok := seen[target.OrderID]; !ok {
-			missing = append(missing, target.OrderID)
-		}
-	}
-	return missing
 }
 
 // refreshSingleOrder 处理仍需访问订单详情接口的单订单刷新；批量刷新只返回已售列表同步统计。
@@ -192,15 +160,6 @@ func (s *Server) updateOrder(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, operationResponse{Success: true})
 }
 
-func validOrderAmount(raw string) bool {
-	_, ok := normalizeOrderAmount(raw)
-	return ok
-}
-
-func normalizeOrderAmount(raw string) (string, bool) {
-	return orderapp.NormalizeOrderAmount(raw)
-}
-
 func (s *Server) manualShipOrders(w http.ResponseWriter, r *http.Request) {
 	// req 保存具名批量发货请求。
 	var req manualShipRequestDTO
@@ -249,13 +208,4 @@ func atoiDefault(s string, def int) int {
 		return def
 	}
 	return n
-}
-
-func isStableOrderStatus(status string) bool {
-	switch status {
-	case "shipped", "completed", "cancelled":
-		return true
-	default:
-		return false
-	}
 }

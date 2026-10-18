@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -17,44 +18,12 @@ import (
 
 	"xianyu-go/internal/adapter"
 	itemapp "xianyu-go/internal/application/items"
-	"xianyu-go/internal/automation"
 	"xianyu-go/internal/db"
 	"xianyu-go/internal/xianyu/mtop"
 )
 
 // minimalPNG 是一张 1x1 PNG，供发布批次图片 zip 复用。
 var minimalPNG = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82}
-
-func TestFinalPublishBatchStatus(t *testing.T) {
-	cases := []struct {
-		name string
-		in   itemapp.BatchInfo
-		want string
-	}{
-		{name: "completed", in: itemapp.BatchInfo{SuccessCount: 2}, want: "completed"},
-		{name: "failed", in: itemapp.BatchInfo{FailedCount: 2}, want: "failed"},
-		{name: "partially failed", in: itemapp.BatchInfo{SuccessCount: 1, FailedCount: 1}, want: "partially_failed"},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := finalPublishBatchStatus(&tt.in); got != tt.want {
-				t.Fatalf("got %q want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPublishBatchFailurePreservesUncertainRemoteWarningWhenCanceled(t *testing.T) {
-	message, kind := publishBatchFailure(&uncertainRemotePublishError{err: context.Canceled}, "canceling")
-	if kind != "uncertain_remote" || !strings.Contains(message, "任务已取消") ||
-		!strings.Contains(message, "禁止自动重试") || !strings.Contains(message, "人工核对") {
-		t.Fatalf("message=%q kind=%q", message, kind)
-	}
-	message, kind = publishBatchFailure(context.Canceled, "canceling")
-	if kind != "publish" || message != "任务已取消" {
-		t.Fatalf("ordinary cancel message=%q kind=%q", message, kind)
-	}
-}
 
 // buildImageZip 构造含一张图片的 zip 字节流。
 func buildImageZip(t *testing.T) []byte {
@@ -370,6 +339,45 @@ func TestRunItemPublishBatch_Success(t *testing.T) {
 	}
 }
 
+func TestPublishBatchRecoveryAutomaticallyResumesInterruptedRow(t *testing.T) {
+	srv, store, cleanup := newTestServer(t)
+	defer cleanup()
+	ctx := context.Background()
+	admin, _ := store.Users.GetByUsername(ctx, "admin")
+	batchID := "auto-recover-batch"
+	if err := store.PublishBatches.Create(ctx, &db.ItemPublishBatch{
+		ID: batchID, UserID: admin.ID, DefaultCookieID: "acc1", Filename: "recover.csv", Status: "failed",
+	}, []db.ItemPublishBatchRow{{
+		RowNo: 1, CookieID: "acc1", Title: "Recovered", Price: "9.90", Quantity: 1,
+		Status: "failed", FailureKind: "interrupted", ErrorMessage: "server stopped",
+		ItemID: "remote-recovered", ItemURL: "https://example.com/remote-recovered", RawJSON: `{"saved":true}`,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	// err 保存应用层批量恢复扫描的错误。
+	if err := startTestBatchRecovery(srv, ctx); err != nil {
+		t.Fatalf("批量恢复扫描: %v", err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		batch, err := store.PublishBatches.Get(ctx, admin.ID, batchID)
+		if err == nil && batch.Status == "completed" {
+			rows, _ := store.PublishBatches.Rows(ctx, batchID)
+			if len(rows) != 1 || rows[0].Status != "success" || rows[0].ItemID != "remote-recovered" {
+				t.Fatalf("rows=%+v", rows)
+			}
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	batch, _ := store.PublishBatches.Get(ctx, admin.ID, batchID)
+	rows, _ := store.PublishBatches.Rows(ctx, batchID)
+	t.Fatalf("batch=%+v rows=%+v", batch, rows)
+}
+
+// 编译期保证 mtop 包引用。
+var _ = mtop.NewClient
+
 func TestPublishBatchRetryResumesSavedRemoteResultWithoutPublishingAgain(t *testing.T) {
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
@@ -427,13 +435,20 @@ func TestPublishBatchRetryResumesSavedRemoteResultWithoutPublishingAgain(t *test
 		return nil, context.Canceled
 	}))
 	// port 将测试平台客户端接入批量远端应用端口；已保存远端结果时不会再次发起平台请求。
-	port := adapter.NewItemBatchPublishPort(store, func() mtop.Client { return client }, srv.Logger, srv.updateRunningCookie, func(callCtx context.Context, cookieID string, callErr error) {
+	// 已保存远端结果的行不会读取图片或写回 Cookie，这里用拒绝型桩确认该路径确实没有被调用。
+	port := adapter.NewItemBatchPublishPort(store, func() mtop.Client { return client }, srv.Logger, func(context.Context, string, string) {
+		t.Error("已保存远端结果时不应写回运行时 Cookie")
+	}, func(callCtx context.Context, cookieID string, callErr error) {
 		srv.recoverExpiredSession(callCtx, cookieID, callErr)
-	}, readBatchImageFile, downloadImageURL)
+	}, func(string, string) ([]byte, string, string, error) {
+		return nil, "", "", errors.New("已保存远端结果时不应读取本地图片")
+	}, func(context.Context, string) ([]byte, string, error) {
+		return nil, "", errors.New("已保存远端结果时不应下载图片")
+	})
 	// localService 保存本地商品和批次成功检查点收口能力。
-	localService, serviceErr := srv.newBatchLocalPublishService()
-	if serviceErr != nil {
-		t.Fatal(serviceErr)
+	localService := srv.applicationServiceSet().itemBatchLocalPublish
+	if localService == nil {
+		t.Fatal("批量本地收口应用服务未装配")
 	}
 	// applicationRow 保存恢复测试所需的非敏感批次明细模型。
 	applicationRow := itemapp.BatchRow{ID: rows[0].ID, BatchID: rows[0].BatchID, RowNo: rows[0].RowNo, CookieID: rows[0].CookieID, Title: rows[0].Title, Description: rows[0].Description, Price: rows[0].Price, OriginalPrice: rows[0].OriginalPrice, Quantity: rows[0].Quantity, PostageMode: rows[0].PostageMode, Postage: rows[0].Postage, ImagesJSON: rows[0].ImagesJSON, CategoryJSON: rows[0].CategoryJSON, AutomationJSON: rows[0].AutomationJSON, RawJSON: rows[0].RawJSON, ItemID: rows[0].ItemID, ItemURL: rows[0].ItemURL, Status: rows[0].Status, ErrorMessage: rows[0].ErrorMessage, FailureKind: rows[0].FailureKind, WorkerToken: rows[0].WorkerToken, CreatedAt: rows[0].CreatedAt, UpdatedAt: rows[0].UpdatedAt}
@@ -455,68 +470,3 @@ func TestPublishBatchRetryResumesSavedRemoteResultWithoutPublishingAgain(t *test
 		t.Fatalf("resumed row=%+v", rows[0])
 	}
 }
-
-func TestPublishBatchRecoveryAutomaticallyResumesInterruptedRow(t *testing.T) {
-	srv, store, cleanup := newTestServer(t)
-	defer cleanup()
-	ctx := context.Background()
-	admin, _ := store.Users.GetByUsername(ctx, "admin")
-	batchID := "auto-recover-batch"
-	if err := store.PublishBatches.Create(ctx, &db.ItemPublishBatch{
-		ID: batchID, UserID: admin.ID, DefaultCookieID: "acc1", Filename: "recover.csv", Status: "failed",
-	}, []db.ItemPublishBatchRow{{
-		RowNo: 1, CookieID: "acc1", Title: "Recovered", Price: "9.90", Quantity: 1,
-		Status: "failed", FailureKind: "interrupted", ErrorMessage: "server stopped",
-		ItemID: "remote-recovered", ItemURL: "https://example.com/remote-recovered", RawJSON: `{"saved":true}`,
-	}}); err != nil {
-		t.Fatal(err)
-	}
-	// err 保存应用层批量恢复扫描的错误。
-	if err := startTestBatchRecovery(srv, ctx); err != nil {
-		t.Fatalf("批量恢复扫描: %v", err)
-	}
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		batch, err := store.PublishBatches.Get(ctx, admin.ID, batchID)
-		if err == nil && batch.Status == "completed" {
-			rows, _ := store.PublishBatches.Rows(ctx, batchID)
-			if len(rows) != 1 || rows[0].Status != "success" || rows[0].ItemID != "remote-recovered" {
-				t.Fatalf("rows=%+v", rows)
-			}
-			return
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	batch, _ := store.PublishBatches.Get(ctx, admin.ID, batchID)
-	rows, _ := store.PublishBatches.Rows(ctx, batchID)
-	t.Fatalf("batch=%+v rows=%+v", batch, rows)
-}
-
-// TestCreatePublishAutomationRules 覆盖自动化规则创建（通过成功发布路径间接覆盖）。
-// 这里直接验证 runItemPublishBatch 在成功路径上调用了 createPublishAutomationRules。
-func TestCreatePublishAutomationRules(t *testing.T) {
-	srv, store, cleanup := newTestServer(t)
-	defer cleanup()
-	ctx := context.Background()
-	// 预置一个自动化规则配置的批次行，直接调 createPublishAutomationRules 验证不 panic + 写规则。
-	// 先建一个卡密组供规则引用。
-	admin, _ := store.Users.GetByUsername(ctx, "admin")
-	cardID, _ := store.Cards.Create(ctx, &db.CardFull{Name: "卡", Type: "text", TextContent: "K", Enabled: true, UserID: admin.ID})
-
-	automationJSON := `{"paid_delivery":{"enabled":true,"actions":[{"card_id":` + itoa(cardID) + `,"delivery_count":1,"delay_seconds":23}]}}`
-	if err := srv.createPublishAutomationRules(ctx, admin.ID, itemapp.BatchRow{
-		CookieID: "acc1", Title: "商品A", AutomationJSON: automationJSON,
-	}, &itemapp.BatchPublishResult{ItemID: "published-delay-item", Title: "商品A"}); err != nil {
-		t.Fatal(err)
-	}
-	rules, err := store.Automation.Match(ctx, "acc1", "published-delay-item", automation.TriggerOrderPaid)
-	if err != nil || len(rules) != 1 {
-		t.Fatalf("rules=%+v err=%v", rules, err)
-	}
-	if len(rules[0].Actions) < 1 || rules[0].Actions[0].DelaySeconds != 23 || !strings.Contains(rules[0].Actions[0].ConfigJSON, `"delay_override":true`) {
-		t.Fatalf("batch delay override lost: %+v", rules[0].Actions)
-	}
-}
-
-// 编译期保证 mtop 包引用。
-var _ = mtop.NewClient

@@ -153,12 +153,23 @@ func (s *Scheduler) settingInterval(ctx context.Context, key string, defaultInte
 	}
 	value = strings.TrimSpace(value)
 	if seconds, err := strconv.ParseFloat(value, 64); err == nil && seconds > 0 {
-		return time.Duration(seconds * float64(time.Second))
+		return s.clampInterval(key, time.Duration(seconds*float64(time.Second)))
 	}
 	if d, err := time.ParseDuration(value); err == nil && d > 0 {
-		return d
+		return s.clampInterval(key, d)
 	}
 	return defaultInterval
+}
+
+// clampInterval 把低于 minInterval 的用户配置提升到下限，并记录一次告警说明实际生效值。
+func (s *Scheduler) clampInterval(key string, d time.Duration) time.Duration {
+	if d >= s.minInterval {
+		return d
+	}
+	if s.logger != nil {
+		s.logger.Warn("续期间隔配置过短，按最短间隔执行", "setting", key, "configured", d, "effective", s.minInterval)
+	}
+	return s.minInterval
 }
 
 func (s *Scheduler) settingInt(ctx context.Context, key string, defaultValue int) int {

@@ -175,28 +175,6 @@ func TestChatAndTaskEndpointsEnforceOwnershipAndValidation(t *testing.T) {
 	}
 }
 
-// TestFindChatPlatformMessageID 验证历史推送关联 ID 只在同一会话内映射为 PNM 已读 ID。
-func TestFindChatPlatformMessageID(t *testing.T) {
-	// raw 模拟持久化的解密 WS 消息，包含推送关联 ID 与平台 PNM ID。
-	raw := map[string]any{
-		"1": map[string]any{
-			"2": "64725235816@goofish",
-			"3": "4263141580162.PNM",
-			"10": map[string]any{
-				"extJson": `{"messageId":"f87f8f6dabca4eff940863ef72a393f7"}`,
-			},
-		},
-	}
-	// got 保存同会话匹配后可向平台上报的 PNM ID。
-	if got := findChatPlatformMessageID(raw, "64725235816", "f87f8f6dabca4eff940863ef72a393f7"); got != "4263141580162.PNM" {
-		t.Fatalf("platform message id=%q", got)
-	}
-	// got 保存跨会话查询结果，必须为空以禁止错误标记其他会话已读。
-	if got := findChatPlatformMessageID(raw, "other-chat", "f87f8f6dabca4eff940863ef72a393f7"); got != "" {
-		t.Fatalf("跨会话错误匹配: %q", got)
-	}
-}
-
 // TestResolveChatReadMessageIDsMigratesLegacyID 验证历史关联 ID 会转换为平台接受的 PNM ID。
 func TestResolveChatReadMessageIDsMigratesLegacyID(t *testing.T) {
 	// srv 提供待测解析路径；store 写入历史 WS 消息；cleanup 释放测试服务器和数据库。

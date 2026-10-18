@@ -31,7 +31,7 @@ test-server:
 
 ## test-server-race: 跑已验证的 server 生命周期与凭证并发 race 子集
 test-server-race:
-	$(GO) test -race ./internal/server -run 'TestRun_|TestPublishWorkerTrackingWaitsForCompletion|TestPublishRecoveryLifecycleStopsBeforeWorkerWait|TestUpdateRunningCookieWakesCredentialBlockedAutomationWithoutManager|TestSetCookieStatusWaitsForCredentialTransition|TestDeleteCookieRechecksOwnershipInsideCredentialLock'
+	$(GO) test -race ./internal/server -run 'TestRun_|TestPublishWorkerTrackingWaitsForCompletion|TestPublishRecoveryLifecycleStopsBeforeWorkerWait|TestSetCookieStatusWaitsForCredentialTransition|TestDeleteCookieRechecksOwnershipInsideCredentialLock'
 
 ## test-multidb: 严格执行 SQLite、MySQL、PostgreSQL 三方言回归；缺少任一外部 URL 时明确失败
 test-multidb:

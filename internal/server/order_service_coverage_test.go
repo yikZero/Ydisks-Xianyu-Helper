@@ -43,19 +43,3 @@ func TestOrderResponseConversionHelpers(t *testing.T) {
 		t.Fatalf("missing kind=%v ok=%v", missingKind, missingOK)
 	}
 }
-
-// TestPublishBatchErrorWrappers 覆盖批量发布错误包装的错误链语义。
-func TestPublishBatchErrorWrappers(t *testing.T) {
-	// cause 保存批量发布错误的底层原因。
-	cause := errors.New("发布阶段失败")
-	// postError 保存普通发布后错误包装结果。
-	postError := &postPublishError{err: cause}
-	if postError.Error() != cause.Error() || !errors.Is(postError, cause) || postError.Unwrap() != cause {
-		t.Fatal("post publish error chain incorrect")
-	}
-	// uncertainError 保存远端结果不确定错误包装结果。
-	uncertainError := &uncertainRemotePublishError{err: cause}
-	if uncertainError.Error() != cause.Error() || !errors.Is(uncertainError, cause) || uncertainError.Unwrap() != cause {
-		t.Fatal("uncertain publish error chain incorrect")
-	}
-}

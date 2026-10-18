@@ -534,21 +534,6 @@ func (a *Adapter) OnInitialTransportReady(ctx context.Context, cookieID string) 
 	}
 }
 
-// beginPasswordLogin 兼容旧测试对账号恢复登记的访问；生产路径统一使用 account.CredentialRefreshCoordinator.Run。
-func (a *Adapter) beginPasswordLogin(cookieID string) bool {
-	if a.passwordCoordinator == nil {
-		return false
-	}
-	return a.passwordCoordinator.TryBegin(cookieID)
-}
-
-// finishPasswordLogin 兼容旧测试对账号恢复收尾的访问；正式调用必须由协调器 Run 自动释放状态。
-func (a *Adapter) finishPasswordLogin(cookieID string) {
-	if a.passwordCoordinator != nil {
-		a.passwordCoordinator.Finish(cookieID)
-	}
-}
-
 // beginPasswordRenewalResult 为账号首次协议续期创建共享结果状态；返回 false 表示已有调用负责续期。
 func (a *Adapter) beginPasswordRenewalResult(cookieID string) bool {
 	// passwordResultMu 只保护账号到共享结果状态的映射，绝不跨越慢速外部 I/O。

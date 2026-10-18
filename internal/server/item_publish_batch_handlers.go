@@ -16,7 +16,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	accountapp "xianyu-go/internal/application/account"
 	itemapp "xianyu-go/internal/application/items"
 	"xianyu-go/internal/auth"
 )
@@ -25,18 +24,6 @@ const (
 	maxPublishBatchRows = 50
 	publishBatchLease   = 5 * time.Minute
 )
-
-type postPublishError struct{ err error }
-
-func (e *postPublishError) Error() string { return e.err.Error() }
-
-func (e *postPublishError) Unwrap() error { return e.err }
-
-type uncertainRemotePublishError struct{ err error }
-
-func (e *uncertainRemotePublishError) Error() string { return e.err.Error() }
-
-func (e *uncertainRemotePublishError) Unwrap() error { return e.err }
 
 type publishBatchPreviewRow struct {
 	RowNo      int                     `json:"row_no"`
@@ -470,45 +457,6 @@ func safeCSVCell(value string) string {
 	}
 }
 
-func publishBatchFailure(err error, batchStatus string) (string, string) {
-	message := err.Error()
-	failureKind := "publish"
-	var postErr *postPublishError
-	var uncertainErr *uncertainRemotePublishError
-	// appUncertainErr 保存应用批量端口返回的远端不确定错误。
-	var appUncertainErr *itemapp.UncertainRemotePublishError
-	// appPostErr 保存应用批量端口返回的后置处理错误。
-	var appPostErr *itemapp.PostPublishError
-	if errors.As(err, &uncertainErr) || errors.As(err, &appUncertainErr) {
-		failureKind = "uncertain_remote"
-		message += "；远端结果未能可靠落库，禁止自动重试，请人工核对闲鱼商品列表"
-	} else if errors.As(err, &postErr) || errors.As(err, &appPostErr) {
-		failureKind = "post_publish"
-	}
-	if batchStatus == "canceled" || batchStatus == "canceling" {
-		if failureKind == "uncertain_remote" {
-			message = "任务已取消；" + message
-		} else {
-			message = "任务已取消"
-		}
-	}
-	return message, failureKind
-}
-
-// finalPublishBatchStatus 根据应用批次统计返回兼容的最终状态。
-func finalPublishBatchStatus(batch *itemapp.BatchInfo) string {
-	if batch == nil {
-		return "failed"
-	}
-	if batch.FailedCount > 0 {
-		if batch.SuccessCount > 0 {
-			return "partially_failed"
-		}
-		return "failed"
-	}
-	return "completed"
-}
-
 // publishBatchApplicationToResponse 将应用批次模型映射为现有 HTTP 响应 DTO。
 func publishBatchApplicationToResponse(batch itemapp.BatchInfo, rows []itemapp.BatchRow) itemPublishBatchResponse {
 	// locationJSON 保存批次发货地配置；空值时保持旧响应的空对象语义。
@@ -580,34 +528,6 @@ func (s *Server) cookieOwnedByUser(ctx context.Context, userID int64, cookieID s
 	return err == nil && owned
 }
 
-// cookieValueForUser 读取指定用户拥有的单个账号 Cookie 明文。
-func (s *Server) cookieValueForUser(ctx context.Context, userID int64, cookieID string) (string, error) {
-	// service 提供消费者定义的平台凭证读取端口，明文只在当前平台请求边界短暂存在。
-	service := s.platformCredentialApplication()
-	if service == nil {
-		return "", errors.New("平台凭证读取服务未初始化")
-	}
-	// value 和 err 保存已通过归属复核的 Cookie 明文及读取错误；value 不进入 HTTP 响应。
-	value, err := service.LoadOwnedValue(ctx, userID, cookieID)
-	if err != nil {
-		if errors.Is(err, accountapp.ErrCredentialNotFound) || errors.Is(err, accountapp.ErrForbidden) || errors.Is(err, accountapp.ErrCredentialEmpty) {
-			return "", errors.New("账号不存在或 Cookie 为空")
-		}
-		return "", err
-	}
-	if strings.TrimSpace(value) == "" {
-		return "", errors.New("账号不存在或 Cookie 为空")
-	}
-	return value, nil
-}
-
-// cardOwnedByUser 判断指定卡券组是否属于用户。
-func (s *Server) cardOwnedByUser(ctx context.Context, userID int64, cardID int64) bool {
-	// exists 和 err 表示卡券应用服务返回的所有权结果及错误。
-	exists, err := s.cardsApplication().ExistsOwned(ctx, userID, cardID)
-	return err == nil && exists
-}
-
 // publishUploadRoot 返回发布图片上传文件的根目录。
 func (s *Server) publishUploadRoot() string {
 	return defaultPublishUploadRoot()
@@ -662,17 +582,6 @@ func parsePublishIntervalSeconds(raw string) (int, error) {
 		return 0, errors.New("发布间隔必须是 1 到 3600 秒")
 	}
 	return interval, nil
-}
-
-// firstNonEmpty 返回参数中第一个非空白字符串。
-func firstNonEmpty(values ...string) string {
-	// v 是当前遍历到的候选字符串。
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // publishBatchLocation 保存批量发布请求中的发货地字段，不让平台 DTO 进入 HTTP 层。

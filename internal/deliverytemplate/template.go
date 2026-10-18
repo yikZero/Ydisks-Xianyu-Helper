@@ -160,8 +160,3 @@ func Replace(message string, values VariableValues) string {
 		return token
 	})
 }
-
-// ReplaceCards 兼容旧调用方，只替换已经提供绑定值的卡密变量。
-func ReplaceCards(message string, values map[string]string) string {
-	return Replace(message, VariableValues{CardValues: values})
-}

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	accountapp "xianyu-go/internal/application/account"
-	"xianyu-go/internal/automation"
 	"xianyu-go/internal/db"
 	"xianyu-go/internal/xianyu/cookierefresh"
 	xrenew "xianyu-go/internal/xianyu/renew"
@@ -567,27 +566,6 @@ func TestUpdateCookieRejectsStaleRevision(t *testing.T) {
 	}
 }
 
-func TestUpdateRunningCookieWakesCredentialBlockedAutomationWithoutManager(t *testing.T) {
-	srv, store, cleanup := newTestServer(t)
-	defer cleanup()
-	ctx := context.Background()
-	dueAt := time.Now().UTC().Add(time.Hour).Unix()
-	if err := store.Automation.DeferTask(ctx, db.DeferredAutomationTask{
-		TaskKey: "acc1:credential", CookieID: "acc1", TriggerType: automation.TriggerOrderPaid,
-		TaskJSON: `{}`, DueAt: dueAt, ErrorMessage: "FAIL_SYS_SESSION_EXPIRED",
-	}); err != nil {
-		t.Fatal(err)
-	}
-	srv.updateRunningCookie(ctx, "acc1", "unb=123; _m_h5_tk=fresh_1;")
-	var got int64
-	if err := store.DB.QueryRowContext(ctx, `SELECT due_at FROM automation_pending_tasks WHERE task_key=?`, "acc1:credential").Scan(&got); err != nil {
-		t.Fatal(err)
-	}
-	if got != 0 {
-		t.Fatalf("Cookie 更新后凭证失败任务 due_at=%d want 0", got)
-	}
-}
-
 func TestUpdateCookieQRLoginEnablesAccount(t *testing.T) {
 	srv, store, cleanup := newTestServer(t)
 	defer cleanup()
@@ -1023,22 +1001,6 @@ func TestCachedAccountNickname(t *testing.T) {
 		summaryGot := cachedAccountSummaryNickname(accountapp.AccountSummary{ID: c.id, Nickname: c.nickname, Remark: c.remark})
 		if summaryGot != c.want {
 			t.Errorf("cachedAccountSummaryNickname(remark=%q,nick=%q,id=%q)=%q want %q", c.remark, c.nickname, c.id, summaryGot, c.want)
-		}
-	}
-}
-
-// TestNormalizeProfileAvatarURL 头像 URL 归一。
-func TestNormalizeProfileAvatarURL(t *testing.T) {
-	cases := map[string]string{
-		"":                                 "",
-		"//img.alicdn.com/x.jpg":           "https://img.alicdn.com/x.jpg",
-		"http://img.alicdn.com/x.jpg":      "https://img.alicdn.com/x.jpg",
-		"https://img.alicdn.com/x.jpg":     "https://img.alicdn.com/x.jpg",
-		"  https://img.alicdn.com/x.jpg  ": "https://img.alicdn.com/x.jpg",
-	}
-	for in, want := range cases {
-		if got := normalizeProfileAvatarURL(in); got != want {
-			t.Errorf("normalizeProfileAvatarURL(%q)=%q want %q", in, got, want)
 		}
 	}
 }

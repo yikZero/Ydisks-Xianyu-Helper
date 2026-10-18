@@ -98,17 +98,6 @@ func (s *Scheduler) paidRecoveryReady(ctx context.Context, task Task, run db.Aut
 	return true, nil
 }
 
-// scanPendingShipDeliveries 兜底扫描没有付款运行的待发货订单并补触发自动发货。
-func (s *Scheduler) scanPendingShipDeliveries(ctx context.Context) {
-	if ctx == nil {
-		return
-	}
-	// scanCtx、cancel 为直接调用入口提供独立预算及释放函数。
-	scanCtx, cancel := context.WithTimeout(ctx, s.pendingShipScanBudgetValue())
-	defer cancel()
-	_ = s.scanPendingShipDeliveriesWithContextAndLimit(scanCtx, s.pendingShipScanMaxTasksValue())
-}
-
 // scanPendingShipDeliveriesWithContextAndLimit 在预算与任务额度内补触发待发货订单。
 func (s *Scheduler) scanPendingShipDeliveriesWithContextAndLimit(ctx context.Context, remainingTasks int) (leftTasks int) {
 	leftTasks = remainingTasks

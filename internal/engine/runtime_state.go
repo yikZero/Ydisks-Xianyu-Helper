@@ -19,8 +19,8 @@ type accountRuntimeState struct {
 	networkFailures int
 	// dialRetryDelayFn 仅供测试覆盖拨号失败退避时长，参数为连续失败次数；生产环境保持 nil 并使用 dialBackoff。
 	dialRetryDelayFn func(failures int) time.Duration
-	// shortDisconnects 保存短连接断开的时间窗口。
-	shortDisconnects []time.Time
+	// rapidReconnects 是连续“连上即断”（持续不足 ShortConnectionThreshold）的会话次数，用于重连退避。
+	rapidReconnects int
 	// lastMsgReceived 是最近收到平台消息的时间。
 	lastMsgReceived time.Time
 	// runtimeState 是当前账号运行状态枚举。

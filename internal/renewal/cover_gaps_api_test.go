@@ -358,6 +358,8 @@ func TestRunFixedAndAPIFixedExecuteAfterTimer(t *testing.T) {
 	}
 	// scheduler 保存被测续期调度器。
 	scheduler := NewScheduler(store, nil, nil, nil)
+	// 本测试需要定时器立即触发，显式关闭生产环境的最短间隔下限。
+	scheduler.minInterval = 0
 	// runs 统计固定任务被执行的次数，第二次执行时取消循环。
 	runs := 0
 	scheduler.runFixed(ctx, "test", "renewal.test.enabled", "renewal.test.interval", false, time.Hour, func(context.Context) {

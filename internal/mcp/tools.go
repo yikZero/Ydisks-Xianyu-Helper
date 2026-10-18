@@ -3,6 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -290,14 +291,21 @@ type ruleRow struct {
 	Actions            []actionRow `json:"actions"`
 }
 
-// actionSpec 读取动作配置里的规格过滤条件。
-func (a actionRow) actionSpec() (string, string) {
+// actionSpec 读取动作配置里的规格过滤条件；配置不是合法 JSON 时 ok 为 false。
+func (a actionRow) actionSpec() (name, value string, ok bool) {
 	var config struct {
 		SpecName  string `json:"spec_name"`
 		SpecValue string `json:"spec_value"`
 	}
-	_ = json.Unmarshal([]byte(a.ConfigJSON), &config)
-	return strings.TrimSpace(config.SpecName), strings.TrimSpace(config.SpecValue)
+	if json.Unmarshal([]byte(a.ConfigJSON), &config) != nil {
+		return "", "", false
+	}
+	return strings.TrimSpace(config.SpecName), strings.TrimSpace(config.SpecValue), true
+}
+
+// isDelivery 判断动作是否为发货动作（发卡密或发模板）。
+func (a actionRow) isDelivery() bool {
+	return a.ActionType == actionSendCard || a.ActionType == actionSendTemplate
 }
 
 // allowsAllItems 判断账号级规则是否经用户确认适用于全部商品（与自动化中心的判定一致）。
@@ -311,10 +319,23 @@ func (r ruleRow) allowsAllItems() bool {
 	return json.Unmarshal([]byte(r.ConfigJSON), &config) == nil && config.AllowAllItems
 }
 
-// stockLines 返回 data 类型卡密的有效库存行。
+// scope 返回规则作用范围：绑定商品的为 item，账号级为 account。
+func (r ruleRow) scope() string {
+	if r.ItemID == "" {
+		return "account"
+	}
+	return "item"
+}
+
+// path 返回规则的管理接口地址。
+func (r ruleRow) path() string {
+	return "/api/v1/automation-rules/" + strconv.FormatInt(r.ID, 10)
+}
+
+// stockLines 按发货扣减库存时的规则（\n 或 \r 分隔、跳过空白行）返回 data 类型卡密的库存行，并去掉首尾空白。
 func stockLines(content string) []string {
 	lines := []string{}
-	for _, line := range strings.Split(content, "\n") {
+	for _, line := range strings.FieldsFunc(content, func(r rune) bool { return r == '\n' || r == '\r' }) {
 		if line = strings.TrimSpace(line); line != "" {
 			lines = append(lines, line)
 		}

@@ -27,7 +27,7 @@ func TestSelectDeliveryRuleMirrorsAutomationMatching(t *testing.T) {
 	}
 }
 
-// TestActionMatchesSpec 覆盖无规格动作、账号级全商品规则和规格分隔符归一。
+// TestActionMatchesSpec 覆盖无规格动作、账号级全商品规则、规格分隔符归一和损坏的规格配置。
 func TestActionMatchesSpec(t *testing.T) {
 	plain := actionRow{ConfigJSON: `{}`}
 	blue := actionRow{ConfigJSON: `{"spec_name":"颜色;尺码","spec_value":"蓝;L"}`}
@@ -37,8 +37,12 @@ func TestActionMatchesSpec(t *testing.T) {
 	if !actionMatchesSpec(blue, false, "颜色；尺码", "蓝；L") || actionMatchesSpec(blue, false, "颜色；尺码", "蓝；M") {
 		t.Fatal("规格应完整相等且兼容中英文分号")
 	}
-	if !sameSpec("", "", " ", "") || sameSpec("", "", "颜色", "蓝") || !sameSpec("颜色", "蓝", "颜色", "蓝") {
-		t.Fatal("sameSpec 判断错误")
+	if !actionMatchesSpec(plain, false, " ", "") {
+		t.Fatal("空白规格按无规格处理")
+	}
+	broken := actionRow{ConfigJSON: `{bad`}
+	if actionMatchesSpec(broken, true, "", "") || actionMatchesSpec(broken, false, "", "") {
+		t.Fatal("规格配置损坏的动作不应匹配任何订单")
 	}
 }
 
@@ -47,13 +51,13 @@ func TestHelpersFormatAPIErrorsAndPreview(t *testing.T) {
 	if got := apiErrorMessage([]byte(`{"success":false,"message":"商品不属于当前用户"}`)); got != "商品不属于当前用户" {
 		t.Fatalf("message=%q", got)
 	}
-	if got := apiErrorMessage([]byte(`{"detail":"旧格式"}`)); got != "旧格式" {
-		t.Fatalf("detail=%q", got)
+	if got := apiErrorMessage([]byte(`{"detail":"非统一信封"}`)); got != `{"detail":"非统一信封"}` {
+		t.Fatalf("非统一信封应原样返回，got %q", got)
 	}
 	if got := apiErrorMessage([]byte(strings.Repeat("x", 300))); len([]rune(got)) != 201 {
 		t.Fatalf("非 JSON 正文应截断，len=%d", len([]rune(got)))
 	}
-	if lines := stockLines("a\n\n b \r\n"); len(lines) != 2 || lines[1] != "b" {
+	if lines := stockLines("a\n\n b \r\nc\rd"); len(lines) != 4 || lines[1] != "b" || lines[3] != "d" {
 		t.Fatalf("lines=%q", lines)
 	}
 	if got := preview("一二三四五", 3); got != "一二三…" {

@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"xianyu-go/internal/httpapi"
 )
 
 // apiClient 以已认证用户身份在进程内调用管理接口，不经过网络。
@@ -86,21 +88,9 @@ func (c apiClient) do(method, path string, query url.Values, body, out any) erro
 
 // apiErrorMessage 从统一错误信封中提取可读信息；无法解析时返回截断后的原文。
 func apiErrorMessage(body []byte) string {
-	var envelope struct {
-		Message string `json:"message"`
-		Detail  string `json:"detail"`
-		Error   string `json:"error"`
+	var envelope httpapi.ErrorResponse
+	if json.Unmarshal(body, &envelope) == nil && strings.TrimSpace(envelope.Message) != "" {
+		return envelope.Message
 	}
-	if json.Unmarshal(body, &envelope) == nil {
-		for _, text := range []string{envelope.Message, envelope.Detail, envelope.Error} {
-			if strings.TrimSpace(text) != "" {
-				return text
-			}
-		}
-	}
-	text := strings.TrimSpace(string(body))
-	if len([]rune(text)) > 200 {
-		text = string([]rune(text)[:200]) + "…"
-	}
-	return text
+	return preview(string(body), 200)
 }

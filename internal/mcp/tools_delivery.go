@@ -15,10 +15,10 @@ import (
 func ruleSummary(rule ruleRow) map[string]any {
 	actions := []map[string]any{}
 	for _, action := range rule.Actions {
-		if action.ActionType != actionSendCard && action.ActionType != actionSendTemplate {
+		if !action.isDelivery() {
 			continue
 		}
-		specName, specValue := action.actionSpec()
+		specName, specValue, _ := action.actionSpec()
 		entry := map[string]any{"action_id": action.ID, "type": action.ActionType, "enabled": action.Enabled, "delivery_count": action.DeliveryCount,
 			"spec_name": specName, "spec_value": specValue}
 		if action.ActionType == actionSendCard {
@@ -28,12 +28,8 @@ func ruleSummary(rule ruleRow) map[string]any {
 		}
 		actions = append(actions, entry)
 	}
-	scope := "item"
-	if rule.ItemID == "" {
-		scope = "account"
-	}
 	return map[string]any{"rule_id": rule.ID, "account_id": rule.CookieID, "item_id": rule.ItemID, "item_title": rule.ItemTitle, "name": rule.Name,
-		"scope": scope, "enabled": rule.Enabled, "priority": rule.Priority, "ready": rule.SKUMigrationStatus == "ready", "deliveries": actions}
+		"scope": rule.scope(), "enabled": rule.Enabled, "priority": rule.Priority, "ready": rule.SKUMigrationStatus == "ready", "deliveries": actions}
 }
 
 func runListDeliveryRules(client apiClient, arguments json.RawMessage) (any, error) {
@@ -91,21 +87,17 @@ func selectDeliveryRule(rules []ruleRow, accountID, itemID string) *ruleRow {
 	return pick(func(r ruleRow) bool { return r.ItemID == "" && r.allowsAllItems() })
 }
 
-// actionMatchesSpec 与自动化中心一致：动作未设规格时只匹配无规格订单（账号级全商品规则除外），设了规格时要求完整相等。
+// actionMatchesSpec 与自动化中心一致：动作未设规格时只匹配无规格订单（账号级全商品规则除外），设了规格时要求完整相等；
+// 规格配置损坏的动作不匹配任何订单。
 func actionMatchesSpec(action actionRow, allowAllItems bool, specName, specValue string) bool {
-	actionName, actionValue := action.actionSpec()
+	actionName, actionValue, ok := action.actionSpec()
+	if !ok {
+		return false
+	}
 	if actionName == "" && actionValue == "" {
 		return allowAllItems || (strings.TrimSpace(specName) == "" && strings.TrimSpace(specValue) == "")
 	}
 	return orderspec.Equal(specName, specValue, actionName, actionValue)
-}
-
-// sameSpec 判断两个规格是否表示同一规格（都为空也算相同）。
-func sameSpec(leftName, leftValue, rightName, rightValue string) bool {
-	if strings.TrimSpace(leftName) == "" && strings.TrimSpace(leftValue) == "" {
-		return strings.TrimSpace(rightName) == "" && strings.TrimSpace(rightValue) == ""
-	}
-	return orderspec.Equal(leftName, leftValue, rightName, rightValue)
 }
 
 // deliveryPreview 预演 accountID/itemID 在给定规格和数量下付款时会发送的内容。
@@ -148,21 +140,22 @@ func deliveryPreview(client apiClient, accountID, itemID, specName, specValue st
 		result["warnings"] = append(warnings, "没有命中任何已启用的付款发货规则")
 		return result, nil
 	}
-	result["rule"] = map[string]any{"rule_id": rule.ID, "name": rule.Name, "scope": map[bool]string{true: "account", false: "item"}[rule.ItemID == ""]}
+	result["rule"] = map[string]any{"rule_id": rule.ID, "name": rule.Name, "scope": rule.scope()}
 	cardByID := map[int64]cardRow{}
 	for _, card := range cards {
 		cardByID[card.ID] = card
 	}
 	deliveries := []map[string]any{}
 	for _, action := range rule.Actions {
-		if !action.Enabled || (action.ActionType != actionSendCard && action.ActionType != actionSendTemplate) || !actionMatchesSpec(action, rule.allowsAllItems(), specName, specValue) {
+		if !action.Enabled || !action.isDelivery() || !actionMatchesSpec(action, rule.allowsAllItems(), specName, specValue) {
 			continue
 		}
 		perUnit := action.DeliveryCount
 		if perUnit <= 0 {
 			perUnit = 1
 		}
-		entry := map[string]any{"action_id": action.ID, "type": action.ActionType, "units": perUnit * quantity}
+		units := perUnit * quantity
+		entry := map[string]any{"action_id": action.ID, "type": action.ActionType, "units": units}
 		if action.ActionType == actionSendTemplate {
 			entry["template_id"], entry["template_name"] = action.DeliveryTemplateID, action.DeliveryTemplateName
 			deliveries = append(deliveries, entry)
@@ -173,15 +166,16 @@ func deliveryPreview(client apiClient, accountID, itemID, specName, specValue st
 			warnings = append(warnings, fmt.Sprintf("动作 %d 引用的卡密组 %d 不存在", action.ID, action.CardID))
 			continue
 		}
-		for key, value := range cardSummary(card) {
+		summary := cardSummary(card)
+		for key, value := range summary {
 			entry[key] = value
 		}
 		if !card.Enabled {
 			warnings = append(warnings, fmt.Sprintf("卡密组「%s」已停用，发货会失败", card.Name))
 		}
 		if card.Type == "data" {
-			if stock := len(stockLines(card.DataContent)); stock < perUnit*quantity {
-				warnings = append(warnings, fmt.Sprintf("卡密组「%s」库存 %d 条，不够本单需要的 %d 条", card.Name, stock, perUnit*quantity))
+			if stock := summary["stock"].(int); stock < units {
+				warnings = append(warnings, fmt.Sprintf("卡密组「%s」库存 %d 条，不够本单需要的 %d 条", card.Name, stock, units))
 			}
 		}
 		deliveries = append(deliveries, entry)
@@ -362,11 +356,7 @@ func runBindItemDelivery(client apiClient, arguments json.RawMessage) (any, erro
 			if action.SortOrder > maxSort {
 				maxSort = action.SortOrder
 			}
-			if replaced || (action.ActionType != actionSendCard && action.ActionType != actionSendTemplate) {
-				continue
-			}
-			actionName, actionValue := action.actionSpec()
-			if !sameSpec(actionName, actionValue, specName, specValue) {
+			if replaced || !action.isDelivery() || !actionMatchesSpec(action, false, specName, specValue) {
 				continue
 			}
 			request.Actions[i].ActionType = actionSendCard
@@ -383,7 +373,7 @@ func runBindItemDelivery(client apiClient, arguments json.RawMessage) (any, erro
 			request.Actions = append(request.Actions, actionRequest{ActionType: actionSendCard, CardID: args.CardID, DeliveryCount: args.DeliveryCount,
 				ConfigJSON: string(config), Enabled: true, SortOrder: maxSort + 1, TemplateBindings: []templateBindingRequest{}, CustomVariables: map[string]string{}})
 		}
-		if err := client.do(http.MethodPut, "/api/v1/automation-rules/"+strconv.FormatInt(rule.ID, 10), nil, request, nil); err != nil {
+		if err := client.do(http.MethodPut, rule.path(), nil, request, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -416,7 +406,7 @@ func runSetDeliveryRuleEnabled(client apiClient, arguments json.RawMessage) (any
 		}
 		request := requestFromRule(rule)
 		request.Enabled = *args.Enabled
-		if err := client.do(http.MethodPut, "/api/v1/automation-rules/"+strconv.FormatInt(rule.ID, 10), nil, request, nil); err != nil {
+		if err := client.do(http.MethodPut, rule.path(), nil, request, nil); err != nil {
 			return nil, err
 		}
 		rule.Enabled = *args.Enabled

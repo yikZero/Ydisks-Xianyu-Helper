@@ -592,12 +592,11 @@ func TestRun_EstablishedNetworkErrorReconnectsWithFreshToken(t *testing.T) {
 	waitForRegisteredToken(t, second, "tok-1")
 	acc.mu.Lock()
 	currentToken := acc.currentToken
-	networkFailures := acc.networkFailures
 	acc.mu.Unlock()
-	if networkFailures != 0 || currentToken != "tok-1" {
+	if currentToken != "tok-1" {
 		cancel()
 		<-done
-		t.Fatalf("网络断线后应立即用新凭证恢复连接: failures=%d token=%q", networkFailures, currentToken)
+		t.Fatalf("网络断线后应立即用新凭证恢复连接: token=%q", currentToken)
 	}
 	if cached, err := store.Tokens.Get(context.Background(), "cid"); err != nil || cached.AccessToken != "tok-1" {
 		cancel()
@@ -816,7 +815,8 @@ func TestRun_TokenFetchFailureRetriesWithoutDisablingAccount(t *testing.T) {
 	h := &failingRefreshHandler{}
 	acc.handler = h
 	acc.mu.Lock()
-	acc.tokenFetchFailures = TokenFetchDisableThreshold - 1
+	// 99 次连续失败仍不应自动禁用账号：官网运行时不会按 Token 失败次数禁用。
+	acc.tokenFetchFailures = 99
 	acc.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())

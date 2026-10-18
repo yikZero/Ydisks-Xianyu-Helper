@@ -1,6 +1,6 @@
 package notify
 
-// 本文件保存只被测试使用的历史薄包装：生产代码已改走带凭证/租约的正式入口，测试仍通过它们覆盖同一实现。
+// 本文件保存只供测试调用的邮件发送入口，委托给生产中的邮件渠道实现。
 
 // ---- 邮件 ----
 func (n *Notifier) sendEmail(cfg map[string]any, message string) error {

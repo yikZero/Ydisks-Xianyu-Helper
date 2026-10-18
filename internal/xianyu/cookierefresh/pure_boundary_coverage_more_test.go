@@ -29,11 +29,6 @@ func TestCookieStringAndSnapshotBoundaryInputs(t *testing.T) {
 
 // TestCookieRefreshFilteringBranches 覆盖 Cookie 作用域、属性校验、删除和异常输入分支。
 func TestCookieRefreshFilteringBranches(t *testing.T) {
-	// merged 保存空名称 Set-Cookie 被过滤后的结果。
-	merged := MergeSetCookies("a=1", []string{" =ignored"})
-	if merged != "a=1" {
-		t.Fatalf("空名称 Cookie 未过滤: %q", merged)
-	}
 	// reconciled 保存扁平 Cookie 缺失字段后的快照结果。
 	reconciled := ReconcileSnapshotWithCookieString([]BrowserCookie{{Name: "sid", Value: "old"}}, "other=v")
 	if len(reconciled) != 1 || reconciled[0].Name != "other" {

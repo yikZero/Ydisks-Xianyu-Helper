@@ -27,25 +27,19 @@ import (
 
 // 账号运行时参数。
 const (
-	MaxConnectionFailures       = 5               // 仅保留给显式人工恢复入口和兼容测试
-	TokenFetchDisableThreshold  = 100             // 兼容常量；官网运行时不会按次数自动禁用账号
 	MessageSemaphoreSize        = 100             // 并发消息处理上限
 	MessageDebounceDelay        = 1 * time.Second // 防抖延迟：用户停止发送 1s 后回复
 	MessageExpireTime           = time.Hour       // 去重有效期
 	ProcessedIDsMaxSize         = 10000           // 去重表上限，超限清理
 	HeartbeatInterval           = 15 * time.Second
 	PasswordLoginMinGap         = 60 * time.Second
-	MaxNetworkFailures          = 20
-	FrequentDisconnectLimit     = 5
-	FrequentDisconnectWindow    = 5 * time.Minute
 	TokenCaptchaFailureCooldown = 5 * time.Minute
 	WSRecordBatchSize           = 32
 	WSRecordFlushInterval       = 250 * time.Millisecond
 	WSRecordWriteTimeout        = 5 * time.Second
 	WSRecordRetention           = 7 * 24 * time.Hour
 
-	// ShortConnectionThreshold 仅用于统计频繁短连接；已经建立后的网络断线
-	// 不会清 Token 缓存。
+	// ShortConnectionThreshold 是判定“连上即断”的会话时长；连续短于该值的会话会触发重连退避。
 	ShortConnectionThreshold = 30 * time.Second
 )
 
@@ -542,7 +536,3 @@ func isEstablishedNetworkError(err error) bool {
 	}
 	return false
 }
-
-// acquireToken is kept for internal callers and tests, but intentionally does
-// not reuse the persisted accessToken. Official web reconnects always invoke
-// the login.token API before /reg.

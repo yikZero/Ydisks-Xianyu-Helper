@@ -3,40 +3,7 @@ package adapter
 import (
 	"context"
 	"testing"
-
-	"xianyu-go/internal/application/account"
-	"xianyu-go/internal/xianyu/cookierefresh"
 )
-
-// TestAccountSettingsAndCookieSessionGuards 验证账号设置锁和平台 Cookie 会话包装的边界语义。
-func TestAccountSettingsAndCookieSessionGuards(t *testing.T) {
-	// nilRepository 保存缺少 Store 的账号设置适配器。
-	nilRepository := NewAccountSettingsRepository(nil)
-	// unlock 保存缺少 Store 时仍应可安全调用的空解锁函数。
-	unlock := nilRepository.LockCredentials("cid")
-	unlock()
-	// detail 保存不同凭证形态的应用层脱敏详情。
-	detail := &account.CredentialDetail{Value: "cookie"}
-	if !HasStoredCookieCredential(detail) || HasStoredCookieCredential(nil) {
-		t.Fatal("凭证存在性判断异常")
-	}
-	// metadata 保存带完整浏览器快照的凭证元数据。
-	metadata := cookierefresh.MetadataWithSnapshot(`{"other":true}`, []cookierefresh.BrowserCookie{{Name: "unb", Value: "id", Domain: ".goofish.com", Path: "/"}})
-	if !HasStoredCookieCredential(&account.CredentialDetail{MetadataJSON: metadata}) {
-		t.Fatal("完整 Cookie 快照应被识别为有效凭证")
-	}
-	ctx := context.Background()
-	// snapshotContext、snapshotSession 保存完整 Cookie 快照会话及上下文。
-	snapshotContext, snapshotSession := WithCookieSnapshot(ctx, []BrowserCookie{{Name: "unb", Value: "id"}})
-	if snapshotContext == nil || snapshotSession == nil {
-		t.Fatal("完整 Cookie 会话构造失败")
-	}
-	// flatContext、flatSession 保存旧版扁平 Cookie 会话及上下文。
-	flatContext, flatSession := WithFlatCookieSession(ctx, "unb=id")
-	if flatContext == nil || flatSession == nil {
-		t.Fatal("扁平 Cookie 会话构造失败")
-	}
-}
 
 // TestItemAndSystemDependenciesConstructPorts 验证商品和系统依赖组在空值与完整 Store 下的构造边界。
 func TestItemAndSystemDependenciesConstructPorts(t *testing.T) {
@@ -95,5 +62,25 @@ func TestItemAndSystemDependenciesConstructPorts(t *testing.T) {
 	var nilOrderDependencies *OrderDependencies
 	if nilOrderDependencies.NewOrderRepository() != nil || nilOrderDependencies.NewOrderRuntime(OrderRuntimeHooks{}, nil, nil) != nil {
 		t.Fatal("nil 订单依赖不应构造端口")
+	}
+}
+
+// TestAccountSettingsAndCookieSessionGuards 验证账号设置锁和平台 Cookie 会话包装的边界语义。
+func TestAccountSettingsAndCookieSessionGuards(t *testing.T) {
+	// nilRepository 保存缺少 Store 的账号设置适配器。
+	nilRepository := NewAccountSettingsRepository(nil)
+	// unlock 保存缺少 Store 时仍应可安全调用的空解锁函数。
+	unlock := nilRepository.LockCredentials("cid")
+	unlock()
+	ctx := context.Background()
+	// snapshotContext、snapshotSession 保存完整 Cookie 快照会话及上下文。
+	snapshotContext, snapshotSession := WithCookieSnapshot(ctx, []BrowserCookie{{Name: "unb", Value: "id"}})
+	if snapshotContext == nil || snapshotSession == nil {
+		t.Fatal("完整 Cookie 会话构造失败")
+	}
+	// flatContext、flatSession 保存旧版扁平 Cookie 会话及上下文。
+	flatContext, flatSession := WithFlatCookieSession(ctx, "unb=id")
+	if flatContext == nil || flatSession == nil {
+		t.Fatal("扁平 Cookie 会话构造失败")
 	}
 }

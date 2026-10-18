@@ -318,16 +318,16 @@ func TestIsSessionExpiredErr(t *testing.T) {
 	}
 }
 
-// TestIsCredentialRefreshableErr 验证仅明确 Session 失效允许账号级恢复；t 检查兼容分类入口。
-func TestIsCredentialRefreshableErr(t *testing.T) {
+// TestOnlySessionExpiryAllowsAccountRecovery 验证仅明确 Session 失效允许账号级恢复，Token 失效和普通业务失败不算。
+func TestOnlySessionExpiryAllowsAccountRecovery(t *testing.T) {
 	// tokenErr 是只应在 MTOP 内部刷新的签名 Token 失效错误。
 	tokenErr := &MTopResponseError{Kind: MTopErrorTokenExpired, API: "token", HTTPStatus: http.StatusOK}
 	// sessionErr 是需要协议续期或重新登录的 Session 失效错误。
 	sessionErr := &SessionExpiredError{API: "session", Ret: []string{"FAIL_SYS_SESSION_EXPIRED::Session过期"}}
-	if IsCredentialRefreshableErr(tokenErr) || !IsCredentialRefreshableErr(sessionErr) {
+	if IsSessionExpiredErr(tokenErr) || !IsSessionExpiredErr(sessionErr) {
 		t.Fatal("仅 Session 失效可以进入账号级凭证恢复入口")
 	}
-	if IsCredentialRefreshableErr(errors.New("普通业务失败")) {
+	if IsSessionExpiredErr(errors.New("普通业务失败")) {
 		t.Fatal("普通业务失败不应触发凭证恢复")
 	}
 }

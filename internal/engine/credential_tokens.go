@@ -314,8 +314,8 @@ func (c *credentialCoordinator) tokenCaptchaCooldownRemaining() time.Duration {
 }
 
 // saveTokenCache records the server expiry and current page-runtime identity.
-// It is diagnostic state only: acquireToken never reads the accessToken back
-// for a later WebSocket registration.
+// It is diagnostic state only: connection setup always fetches a fresh token and
+// never reads the cached accessToken back for a later WebSocket registration.
 func (c *credentialCoordinator) saveTokenCache(ctx context.Context, deviceID, accessToken string, serverExpireAt int64, credentialFP string) {
 	// a 是本凭证协调器绑定的账号 facade，提供 Token repository 与诊断日志。
 	a := c.account

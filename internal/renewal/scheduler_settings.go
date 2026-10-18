@@ -161,12 +161,22 @@ func (s *Scheduler) settingInterval(ctx context.Context, key string, defaultInte
 	return defaultInterval
 }
 
-// clampInterval 把低于 minInterval 的用户配置提升到下限，并记录一次告警说明实际生效值。
+// clampInterval 把低于 minInterval 的用户配置提升到下限。续期循环每轮都会重读设置，
+// 所以同一个设置键的同一过短值只告警一次，配置改变后才再次告警。
 func (s *Scheduler) clampInterval(key string, d time.Duration) time.Duration {
 	if d >= s.minInterval {
 		return d
 	}
-	if s.logger != nil {
+	s.clampMu.Lock()
+	warned := s.clampWarned[key] == d
+	if !warned {
+		if s.clampWarned == nil {
+			s.clampWarned = map[string]time.Duration{}
+		}
+		s.clampWarned[key] = d
+	}
+	s.clampMu.Unlock()
+	if !warned && s.logger != nil {
 		s.logger.Warn("续期间隔配置过短，按最短间隔执行", "setting", key, "configured", d, "effective", s.minInterval)
 	}
 	return s.minInterval

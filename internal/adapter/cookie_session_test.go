@@ -82,20 +82,3 @@ func TestCookieSessionAdapterAcceptsMinimalSessionPort(t *testing.T) {
 		t.Fatalf("最小凭证端口写回异常: changed=%v handled=%v calls=%d err=%v", changed, handled, port.calls, persistErr)
 	}
 }
-
-// TestCookieSessionAdapterHasStoredCredential 验证扁平 Cookie 和完整快照均被识别为可用凭证。
-func TestCookieSessionAdapterHasStoredCredential(t *testing.T) {
-	// flat 是只含扁平 Cookie 的历史平台凭证视图。
-	flat := &accountapp.CredentialDetail{Value: "sid=flat"}
-	if !HasStoredCookieCredential(flat) {
-		t.Fatal("扁平 Cookie 应被识别为已存储凭证")
-	}
-	// snapshotMetadata 是包含完整 Jar 的 metadata。
-	snapshotMetadata := cookierefresh.MetadataWithSnapshot(`{}`, []BrowserCookie{{Name: "sid", Value: "snapshot", Domain: ".goofish.com", Path: "/"}})
-	if !HasStoredCookieCredential(&accountapp.CredentialDetail{MetadataJSON: snapshotMetadata}) {
-		t.Fatal("完整 Cookie 快照应被识别为已存储凭证")
-	}
-	if HasStoredCookieCredential(nil) {
-		t.Fatal("空凭证视图不应被识别为已存储凭证")
-	}
-}

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 
@@ -475,30 +474,20 @@ func taskAutomationRunID(task Task) int64 {
 	return id
 }
 
-// rawInt64 从 Task.Raw 读取整数字段。延期任务经 JSON 往返后数字会变成 float64，
+// rawInt64 从 Task.Raw 读取内部写入的整数字段：内存中是 int/int64，延期任务经 JSON 往返后变成 float64。
 // 不能用 fmt.Sprint 再解析：1000000 会被格式化为 "1e+06" 而解析失败。
+// 与规则配置用的 intFromAny 不同，这里的 ID 必须精确，小数或超出 float64 精确范围的值视为无效。
 func rawInt64(raw map[string]any, key string) (int64, bool) {
-	if raw == nil {
-		return 0, false
-	}
 	switch value := raw[key].(type) {
 	case int:
 		return int64(value), true
 	case int64:
 		return value, true
-	case int32:
-		return int64(value), true
 	case float64:
 		if value != math.Trunc(value) || math.Abs(value) > 1<<53 {
 			return 0, false
 		}
 		return int64(value), true
-	case json.Number:
-		id, err := value.Int64()
-		return id, err == nil
-	case string:
-		id, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
-		return id, err == nil
 	}
 	return 0, false
 }

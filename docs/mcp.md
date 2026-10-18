@@ -24,11 +24,45 @@
 
 ## 2. 连接 AI 客户端
 
+### 方式一：AI 能 SSH 到服务所在机器（推荐，服务不用对外暴露）
+
+在服务所在机器上编译命令行工具，并把 Token 存进只有自己可读的文件：
+
+```bash
+go build -o ~/.local/bin/xianyu-mcp ./cmd/xianyu-mcp
+mkdir -p ~/.config/ydisks-xianyu-helper
+./xianyu-server -db data/xianyu_data.db -api-token-create grok -api-token-scope write | tail -1 \
+  > ~/.config/ydisks-xianyu-helper/api-token
+chmod 600 ~/.config/ydisks-xianyu-helper/api-token
+```
+
+之后 AI 通过 SSH 执行命令即可（默认连 `http://127.0.0.1:59188/mcp`，可用 `-url` 或 `XIANYU_MCP_URL` 修改）：
+
+```bash
+ssh frybox ~/.local/bin/xianyu-mcp tools                                   # 工具、权限和参数说明
+ssh frybox ~/.local/bin/xianyu-mcp call list_cards                          # 无参数调用
+echo '{"keyword":"夸克"}' | ssh frybox ~/.local/bin/xianyu-mcp call list_items -   # 参数从标准输入传，避免 SSH 引号转义
+```
+
+`call` 输出工具的 JSON 结果；工具返回业务错误（参数不对、规则冲突等）时退出码为 1，错误信息同样输出在标准输出。
+
+如果 AI 客户端支持“用命令启动 MCP 服务”（stdio 传输），也可以直接配置成经 SSH 启动：
+
+```json
+{
+  "mcpServers": {
+    "xianyu": { "command": "ssh", "args": ["frybox", "/home/yikzero/.local/bin/xianyu-mcp", "stdio"] }
+  }
+}
+```
+
+非交互 SSH 不一定加载 `~/.local/bin` 到 PATH，所以上面都写完整路径。
+
+### 方式二：AI 客户端与服务在同一局域网，直接走 HTTP
+
 - 地址：`http://<服务地址>:59188/mcp`，例如 `http://192.168.31.5:59188/mcp`
 - 传输方式：Streamable HTTP（只用 POST，返回 JSON）
 - 认证：请求头 `Authorization: Bearer ydx_...`
-
-通用 MCP 客户端配置示例：
 
 ```json
 {
@@ -42,8 +76,8 @@
 }
 ```
 
-注意：MCP 请求由 **MCP 客户端所在的机器** 发出。如果客户端跑在云端（例如由模型服务商的服务器代为调用远程 MCP），
-它访问不到局域网地址，需要让客户端运行在局域网内，或自行做内网穿透并加 HTTPS。
+MCP 请求由 **MCP 客户端所在的机器** 发出，客户端不在局域网时用方式一；也可以 `ssh -N -L 59188:127.0.0.1:59188 frybox`
+把端口转发到客户端本机后用 `http://127.0.0.1:59188/mcp`。不建议把管理端口直接暴露到公网。
 
 ## 3. 可用工具
 

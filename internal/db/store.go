@@ -11,10 +11,12 @@ import (
 
 // Store 聚合各 repository，供上层（HTTP server、account supervisor 等）统一持有。
 type Store struct {
-	DB                *sql.DB
-	Dialect           Dialect
-	Users             *Users
-	Sessions          *Sessions
+	DB       *sql.DB
+	Dialect  Dialect
+	Users    *Users
+	Sessions *Sessions
+	// APITokens 保存外部客户端（MCP）使用的 API Token 摘要与元数据。
+	APITokens         *APITokens
 	Cookies           *Cookies
 	Items             *Items
 	Cards             *Cards
@@ -81,6 +83,7 @@ func NewStore(db *sql.DB, dialect Dialect) *Store {
 		Dialect:           dialect,
 		Users:             &Users{DB: db},
 		Sessions:          &Sessions{DB: db, Dialect: dialect},
+		APITokens:         &APITokens{DB: db, Dialect: dialect},
 		Cookies:           &Cookies{DB: db, Dialect: dialect, codec: codec},
 		Items:             items,
 		Cards:             &Cards{DB: db, Dialect: dialect, codec: codec},

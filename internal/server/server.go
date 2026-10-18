@@ -197,6 +197,9 @@ func (s *Server) Router() chi.Router {
 	// 公开系统设置（无需登录，前端登录页读取主题等）。
 	s.mountPublicSettings(r)
 
+	// MCP 端点（API Token 认证），工具调用转发回本路由树。
+	s.mountMCP(r).API = r
+
 	// SPA 静态资源 catch-all（最后挂载）。
 	s.mountSPA(r)
 	return r

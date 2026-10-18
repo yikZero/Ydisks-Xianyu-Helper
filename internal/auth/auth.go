@@ -27,6 +27,8 @@ type ctxKey int
 
 const (
 	ctxKeyUser ctxKey = iota
+	// ctxKeyTrusted 保存进程内调用方（MCP 工具代理）已认证的会话；外部请求无法写入 Context，因此不可伪造。
+	ctxKeyTrusted
 )
 
 // Service 认证服务。
@@ -113,6 +115,10 @@ func (s *Service) SessionFromRequest(ctx context.Context, r *http.Request) (*db.
 // Middleware 解析会话并把 *db.Session 放入请求上下文。不强制登录（公开路由也可用）。
 func (s *Service) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if trusted, ok := r.Context().Value(ctxKeyTrusted).(*db.Session); ok && trusted != nil {
+			next.ServeHTTP(w, r.WithContext(WithSession(r.Context(), trusted)))
+			return
+		}
 		sess, err := s.SessionFromRequest(r.Context(), r)
 		if err != nil {
 			s.Logger.Warn("读取会话失败", "err", err)
@@ -154,6 +160,34 @@ func WithSession(ctx context.Context, sess *db.Session) context.Context {
 func SessionFromContext(ctx context.Context) *db.Session {
 	v, _ := ctx.Value(ctxKeyUser).(*db.Session)
 	return v
+}
+
+// TokenPrincipal 是 API Token 认证通过后的调用者身份。
+type TokenPrincipal struct {
+	// TokenID 用于审计日志定位发起调用的 Token。
+	TokenID int64
+	// UserID、Username、IsAdmin 是 Token 所属用户的身份。
+	UserID   int64
+	Username string
+	IsAdmin  bool
+	// Write 表示 Token 是否具有写权限。
+	Write bool
+}
+
+// AuthenticateAPIToken 校验 Bearer API Token。Token 无效、已吊销或用户停用时返回 db.ErrNotFound。
+func (s *Service) AuthenticateAPIToken(ctx context.Context, token string) (TokenPrincipal, error) {
+	identity, err := s.Store.APITokens.Authenticate(ctx, token)
+	if err != nil {
+		return TokenPrincipal{}, err
+	}
+	return TokenPrincipal{TokenID: identity.TokenID, UserID: identity.UserID, Username: identity.Username,
+		IsAdmin: identity.IsAdmin, Write: identity.Scope == db.APITokenScopeWrite}, nil
+}
+
+// WithTrustedPrincipal 标记进程内转发的请求已由调用方完成 Token 认证（MCP 工具代理调用管理接口）。
+// 只能由服务端代码设置，Middleware 会直接采用该身份而不读取 Cookie。
+func WithTrustedPrincipal(ctx context.Context, principal TokenPrincipal) context.Context {
+	return context.WithValue(ctx, ctxKeyTrusted, &db.Session{UserID: principal.UserID, Username: principal.Username, IsAdmin: principal.IsAdmin})
 }
 
 // SessionIdentity 是 HTTP 应用层读取当前用户身份所需的最小会话视图，不暴露数据库会话字段。

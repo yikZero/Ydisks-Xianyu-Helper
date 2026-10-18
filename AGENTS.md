@@ -8,6 +8,7 @@
 - `cmd/server/` — 服务入口、管理员初始化（`/initialize` 与 `-init-admin`）。`cmd` 只做配置、依赖构造和生命周期，不写业务。
 - `cmd/init-admin/`、`cmd/dbverify/`、`cmd/tray/`、`cmd/browser-install/` — 运维与桌面辅助程序。
 - `internal/server/` — chi HTTP API 与 SPA 静态资源（只做 transport）。
+- `internal/mcp/` — `/mcp` 端点（MCP Streamable HTTP），API Token 认证后把工具调用转发到 `/api/v1`，见 `docs/mcp.md`。
 - `internal/application/` — 应用服务：用例编排、鉴权、事务边界。
 - `internal/adapter/` — 装配层，把 engine/automation 的接口接到数据库、浏览器、平台和通知。
 - `internal/account/` — 已启用账号的运行时监管。
